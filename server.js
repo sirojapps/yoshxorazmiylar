@@ -63,6 +63,9 @@ CREATE TABLE IF NOT EXISTS tg_requests(id INTEGER PRIMARY KEY, chat_id TEXT, pho
   student_id INTEGER, by INTEGER, at TEXT);
 `);
 
+// yangi ustunlar (eski bazaga ham qo'shiladi)
+try { db.exec("ALTER TABLE messages ADD COLUMN edited TEXT DEFAULT ''"); } catch (e) { }
+
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
 const all = (sql, ...a) => db.prepare(sql).all(...a);
@@ -838,6 +841,20 @@ A['thread.reply'] = (u, b) => {
   need(threadAccess(u, t).reply, 'Bu yozishmaga javob yoza olmaysiz');
   const txt = str(b.text, 3000); const image = cleanImage(b.image); if (!txt && !image) bad('Xabar bo‘sh');
   addMessage(u, t, txt, image); return {};
+};
+A['msg.edit'] = (u, b) => { // faqat o'z xabarini tahrirlaydi
+  const m = one('SELECT * FROM messages WHERE id=?', b.id); if (!m) bad('Xabar topilmadi');
+  need(m.user_id === u.id, 'Faqat o‘z xabaringizni tahrirlay olasiz');
+  const txt = str(b.text, 3000); if (!txt && !m.image) bad('Xabar bo‘sh');
+  if (txt === m.text) return {};
+  run('UPDATE messages SET text=?,edited=? WHERE id=?', txt, now(), m.id);
+  log(u.id, 'xabar.tahrir', { id: m.id, old: m.text, new: txt }); return {};
+};
+A['msg.delete'] = (u, b) => { // o'z xabarini o'chiradi; CEO istalgan xabarni o'chira oladi
+  const m = one('SELECT * FROM messages WHERE id=?', b.id); if (!m) return {};
+  need(m.user_id === u.id || u.role === 'ceo', 'Faqat o‘z xabaringizni o‘chira olasiz');
+  run('DELETE FROM messages WHERE id=?', m.id);
+  log(u.id, 'xabar.ochirish', { id: m.id, thread_id: m.thread_id, by: m.user_id, text: m.text, image: !!m.image }); return {};
 };
 A['thread.status'] = (u, b) => {
   const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');

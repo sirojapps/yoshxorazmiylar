@@ -166,7 +166,17 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .bubble{max-width:86%;align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:9px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
 .bubble.me{align-self:flex-end;background:var(--accent-soft);border-color:transparent;border-radius:14px 14px 4px 14px}
 .bubble .who{font-size:11.5px;color:var(--muted);margin-bottom:3px}
-.bubble img{display:block;max-width:100%;border-radius:10px;margin-top:6px}
+.bubble img{display:block;max-width:100%;border-radius:10px;margin-top:6px;cursor:zoom-in}
+.bubble .who{display:flex;align-items:center;gap:6px}
+.bubble .mm{margin-left:auto;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 2px 0 8px;cursor:pointer}
+.bubble .ma{display:flex;gap:14px;margin-top:8px;padding-top:7px;border-top:1px solid var(--line)}
+.bubble .ma button{border:0;background:none;padding:2px 0;font:inherit;font-size:13.5px;font-weight:600;color:var(--accent-strong);cursor:pointer}
+.bubble .ma button.del{color:var(--wrong)}
+.bubble .ed{font-size:11px;color:var(--muted);margin-top:3px;text-align:right}
+.zoom{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;overflow:auto}
+.zoom img{max-width:100%;max-height:100%;object-fit:contain;touch-action:pinch-zoom}
+.zoom .zb{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:10px;right:12px}
+.zoom .zb a,.zoom .zb button{display:inline-grid;place-items:center;height:42px;min-width:42px;padding:0 14px;border-radius:21px;border:0;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer}
 .offline{background:var(--gold-soft);color:var(--fg);font-size:13px;padding:8px 14px;border-radius:10px}
 @media (min-width:900px){
 .app:has(> .tabs){max-width:none;margin:0 0 0 256px}
@@ -834,24 +844,36 @@ function scrMessages(){
   return ['Xabarlar','',`${top}<div class="card list">${list.map(thRow).join('')||'<div class="empty">Hali xabar yo’q</div>'}</div>`]}
 
 // ---------------- thread view
-let THV=null, draftImg='';
-async function openThread(id){try{THV=await api('thread.get',{id});draftImg='';drawThread();TH=null;load()}catch(e){toast(e.message,true)}}
+let THV=null, draftImg='', msgMenu=0, editMsg=0;
+async function openThread(id){try{THV=await api('thread.get',{id});draftImg='';msgMenu=0;editMsg=0;drawThread();TH=null;load()}catch(e){toast(e.message,true)}}
 function drawThread(){
   const {thread:t,msgs,names,readBy,student,result,reply}=THV; const lead=S.me.role==='ceo'||P('sardor')||P('xabar');
   const lastMine=[...msgs].reverse().find(m=>m.user_id===S.me.id);
   const seen=lastMine&&readBy.some(r=>r.at>=lastMine.at);
   openSheet(`<div class="sh-top"><div class="m"><h2 style="font-size:18px">${esc(t.title)}</h2><div class="s">${t.kind==='jamoa'?(TOPIC_L[t.topic]||'')+' · '+(t.status==='hal'?'hal qilingan':'ochiq'):''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    ${student&&result?`<div class="card pad" style="flex-direction:row;align-items:center"><div class="m" style="flex:1"><b>${esc(student.name)}</b><div class="note">${student.num}-maktab · ${esc(student.cls)} · ${esc(result.name)}</div></div><div class="num">${result.absent?'kelmadi':result.score+'/'+result.qn}</div></div>`:''}
-   <div class="msgs">${msgs.map(m=>`<div class="bubble ${m.user_id===S.me.id?'me':''}"><div class="who">${m.user_id===S.me.id?'Siz':esc(names[m.user_id])} · ${fmtDate(m.at)}</div>${m.text?`<div>${esc(m.text)}</div>`:''}${m.image?`<img src="${m.image}" alt="Biriktirilgan rasm">`:''}</div>`).join('')}</div>
+   <div class="msgs">${msgs.map(m=>{const me=m.user_id===S.me.id;const can=me||S.me.role==='ceo';
+    return `<div class="bubble ${me?'me':''}"><div class="who"><span>${me?'Siz':esc(names[m.user_id])} · ${fmtDate(m.at)}</span>${can?`<button class="mm" data-act="msgMenu" data-id="${m.id}" aria-label="Xabar amallari">⋯</button>`:''}</div>${m.text?`<div>${esc(m.text)}</div>`:''}${m.image?`<img src="${m.image}" alt="Biriktirilgan rasm" data-zoom>`:''}${m.edited?'<div class="ed">tahrirlangan</div>':''}
+     ${msgMenu===m.id?`<div class="ma">${me&&m.text?`<button data-act="msgEdit" data-id="${m.id}">Tahrirlash</button>`:''}<button class="del" data-act="msgDel" data-id="${m.id}">O’chirish</button></div>`:''}</div>`}).join('')}</div>
    ${seen?'<p class="note" style="text-align:right">o’qildi ✓</p>':''}
-   ${reply?`<label class="field"><textarea id="rpText" placeholder="Javob yozing…" style="min-height:80px"></textarea></label>
+   ${editMsg?`<div class="card pad"><p class="label" style="margin:0">Xabarni tahrirlash</p><label class="field"><textarea id="edText" style="min-height:80px">${esc(msgs.find(m=>m.id===editMsg)?.text||'')}</textarea></label>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="msgEditCancel">Bekor qilish</button><button class="btn pri" data-act="msgEditSave">Saqlash</button></div></div>`:''}
+   ${reply&&!editMsg?`<label class="field"><textarea id="rpText" placeholder="Javob yozing…" style="min-height:80px"></textarea></label>
    ${draftImg?`<div class="card pad"><img src="${draftImg}" style="max-height:140px;object-fit:contain" alt=""><button class="lnk" data-act="rpImgDel">Rasmni olib tashlash</button></div>`:''}
    <div style="display:grid;grid-template-columns:auto 1fr;gap:10px"><button class="btn sec" data-act="rpImg">Rasm</button><button class="btn pri" data-act="rpSend">Yuborish</button></div>`:t.kind==='sinf'&&S.me.role==='ota'?`<p class="note">Bu butun sinfga yuborilgan xabar. Savolingiz bo’lsa, “Ustozga yozish” orqali yozing.</p>`:''}
    <div style="display:flex;gap:10px;flex-wrap:wrap">${t.kind==='jamoa'&&lead?`<button class="btn sec sm" data-act="thStatus" data-s="${t.status==='hal'?'ochiq':'hal'}">${t.status==='hal'?'Qayta ochish':'Hal qilindi'}</button>`:''}
    ${t.kind==='ota'&&S.me.role==='rahbar'?`<button class="btn sec sm" data-act="thForward">Jamoaga yuborish</button>`:''}
    ${student&&isTeam()?`<button class="btn sec sm" data-act="thProfile" data-id="${student.id}">Bola profili</button>`:''}</div>`);
+  if(editMsg){const e=$('#edText');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);e.scrollIntoView({block:'center'})}return}
+  if(msgMenu)return;
   const m=$('#sheet .msgs');if(m)m.lastElementChild?.scrollIntoView({block:'end'});
 }
+// rasmni katta qilib ko'rsatish
+function zoomImg(src){closeZoom();const z=document.createElement('div');z.className='zoom';z.id='zoom';
+  z.innerHTML=`<img src="${src}" alt="Rasm"><div class="zb"><a href="${src}" download="rasm.jpg">Saqlash</a><button data-zclose aria-label="Yopish">✕</button></div>`;
+  z.addEventListener('click',e=>{if(e.target===z||e.target.closest('[data-zclose]'))closeZoom()});document.body.appendChild(z)}
+function closeZoom(){$('#zoom')?.remove()}
+document.addEventListener('click',e=>{const i=e.target.closest('img[data-zoom]');if(i){e.preventDefault();zoomImg(i.src)}});
 let CMP=null;
 function openCompose(kind){
   CMP={kind,img:''};const r=S.me.role;
@@ -973,7 +995,7 @@ function scrExParent(){
   return ['Mashq',kid?esc(kid.name):'',`${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
   <p class="note">Har kuni yangi mashq. Farzandingiz bilan birga yeching, javobni u o’zi tanlasin.</p>
   ${rows.map(e=>{const a=e.answers?.[kid.id];return `<div class="card pad"><div class="sec-h"><span class="label">${e.day===EXL.today?'Bugungi mashq':e.day.split('-').reverse().join('.')}</span>${a?`<span class="pill ${a.correct?'ok':'warn'}">${a.correct?'to’g’ri':'xato'}</span>`:''}</div>
-   <div style="font-size:17px;white-space:pre-wrap">${esc(e.text)}</div>${e.image?`<img src="${e.image}" alt="Mashq rasmi" style="border-radius:10px">`:''}
+   <div style="font-size:17px;white-space:pre-wrap">${esc(e.text)}</div>${e.image?`<img src="${e.image}" alt="Mashq rasmi" style="border-radius:10px;cursor:zoom-in" data-zoom>`:''}
    <div style="display:flex;flex-direction:column;gap:8px">${e.options.map((o,i)=>{const L='ABCDE'[i];const cls=a?(L===e.answer?'pri':L===a.choice?'dan':'sec'):'sec';
      return `<button class="btn ${cls}" style="justify-content:flex-start" ${a?'disabled':''} data-exa="${e.id}" data-l="${L}">${L}) ${esc(o)}</button>`}).join('')}</div>
    ${a&&e.explain?`<p class="note">${esc(e.explain)}</p>`:''}</div>`}).join('')||'<div class="card empty">Hozircha mashq yo’q. Tez orada qo’shiladi.</div>'}`]}
@@ -1028,6 +1050,11 @@ document.addEventListener('click',async e=>{
    case 'rpImg':pickImage(u=>{const t=val('rpText');draftImg=u;drawThread();$('#rpText').value=t});break;
    case 'rpImgDel':{const t=val('rpText');draftImg='';drawThread();$('#rpText').value=t;break}
    case 'rpSend':{const t=val('rpText');if(!t&&!draftImg)break;await api('thread.reply',{id:THV.thread.id,text:t,image:draftImg});openThread(THV.thread.id);break}
+   case 'msgMenu':{const id=+d.id;msgMenu=msgMenu===id?0:id;editMsg=0;drawThread();break}
+   case 'msgEdit':{editMsg=+d.id;msgMenu=0;drawThread();break}
+   case 'msgEditCancel':{editMsg=0;drawThread();break}
+   case 'msgEditSave':{const t=val('edText');await api('msg.edit',{id:editMsg,text:t});toast('Tahrirlandi');openThread(THV.thread.id);break}
+   case 'msgDel':{if(!confirm('Xabar o’chirilsinmi? Uni qaytarib bo’lmaydi.'))break;await api('msg.delete',{id:+d.id});toast('O’chirildi');TH=null;openThread(THV.thread.id);break}
    case 'thStatus':await api('thread.status',{id:THV.thread.id,status:d.s});toast(d.s==='hal'?'Hal qilindi':'Qayta ochildi');openThread(THV.thread.id);break;
    case 'thForward':{const r=await api('thread.forward',{id:THV.thread.id});toast('Jamoaga yuborildi');openThread(r.id);break}
    case 'thProfile':closeSheet();stack.push('stu:'+d.id);render();break;
@@ -1127,6 +1154,7 @@ function navDo(){navT=0;if(navSkip)return;const d=appDepth();
   try{if(d>histD){for(let i=histD+1;i<=d;i++)history.pushState({yxd:i},'');histD=d}
   else if(d<histD){const n=d-histD;histD=d;navSkip=1;history.go(n)}}catch(e){}}
 addEventListener('popstate',e=>{
+  if($('#zoom')&&!navSkip){closeZoom();try{history.pushState({yxd:histD},'')}catch(_){}return} // orqaga: avval kattalashtirilgan rasm yopiladi
   if(navSkip){navSkip=0;navDo();return}
   const d=+(e.state?.yxd||0);
   while(appDepth()>d){
