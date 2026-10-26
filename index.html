@@ -253,6 +253,7 @@ const ROLE_L={ceo:'CEO',jamoa:'Jamoa',direktor:'Direktor',rahbar:'Sinf rahbari',
 
 // ================================================================ state
 let S=null;            // server state
+let homeSchool=0, homeClass=0;
 let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola', q='', qSchool=0;
 let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
@@ -318,11 +319,13 @@ function qGrid(r){if(r&&!r.absent&&r.mode==='ball')return `<div class="card pad"
 
 // ================================================================ screens: team
 function scrTeamHome(){
-  const t=curTest(); const st=X.st; const p=present(st); const gifted=giftedSet();
-  const entered=st.filter(s=>R(s.id)).length;
-  return ['Yosh Xorazmiylar','Qorako’l tumani',`
+  if(homeSchool&&!S.schools.some(x=>x.id===homeSchool))homeSchool=0;
+  const t=curTest(); const st=homeSchool?X.st.filter(s=>s.school_id===homeSchool):X.st; const p=present(st); const gifted=giftedSet();
+  const entered=st.filter(s=>R(s.id)).length; const hsc=homeSchool?X.sc[homeSchool]:null;
+  return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`
+  ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
   ${stageBox(t)}
-  ${kpis([[S.schools.length,'maktab'],[S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
+  ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
   ${t?annBox(t):''}
   ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}
   ${gifted.size?`<section class="sec"><div class="sec-h"><p class="label">Iqtidorli bolalar</p><span class="pill gold">★ ${gifted.size} ta</span></div>
@@ -332,7 +335,7 @@ function scrTeamHome(){
   ${!S.tests.length&&P('maktab')?`<button class="btn pri" data-act="testEdit">Birinchi sinovni yaratish</button>`:''}`]}
 function annBox(t){
   const ap=S.approvals?.[t.id]||{}; const canAp=S.me.role==='ceo'||P('sardor');
-  const rows=S.schools.map(sc=>{const list=X.st.filter(s=>s.school_id===sc.id);const n=list.filter(s=>R(s.id)).length;if(!n)return'';
+  const rows=S.schools.filter(sc=>!homeSchool||sc.id===homeSchool).map(sc=>{const list=X.st.filter(s=>s.school_id===sc.id);const n=list.filter(s=>R(s.id)).length;if(!n)return'';
     const a=ap[sc.id]||{};const mine=a.by?.includes(S.me.id);
     const st=a.done?`<span class="pill ok">e’lon qilindi</span>`:`<span class="pill gray">${a.ceo?'CEO ✓':'CEO'} · ${a.hasSardor?(a.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}</span>`;
     return `<div class="row"><div class="m"><div class="n">${sc.num}-maktab</div><div class="s">${n} / ${list.length} kiritildi</div></div>
@@ -538,15 +541,17 @@ function scrResImport(){return ['Natijalarni import qilish',curTest()?.name||'',
 
 // ================================================================ screens: school side
 function scrDirHome(){
-  const sc=S.schools[0]; const t=S.tests[0]; const l=X.st;
+  if(homeClass&&!S.classes.some(c=>c.id===homeClass))homeClass=0;
+  const sc=S.schools[0]; const t=S.tests[0]; const l=homeClass?X.st.filter(s=>s.class_id===homeClass):X.st; const hc=homeClass?X.cl[homeClass]:null;
   if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>`];
   testId=t.id;
   const dist=[...new Set(l.map(s=>s.grade))].sort((a,b)=>a-b).map(g=>[g,S.district?.[t.id+':'+g]]).filter(x=>x[1]!=null);
   return [`${sc.num}-maktab`,t.name,`${tabrikCard('direktor')}
-  ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%','maktab o’rtacha']])}
+  ${S.classes.length>1?`<div class="seg"><button data-hc="0" aria-pressed="${!homeClass}">Hammasi</button>${[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<button data-hc="${c.id}" aria-pressed="${homeClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
+  ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%',hc?`${esc(hc.name)} o’rtacha`:'maktab o’rtacha']])}
   ${gradeBars(l)}
-  ${dist.length?`<section class="sec"><p class="label">Tuman o’rtachasi bilan</p><div class="card cmp">${dist.map(([g,v])=>{const m=avgPct(l.filter(s=>s.grade===g));return `<div class="r"><span>${g}-sinf · maktab</span><div class="track"><i style="width:${m}%;background:var(--accent)"></i></div><b class="num">${m}%</b></div><div class="r"><span>${g}-sinf · tuman</span><div class="track"><i style="width:${v}%;background:var(--low)"></i></div><b class="num">${v}%</b></div>`}).join('')}</div></section>`:`<p class="note">Tuman o’rtachasi bilan solishtirma sinov yakunlangach ochiladi.</p>`}
-  <section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>{const cl=l.filter(s=>s.class_id===c.id);const v=avgPct(cl);return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${present(cl).length} / ${cl.length} qatnashdi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div><div class="num">${v??'—'}%</div>${I.chev}</button>`}).join('')}</div></section>`]}
+  ${dist.length?`<section class="sec"><p class="label">Tuman o’rtachasi bilan</p><div class="card cmp">${dist.map(([g,v])=>{const m=avgPct(l.filter(s=>s.grade===g));return `<div class="r"><span>${hc?esc(hc.name):g+'-sinf · maktab'}</span><div class="track"><i style="width:${m}%;background:var(--accent)"></i></div><b class="num">${m}%</b></div><div class="r"><span>${g}-sinf · tuman</span><div class="track"><i style="width:${v}%;background:var(--low)"></i></div><b class="num">${v}%</b></div>`}).join('')}</div></section>`:`<p class="note">Tuman o’rtachasi bilan solishtirma sinov yakunlangach ochiladi.</p>`}
+  <section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.filter(c=>!homeClass||c.id===homeClass).map(c=>{const cl=l.filter(s=>s.class_id===c.id);const v=avgPct(cl);return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${present(cl).length} / ${cl.length} qatnashdi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div><div class="num">${v??'—'}%</div>${I.chev}</button>`}).join('')}</div></section>`]}
 function scrDirAnalysis(){const l=X.st;return ['Tahlil',`${S.schools[0]?.num}-maktab`,`${hardBox(l,'Maktab bolalari eng qiynalgan savollar')||'<div class="card empty">Hali ma’lumot yo’q</div>'}
   <section class="sec"><p class="label">Sinovlar tarixi</p><div class="card list">${S.tests.map(t=>`<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${present(l,t.id).length} ta bola qatnashdi</div></div><div class="num">${avgPct(l,t.id)??'—'}%</div></div>`).join('')||'<div class="empty">Yo’q</div>'}</div></section>`]}
 function scrRahbar(){const c=S.classes[0];if(!c)return['Sinfim','',''];if(S.tests[0])testId=S.tests[0].id;
@@ -940,6 +945,7 @@ document.addEventListener('click',async e=>{
   if(d.rg){rGrade=+d.rg;render();return}
   if(d.rm){rMode=d.rm;render();return}
   if(d.qs!=null){qSchool=+d.qs;render();return}
+  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.hc!=null){homeClass=+d.hc;render();return}
   if(d.child){child=+d.child;render();return}
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
   if(d.bit!=null){E.bits[d.bit]=E.bits[d.bit]==='1'?'0':'1';drawEntry();return}
