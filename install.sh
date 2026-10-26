@@ -30,7 +30,7 @@ curl -fsSL "$REPO/server.js?$TS"  -o "$APP/server.js.new"
 curl -fsSL "$REPO/index.html?$TS" -o "$APP/public/index.html.new"
 grep -q "Yosh Xorazmiylar" "$APP/server.js.new" || { echo "server.js yuklanmadi. GitHub'dagi fayl nomini tekshiring."; exit 1; }
 grep -q "YOSH XORAZMIYLAR" "$APP/public/index.html.new" || { echo "index.html yuklanmadi. GitHub'dagi fayl nomini tekshiring."; exit 1; }
-node --check "$APP/server.js.new"
+cp "$APP/server.js.new" /tmp/yx-check.js && node --check /tmp/yx-check.js && rm -f /tmp/yx-check.js
 mv "$APP/server.js.new" "$APP/server.js"
 mv "$APP/public/index.html.new" "$APP/public/index.html"
 chown -R yx:yx "$APP"
