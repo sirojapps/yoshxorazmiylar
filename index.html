@@ -333,6 +333,9 @@ const ROLE_L={ceo:'CEO',jamoa:'Jamoa',direktor:'Direktor',rahbar:'Sinf rahbari',
 let S=null;            // server state
 let homeSchool=0, homeClass=0, gq='', schGrade=0, schClass=0;
 let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola', q='', qSchool=0;
+// sahifa yangilanganda (refresh) o'sha sahifada qolish uchun joriy holatni eslab qolamiz
+const NAV={get(){try{return JSON.parse(sessionStorage.getItem('yx_nav')||'null')}catch(e){return null}},set(v){try{sessionStorage.setItem('yx_nav',JSON.stringify(v))}catch(e){}}};
+(function(){const n=NAV.get();if(n){if(typeof n.tab==='string')tab=n.tab;if(Array.isArray(n.stack))stack=n.stack.filter(x=>typeof x==='string').slice(-20);if(n.hs!=null)window.__hs=n.hs}})();
 let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
 const isTeam=()=>S&&(S.me.role==='ceo'||S.me.role==='jamoa');
@@ -678,7 +681,7 @@ function scrTeam(){
   return ['Jamoa','',`${(S.team||[]).filter(u=>u.role==='jamoa'&&u.active).map(u=>`<button class="row card" data-act="teamEdit" data-id="${u.id}"><div class="m"><div class="n">${esc(u.name)} ${u.perms.sardor?'<span class="pill gold">sardor</span>':''}</div>
     <div class="s">${Object.entries(u.perms).filter(([k,v])=>v&&k!=='sardor').length} ta huquq · ${u.last_login?'oxirgi kirish '+fmtDate(u.last_login):'hali kirmagan'} · ${(S.results||[]).filter(r=>r.entered_by===u.id).length} ta kiritgan</div></div>${I.chev}</button>`).join('')||'<div class="card empty">Hali a’zo yo’q</div>'}
     <button class="btn pri" data-act="teamEdit">+ A’zo qo’shish</button>`]}
-let HIST=null, histStudent=null;
+let HIST=null, histStudent=window.__hs??null;
 const ACT_L={'natija.kiritish':'Natija kiritdi','natija.tuzatish':'Natijani tuzatdi','natija.ochirish':'Natijani o’chirdi','kalit.kiritish':'Kalit kiritdi','kalit.tuzatish':'Kalitni tuzatdi','oquvchi.qoshish':'O’quvchi qo’shdi','oquvchi.tahrir':'O’quvchini tahrirladi','oquvchi.ochirish':'O’quvchini o’chirdi','oquvchi.qaytarish':'O’quvchini qaytardi','maktab.qoshish':'Maktab qo’shdi','maktab.tahrir':'Maktabni tahrirladi','sinf.qoshish':'Sinf qo’shdi','sinf.tahrir':'Sinfni tahrirladi','royxat.import':'Ro’yxat yukladi','sinov.qoshish':'Sinov yaratdi','sinov.tahrir':'Sinovni tahrirladi','elon.tasdiq':'E’lonni tasdiqladi','yakunlash.tasdiq':'Yakunlashni tasdiqladi','tasdiq.bekor':'Tasdiqni bekor qildi','pin.berish':'PIN berdi','pin.yangilash':'Yangi PIN berdi','pin.ochirish':'PIN o’chirdi','jamoa.qoshish':'Jamoaga qo’shdi','jamoa.huquq':'Huquqlarni o’zgartirdi','jamoa.chiqarish':'Jamoadan chiqardi','zaxira.yuklab_olish':'Zaxira yukladi','rozilik':'Rozilik berdi'};
 function scrHistory(){
   if(!HIST){api('audit',histStudent?{student_id:histStudent}:{}).then(d=>{HIST=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’zgarishlar tarixi','',`<div class="empty">Yuklanmoqda…</div>`]}
@@ -1059,6 +1062,7 @@ function render(){
   X=idx();
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
+  NAV.set({tab,stack,hs:histStudent??null});
   document.body.dataset.theme=THEME[tab]||'sky';
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
