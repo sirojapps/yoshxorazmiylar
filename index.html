@@ -1102,17 +1102,27 @@ function renderConsent(){
 }
 function openSheet(html){const el=$('#sheet');el.innerHTML=`<div class="in gut">${html}</div>`;el.hidden=false;document.body.style.overflow='hidden';navSync()}
 function closeSheet(){const el=$('#sheet');el.hidden=true;el.innerHTML='';document.body.style.overflow='';E=null}
-// ---- telefonning "orqaga" tugmasi: saytdagi ◀ tugmasi bilan bir xil ishlaydi
-let navGuard=false;
+// ---- telefonning "orqaga" tugmasi: saytdagi ◀ tugmasi bilan bir xil ishlaydi.
+// Har bir chuqurlik darajasi uchun bosish paytida bitta tarix qadami qo'shiladi (Chrome bosilmasdan qo'shilgan qadamlarni o'tkazib yuboradi).
+let histD=+(history.state?.yxd||0),navSkip=0,navT=0,exitArmed=false;
 function firstTab(){if(!S)return null;const t=TABS[isTeam()?'team':S.me.role]();return t[0]?.[0]||null}
-function navDeep(){return !!S&&(!$('#sheet').hidden||stack.length>0||(tab&&tab!==firstTab()))}
-function navSync(){if(navDeep()&&!navGuard){try{history.pushState({yx:1},'')}catch(e){}navGuard=true}}
-addEventListener('popstate',()=>{navGuard=false;
-  if(!$('#sheet').hidden)closeSheet();
-  else if(stack.length){stack.pop();render();scrollTo(0,0)}
-  else if(S&&tab&&tab!==firstTab()){tab=firstTab();stack=[];render();scrollTo(0,0)}
-  else{history.back();return}
-  navSync()});
+function appDepth(){if(!S)return 0;return (exitArmed?0:1)+(!$('#sheet').hidden?1:0)+stack.length+(tab&&tab!==firstTab()?1:0)}
+function navSync(){if(!navT)navT=setTimeout(navDo,0)}
+function navDo(){navT=0;if(navSkip)return;const d=appDepth();
+  try{if(d>histD){for(let i=histD+1;i<=d;i++)history.pushState({yxd:i},'');histD=d}
+  else if(d<histD){const n=d-histD;histD=d;navSkip=1;history.go(n)}}catch(e){}}
+addEventListener('popstate',e=>{
+  if(navSkip){navSkip=0;navDo();return}
+  const d=+(e.state?.yxd||0);
+  while(appDepth()>d){
+    if(!$('#sheet').hidden)closeSheet();
+    else if(stack.length)stack.pop();
+    else if(tab&&tab!==firstTab()){tab=firstTab();stack=[]}
+    else break}
+  if(d===0&&S&&!exitArmed){exitArmed=true;toast('Chiqish uchun yana bir marta bosing')}
+  histD=d;render();scrollTo(0,0)});
+// Bosh sahifada: birinchi "orqaga" — ogohlantirish, ikkinchisi — chiqish. Har qanday bosish himoyani qayta yoqadi.
+addEventListener('pointerdown',()=>{if(exitArmed){exitArmed=false}navSync()},true);
 function go(k){stack.push(k);if(k==='pins')PINS=null;if(k==='history'){HIST=null;histStudent=null}if(k==='mashq')EXL=null;if(k==='settings')SET=null;render();scrollTo(0,0)}
 
 // ================================================================ forms
