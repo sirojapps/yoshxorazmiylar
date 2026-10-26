@@ -113,7 +113,7 @@ function score(testId, grade, mode, answers, bits) {
 }
 function rescoreTest(testId) {
   const rows = all(`SELECT r.id,r.mode,r.answers,r.bits,c.grade FROM results r JOIN students s ON s.id=r.student_id
-    JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND r.absent=0`, testId);
+    JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND r.absent=0 AND r.mode!='ball'`, testId);
   for (const r of rows) { const s = score(testId, r.grade, r.mode, r.answers, r.bits); run('UPDATE results SET bits=?,score=?,qn=? WHERE id=?', s.bits, s.score, s.qn, r.id); }
   return rows.length;
 }
@@ -167,9 +167,9 @@ function state(u) {
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
-  let studs = all(`SELECT id,class_id,name,phone FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  let studs = all(`SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name }));
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
   const sIds = studs.map(s => s.id);
@@ -256,6 +256,19 @@ A['student.save'] = (u, b) => {
   const r = run('INSERT INTO students(class_id,name,phone,birth_year,address,created_at) VALUES(?,?,?,?,?,?)', b.class_id, name, phone9(b.phone), by, str(b.address), now());
   log(u.id, 'oquvchi.qoshish', { id: Number(r.lastInsertRowid), name, class_id: b.class_id }); return { id: Number(r.lastInsertRowid) };
 };
+// tug'ilgan yil va manzilni ota-ona (o'z farzandi) yoki sinf rahbari (o'z sinfi) kiritadi
+A['student.info'] = (u, b) => {
+  const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
+  const ok = can(u, 'maktab') || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id));
+  need(ok);
+  const y = String(b.birth_year || '').trim(); const by = y ? parseInt(y, 10) : null;
+  const max = new Date().getFullYear() - 4;
+  if (y && !(by >= 2005 && by <= max)) bad('Tug‘ilgan yilni to‘g‘ri yozing (masalan, 2018)');
+  const addr = str(b.address, 200);
+  run('UPDATE students SET birth_year=?,address=? WHERE id=?', by, addr, s.id);
+  log(u.id, 'oquvchi.malumot', { id: s.id, old: { birth_year: s.birth_year, address: s.address }, new: { birth_year: by, address: addr } });
+  return {};
+};
 A['student.delete'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
 A['student.restore'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=1 WHERE id=?', b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
 A['students.import'] = (u, b) => {
@@ -265,18 +278,23 @@ A['students.import'] = (u, b) => {
   return tx(() => {
     let sc = one('SELECT id FROM schools WHERE num=?', num);
     if (!sc) sc = { id: Number(run('INSERT INTO schools(num,created_at) VALUES(?,?)', num, now()).lastInsertRowid) };
-    let added = 0, skipped = 0, newCls = 0;
+    let added = 0, skipped = 0, newCls = 0, results = 0, absents = 0; const bad_ = [];
+    const t = b.test_id ? one('SELECT id FROM tests WHERE id=?', b.test_id) : null;
+    const withScore = (sid, r) => { const v = String(r.score ?? '').trim(); if (!t || v === '') return;
+      if (!can(u, 'kiritish')) return;
+      const abs = /^(kelmadi|yo.?q|-)$/i.test(v); try { A['result.save'](u, abs ? { test_id: t.id, student_id: sid, absent: 1 } : { test_id: t.id, student_id: sid, mode: 'ball', score: v }); if (abs) absents++; else results++; } catch (e) { bad_.push(r.name + ': ' + e.message); } };
     for (const r of rows) {
       const name = str(r.name, 120).split(' ').slice(0, 2).join(' '); const cn = clsName(r.cls);
       if (name.split(' ').length < 2 || !cn) { skipped++; continue; }
       let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', sc.id, cn);
       if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, cn, gradeOf(cn)).lastInsertRowid) }; newCls++; }
       const ex = one('SELECT id,phone FROM students WHERE class_id=? AND lower(name)=lower(?)', c.id, name);
-      if (ex) { if (!ex.phone && phone9(r.phone)) run('UPDATE students SET phone=? WHERE id=?', phone9(r.phone), ex.id); skipped++; continue; }
-      run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, phone9(r.phone), now()); added++;
+      if (ex) { if (!ex.phone && phone9(r.phone)) run('UPDATE students SET phone=? WHERE id=?', phone9(r.phone), ex.id); skipped++; withScore(ex.id, r); continue; }
+      const sid = Number(run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, phone9(r.phone), now()).lastInsertRowid); added++;
+      withScore(sid, r);
     }
-    log(u.id, 'royxat.import', { num, added, skipped, newCls });
-    return { added, skipped, newCls };
+    log(u.id, 'royxat.import', { num, added, skipped, newCls, results, absents });
+    return { added, skipped, newCls, results, absents, errors: bad_ };
   });
 };
 
@@ -311,11 +329,18 @@ A['result.save'] = (u, b) => {
   if (old && old.entered_by !== u.id) need(can(u, 'tuzatish'), 'Bu natijani boshqa a‘zo kiritgan. Tuzatish huquqi kerak');
   if (announced(t.id, s.school_id)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
   const absent = b.absent ? 1 : 0;
-  const sc = absent ? { answers: '', bits: '', score: 0, qn: 20 } : score(t.id, s.grade, b.mode === 'harf' ? 'harf' : 'belgi', b.answers, b.bits);
+  const mode = ['harf', 'ball'].includes(b.mode) ? b.mode : 'belgi';
+  let sc;
+  if (absent) sc = { answers: '', bits: '', score: 0, qn: 20 };
+  else if (mode === 'ball') { // faqat umumiy ball (qo'lda hisoblangan varaqlar)
+    const qn = keyFor(t.id, s.grade)?.length || 20; const v = parseInt(b.score, 10);
+    if (!(v >= 0 && v <= qn)) bad(`Ball 0 dan ${qn} gacha bo‘lishi kerak`);
+    sc = { answers: '', bits: '', score: v, qn };
+  } else sc = score(t.id, s.grade, mode, b.answers, b.bits);
   run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) VALUES(?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(test_id,student_id) DO UPDATE SET absent=excluded.absent,mode=excluded.mode,answers=excluded.answers,bits=excluded.bits,
     score=excluded.score,qn=excluded.qn,entered_by=excluded.entered_by,at=excluded.at`,
-    t.id, s.id, absent, b.mode === 'harf' ? 'harf' : 'belgi', sc.answers, sc.bits, sc.score, sc.qn, u.id, now());
+    t.id, s.id, absent, mode, sc.answers, sc.bits, sc.score, sc.qn, u.id, now());
   if (old) log(u.id, 'natija.tuzatish', { student_id: s.id, test_id: t.id, old: { absent: old.absent, score: old.score, bits: old.bits, answers: old.answers }, new: { absent, ...sc } });
   else log(u.id, 'natija.kiritish', { student_id: s.id, test_id: t.id, absent, score: sc.score });
   return { score: sc.score, qn: sc.qn };
