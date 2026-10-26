@@ -95,6 +95,29 @@ cat > /etc/cron.d/yx-backup <<EOF
 EOF
 chmod 644 /etc/cron.d/yx-backup
 
+# Avtomatik yangilanish: GitHub'ga yangi fayl yuklansa, server 5 daqiqa ichida o'zi o'rnatadi.
+cat > /usr/local/bin/yx-update <<'UPD'
+#!/bin/bash
+# GitHub'dagi server.js va index.html o'zgargan bo'lsa, saytni o'zi yangilaydi.
+R="https://raw.githubusercontent.com/sirojapps/yoshxorazmiylar/main"
+exec 9>/run/yx-update.lock; flock -n 9 || exit 0
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+TS=$(date +%s)
+curl -fsSL "$R/server.js?$TS" -o "$T/s" || exit 0
+curl -fsSL "$R/index.html?$TS" -o "$T/i" || exit 0
+cmp -s "$T/s" /opt/yx/server.js && cmp -s "$T/i" /opt/yx/public/index.html && exit 0
+H=$(cat "$T/s" "$T/i" | sha256sum | cut -c1-16)
+[ "$(cat /opt/yx/.last-try 2>/dev/null)" = "$H" ] && exit 0
+echo "=== $(date '+%F %T') yangilanish boshlandi" >> /var/log/yx-update.log
+curl -fsSL "$R/install.sh?$TS" | bash >> /var/log/yx-update.log 2>&1 \
+  && echo "=== $(date '+%F %T') muvaffaqiyatli" >> /var/log/yx-update.log \
+  || { echo "$H" > /opt/yx/.last-try; echo "=== $(date '+%F %T') XATO, eski versiya ishlab turibdi" >> /var/log/yx-update.log; }
+UPD
+chmod 755 /usr/local/bin/yx-update
+echo "*/5 * * * * root /usr/local/bin/yx-update" > /etc/cron.d/yx-update
+chmod 644 /etc/cron.d/yx-update
+echo "Avtomatik yangilanish yoqildi: GitHub'ga yuklangan fayllar 5 daqiqa ichida saytga o'zi o'rnatiladi."
+
 say "7/7 Tayyor!"
 echo "Sayt: https://$DOMAIN"
 if [ -f "$APP/data/ceo-pin.txt" ]; then
