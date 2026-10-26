@@ -444,17 +444,19 @@ let E=null; // entry sheet state
 function openEntry(id){
   const s=X.st.find(x=>x.id===id); const r=R(id); const key=S.keys?.[testId]?.[s.grade]||'';
   const qn=key.length||r?.qn||20;
-  E={s,mode:(r?.mode==='ball'?'belgi':r?.mode)||ls.get('mode','belgi'),wasBall:r?.mode==='ball'?r.score:null,bits:(r&&!r.absent&&r.bits?r.bits:'0'.repeat(qn)).padEnd(qn,'0').split(''),ans:(r?.answers||'-'.repeat(qn)).padEnd(qn,'-').split(''),qn,existed:!!r,key};
+  E={s,mode:r?.mode||ls.get('mode','belgi'),wasBall:null,total:r&&!r.absent&&r.mode==='ball'?r.score:null,bits:(r&&!r.absent&&r.bits?r.bits:'0'.repeat(qn)).padEnd(qn,'0').split(''),ans:(r?.answers||'-'.repeat(qn)).padEnd(qn,'-').split(''),qn,existed:!!r,key};
   drawEntry();
 }
 function drawEntry(){
   const {s,qn}=E; const marked=E.bits.filter(x=>x==='1').length; const filled=E.ans.filter(a=>a!=='-').length;
   const keyKnown=E.key&&!E.key.includes('?');
-  const sc=E.mode==='belgi'?marked:keyKnown?E.ans.filter((a,i)=>a===E.key[i]).length:null;
+  const sc=E.mode==='ball'?E.total:E.mode==='belgi'?marked:keyKnown?E.ans.filter((a,i)=>a===E.key[i]).length:null;
   openSheet(`<div class="sh-top"><div class="m"><h2>${esc(s.name)}</h2><div class="s">${s.num}-maktab · ${esc(s.cls)}${E.existed?' · avval kiritilgan':''}${E.wasBall!=null?` · hozir faqat ball: ${E.wasBall}`:''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   <div class="seg"><button data-mode="belgi" aria-pressed="${E.mode==='belgi'}">To’g’rilarini belgilash</button><button data-mode="harf" aria-pressed="${E.mode==='harf'}">Javob harflari</button></div>
-   <div class="card score">${sc!=null?`<b>${sc}</b><span class="note">/ ${qn} to’g’ri</span>`:`<b>${filled}</b><span class="note">/ ${qn} javob yozildi</span>`}<div class="r">${E.mode==='harf'?`${qn-filled} ta javobsiz`:''}</div></div>
-   ${E.mode==='belgi'?`<p class="note">Bola to’g’ri yechgan savollarni bosing. Bosilmaganlari xato hisoblanadi.</p>
+   <div class="seg"><button data-mode="ball" aria-pressed="${E.mode==='ball'}">Ball</button><button data-mode="belgi" aria-pressed="${E.mode==='belgi'}">Belgilash</button><button data-mode="harf" aria-pressed="${E.mode==='harf'}">Harflar</button></div>
+   <div class="card score">${E.mode==='ball'&&sc==null?`<b>—</b><span class="note">/ ${qn} to’g’ri</span>`:sc!=null?`<b>${sc}</b><span class="note">/ ${qn} to’g’ri</span>`:`<b>${filled}</b><span class="note">/ ${qn} javob yozildi</span>`}<div class="r">${E.mode==='harf'?`${qn-filled} ta javobsiz`:''}</div></div>
+   ${E.mode==='ball'?`<p class="note">Bola nechta savolni to’g’ri yechgan bo’lsa, shu sonni bosing.</p>
+    <div class="tiles">${Array.from({length:qn+1},(_,n)=>`<button class="tile" data-total="${n}" aria-pressed="${E.total===n}">${n}</button>`).join('')}</div>`
+   :E.mode==='belgi'?`<p class="note">Bola to’g’ri yechgan savollarni bosing. Bosilmaganlari xato hisoblanadi.</p>
     <div class="tiles">${E.bits.map((v,i)=>`<button class="tile" data-bit="${i}" aria-pressed="${v==='1'}">${i+1}</button>`).join('')}</div>
     <div style="display:flex;gap:16px"><button class="lnk" data-act="allOn">Hammasi to’g’ri</button><button class="lnk" data-act="allOff">Tozalash</button></div>`
    :`<p class="note">Varaqadagi harflarni kiriting. Sayt kalit bilan o’zi tekshiradi.${E.key?'':' <b>Bu sinf uchun kalit hali kiritilmagan</b> — ball kalit kiritilgach hisoblanadi.'}</p>
@@ -464,7 +466,8 @@ function drawEntry(){
    <div class="actions"><button class="btn sec" data-act="entrySave" data-absent="1">Kelmadi</button><button class="btn pri" data-act="entrySave">Saqlash${sc!=null?' · '+sc+' ball':''}</button></div>`);
 }
 async function entrySave(absent){
-  const body={test_id:testId,student_id:E.s.id,absent:!!absent,mode:E.mode,bits:E.bits.join(''),answers:E.mode==='harf'?E.ans.join(''):''};
+  if(!absent&&E.mode==='ball'&&E.total==null){toast('Ballni tanlang',true);return}
+  const body={test_id:testId,student_id:E.s.id,absent:!!absent,mode:E.mode,bits:E.bits.join(''),answers:E.mode==='harf'?E.ans.join(''):'',score:E.total};
   ls.set('mode',E.mode); const name=E.s.name;
   try{const r=await api('result.save',body);closeSheet();toast(absent?`${name}: kelmadi`:`${name}: ${r.score??'?'} ball saqlandi`);q='';await load();$('#q')?.focus()}
   catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(x=>x.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);closeSheet();toast(`${name}: internet yo’q, telefonda saqlandi`);q='';render()}else toast(e.message,true)}
@@ -941,6 +944,7 @@ document.addEventListener('click',async e=>{
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
   if(d.bit!=null){E.bits[d.bit]=E.bits[d.bit]==='1'?'0':'1';drawEntry();return}
   if(d.mode){E.mode=d.mode;drawEntry();return}
+  if(d.total!=null){E.total=+d.total;drawEntry();return}
   if(d.q!=null){E.ans[d.q]=E.ans[d.q]===d.l?'-':d.l;drawEntry();return}
   switch(d.act){
    case 'pinDel':pin=pin.slice(0,-1);render();break;
