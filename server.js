@@ -843,7 +843,7 @@ const ICONS = {
 };
 const MANIFEST = JSON.stringify({
   name: 'Yosh Xorazmiylar', short_name: 'Yosh Xorazmiylar', id: '/', start_url: '/', scope: '/',
-  display: 'standalone', orientation: 'portrait', lang: 'uz', background_color: '#ffffff', theme_color: '#1f3864',
+  display: 'standalone', orientation: 'portrait', lang: 'uz', background_color: '#ffffff', theme_color: '#ffffff',
   description: 'Yosh Xorazmiylar — matematika sinovlari natijalari',
   icons: [
     { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -851,7 +851,7 @@ const MANIFEST = JSON.stringify({
     { src: '/icon-mask.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
 });
-const SW = `const C='yx-v2';
+const SW = `const C='yx-v3';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.add('/')).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin||u.pathname.startsWith('/api/'))return;
