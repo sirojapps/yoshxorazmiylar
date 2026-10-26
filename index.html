@@ -253,7 +253,7 @@ const ROLE_L={ceo:'CEO',jamoa:'Jamoa',direktor:'Direktor',rahbar:'Sinf rahbari',
 
 // ================================================================ state
 let S=null;            // server state
-let homeSchool=0, homeClass=0;
+let homeSchool=0, homeClass=0, gq='', schGrade=0;
 let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola', q='', qSchool=0;
 let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
@@ -317,12 +317,34 @@ function qGrid(r){if(r&&!r.absent&&r.mode==='ball')return `<div class="card pad"
   return `<div class="card pad"><div class="qgrid">${[...r.bits].map((c,i)=>{const a=r.answers?.[i];const cls=c==='1'?'ok':(a==='-'?'bl':'no');return `<div class="q ${cls}" title="${i+1}-savol${a&&a!=='-'?': '+a:''}">${i+1}</div>`}).join('')}</div>
   <div class="legend"><span><i style="background:var(--accent-soft);border:1px solid var(--accent)"></i>to’g’ri</span><span><i style="background:var(--wrong-soft);border:1px solid var(--wrong)"></i>xato</span>${r.mode==='harf'?`<span><i style="background:var(--surface2);border:1px dashed var(--blank)"></i>javobsiz</span>`:''}</div></div>`}
 
+// ================================================================ umumiy qidiruv
+const digits=x=>String(x||'').replace(/\D/g,'');
+function searchBox(ph){return `<label class="search">${I.search}<input id="gq" type="search" autocomplete="off" placeholder="${ph}" value="${esc(gq)}" aria-label="Qidirish"></label><div id="gres">${searchRes()}</div>`}
+function searchRes(){
+  let raw=String(gq); const cm=raw.match(/(^|\s)(\d{1,2})\s*-?\s*([a-zA-Zа-яА-Я])(?=\s|$)/); const want=cm?(cm[2]+'-'+cm[3]).toUpperCase():'';
+  if(cm)raw=raw.replace(cm[0],' ');
+  const t=norm(raw).trim().split(/\s+/).filter(Boolean); if(!t.length&&!want)return'';
+  const okC=n=>!want||String(n||'').toUpperCase()===want;
+  const hit=(words,phone)=>t.every(x=>words.some(w=>w.startsWith(x))||(x.length>=4&&/^\d+$/.test(x)&&digits(phone).includes(x)));
+  const many=S.schools.length>1;
+  const st=X.st.filter(s=>okC(s.cls)&&hit(norm(`${s.name} ${s.cls||''} ${s.num||''} maktab`).split(' ').filter(Boolean),s.phone)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
+  const ppl=[];
+  if(isTeam()||S.me.role==='direktor'){
+    S.classes.forEach(c=>{if((c.teacher_name||c.teacher_phone)&&okC(c.name)){const sc=X.sc[c.school_id];if(hit(norm(`${c.teacher_name||''} ${c.name} ${sc?.num||''} maktab rahbar`).split(' ').filter(Boolean),c.teacher_phone))ppl.push({go:'class:'+c.id,n:c.teacher_name||'Ismi kiritilmagan',s:`Sinf rahbari · ${many?sc?.num+'-maktab · ':''}${c.name}`})}});
+    if(isTeam()&&!want)S.schools.forEach(sc=>{if(sc.director_name||sc.director_phone){if(hit(norm(`${sc.director_name||''} ${sc.num} maktab direktor`).split(' ').filter(Boolean),sc.director_phone))ppl.push({go:'school:'+sc.id,n:sc.director_name||'Ismi kiritilmagan',s:`Direktor · ${sc.num}-maktab`})}});
+  }
+  if(!st.length&&!ppl.length)return `<div class="empty">Hech narsa topilmadi. Harflarni tekshiring.</div>`;
+  const sub=s=>`${many?s.num+'-maktab · ':''}${s.cls||''}`;
+  return `${ppl.length?`<section class="sec"><p class="label">Xodimlar · ${ppl.length}</p><div class="card list">${ppl.slice(0,15).map(x=>`<button class="row" data-go="${x.go}"><div class="m"><div class="n">${esc(x.n)}</div><div class="s">${esc(x.s)}</div></div>${I.chev}</button>`).join('')}</div></section>`:''}
+  ${st.length?`<section class="sec"><p class="label">O’quvchilar · ${st.length}</p><div class="card list">${st.slice(0,30).map((x,i)=>stuRow(x,i,{sub})).join('')}</div>${st.length>30?`<p class="note">Yana ${st.length-30} ta bor. Qidiruvni aniqroq yozing.</p>`:''}</section>`:''}`}
+
 // ================================================================ screens: team
 function scrTeamHome(){
   if(homeSchool&&!S.schools.some(x=>x.id===homeSchool))homeSchool=0;
   const t=curTest(); const st=homeSchool?X.st.filter(s=>s.school_id===homeSchool):X.st; const p=present(st); const gifted=giftedSet();
   const entered=st.filter(s=>R(s.id)).length; const hsc=homeSchool?X.sc[homeSchool]:null;
   return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`
+  ${searchBox('Ism, familiya, sinf yoki telefon…')}
   ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
   ${stageBox(t)}
   ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
@@ -364,7 +386,13 @@ function scrSchool(id){
    ${cls.filter(c=>c.grade===g).map(c=>{const cl=X.st.filter(s=>s.class_id===c.id);const v=avgPct(cl);const n=cl.filter(s=>R(s.id)).length;
     return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${cl.length} o’quvchi · ${n} kiritildi${c.teacher_name?' · '+esc(c.teacher_name):''}</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>${v!=null?`<div class="num">${v}%</div>`:''}${I.chev}</button>`}).join('')}</div></section>`).join('')}
   ${P('maktab')?`<button class="btn sec" data-act="classEdit" data-school="${id}">+ Sinf qo’shish</button>`:''}
-  ${hardBox(l)}`]}
+  ${hardBox(l)}
+  ${l.length?(()=>{const gs=[...new Set(cls.map(c=>c.grade))].sort((a,b)=>a-b);if(schGrade&&!gs.includes(schGrade))schGrade=0;
+   const ll=sortStu(l.filter(s=>!schGrade||s.grade===schGrade));const gifted=giftedSet();
+   return `<section class="sec"><div class="sec-h"><p class="label">O’quvchilar</p><span class="pill gray">${ll.length} ta</span></div>
+   ${gs.length>1?`<div class="seg"><button data-sg="0" aria-pressed="${!schGrade}">Hammasi</button>${gs.map(g=>`<button data-sg="${g}" aria-pressed="${schGrade===g}">${g}-sinflar</button>`).join('')}</div>`:''}
+   ${sortSeg()}
+   <div class="card list">${ll.map((x,i)=>stuRow(x,i,{rank:sortBy==='ball',sub:x=>x.cls,gifted})).join('')}</div></section>`})():''}`]}
 function scrClass(id,mode){
   const c=X.cl[id]; if(!c)return ['Topilmadi','',''];
   const l=X.st.filter(s=>s.class_id===id); const p=present(l); const gifted=giftedSet();
@@ -543,10 +571,10 @@ function scrResImport(){return ['Natijalarni import qilish',curTest()?.name||'',
 function scrDirHome(){
   if(homeClass&&!S.classes.some(c=>c.id===homeClass))homeClass=0;
   const sc=S.schools[0]; const t=S.tests[0]; const l=homeClass?X.st.filter(s=>s.class_id===homeClass):X.st; const hc=homeClass?X.cl[homeClass]:null;
-  if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>`];
+  if(!t)return [`${sc?.num}-maktab`,'Direktor',`${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>`];
   testId=t.id;
   const dist=[...new Set(l.map(s=>s.grade))].sort((a,b)=>a-b).map(g=>[g,S.district?.[t.id+':'+g]]).filter(x=>x[1]!=null);
-  return [`${sc.num}-maktab`,t.name,`${tabrikCard('direktor')}
+  return [`${sc.num}-maktab`,t.name,`${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
   ${S.classes.length>1?`<div class="seg"><button data-hc="0" aria-pressed="${!homeClass}">Hammasi</button>${[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<button data-hc="${c.id}" aria-pressed="${homeClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%',hc?`${esc(hc.name)} o’rtacha`:'maktab o’rtacha']])}
   ${gradeBars(l)}
@@ -556,7 +584,7 @@ function scrDirAnalysis(){const l=X.st;return ['Tahlil',`${S.schools[0]?.num}-ma
   <section class="sec"><p class="label">Sinovlar tarixi</p><div class="card list">${S.tests.map(t=>`<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${present(l,t.id).length} ta bola qatnashdi</div></div><div class="num">${avgPct(l,t.id)??'—'}%</div></div>`).join('')||'<div class="empty">Yo’q</div>'}</div></section>`]}
 function scrRahbar(){const c=S.classes[0];if(!c)return['Sinfim','',''];if(S.tests[0])testId=S.tests[0].id;
   if(!S.tests.length)return [`${c.name} sinf`,`${S.schools[0]?.num}-maktab`,`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${rahbarInfo(c)}<section class="sec"><p class="label">O’quvchilar</p><div class="card list">${X.st.map(s=>`<div class="row"><div class="m"><div class="n">${esc(s.name)}</div></div></div>`).join('')}</div></section>`];
-  const v=scrClass(c.id,'rahbar');v[2]=tabrikCard('rahbar')+rahbarInfo(c)+v[2];return v}
+  const v=scrClass(c.id,'rahbar');v[2]=searchBox('O’quvchi ismi yoki familiyasi…')+tabrikCard('rahbar')+rahbarInfo(c)+v[2];return v}
 function scrRahbarAnalysis(){const l=X.st;
   const buckets=[[17,20],[13,16],[9,12],[0,8]];const p=present(l).map(s=>R(s.id));
   return ['Tahlil','',`${hardBox(l,'Sinf eng qiynalgan savollar')||'<div class="card empty">Hali ma’lumot yo’q</div>'}
@@ -875,12 +903,13 @@ function render(){
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   const [title,sub,body]=screen();
-  const focus=document.activeElement?.id==='q';
+  const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span>
    ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner():''}${body}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in">${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}</div></nav>`:''}`;
+  const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
 }
 function renderLogin(){
@@ -945,7 +974,7 @@ document.addEventListener('click',async e=>{
   if(d.rg){rGrade=+d.rg;render();return}
   if(d.rm){rMode=d.rm;render();return}
   if(d.qs!=null){qSchool=+d.qs;render();return}
-  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.hc!=null){homeClass=+d.hc;render();return}
+  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;render();return} if(d.hc!=null){homeClass=+d.hc;render();return}
   if(d.child){child=+d.child;render();return}
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
   if(d.bit!=null){E.bits[d.bit]=E.bits[d.bit]==='1'?'0':'1';drawEntry();return}
