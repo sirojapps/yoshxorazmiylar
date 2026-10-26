@@ -271,6 +271,7 @@ A['student.info'] = (u, b) => {
 };
 A['student.delete'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
 A['student.restore'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=1 WHERE id=?', b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
+const nameKey = n => String(n || '').toLowerCase().replace(/[`‘’'ʻʼ´]/g, "'").replace(/\s+/g, ' ').trim();
 A['students.import'] = (u, b) => {
   need(can(u, 'maktab'));
   const num = parseInt(b.school_num, 10); if (!num) bad('Maktab raqamini yozing');
@@ -288,7 +289,7 @@ A['students.import'] = (u, b) => {
       if (name.split(' ').length < 2 || !cn) { skipped++; continue; }
       let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', sc.id, cn);
       if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, cn, gradeOf(cn)).lastInsertRowid) }; newCls++; }
-      const ex = one('SELECT id,phone FROM students WHERE class_id=? AND lower(name)=lower(?)', c.id, name);
+      const ex = all('SELECT id,phone,name FROM students WHERE class_id=? AND active=1', c.id).find(x => nameKey(x.name) === nameKey(name));
       if (ex) { if (!ex.phone && phone9(r.phone)) run('UPDATE students SET phone=? WHERE id=?', phone9(r.phone), ex.id); skipped++; withScore(ex.id, r); continue; }
       const sid = Number(run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, phone9(r.phone), now()).lastInsertRowid); added++;
       withScore(sid, r);
@@ -356,10 +357,10 @@ A['results.import'] = (u, b) => { // bulk import (e.g. from the temporary entry 
   let ok = 0; const miss = [];
   tx(() => {
     for (const r of rows) {
-      const st = one(`SELECT s.id FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id
-        WHERE sc.num=? AND c.name=? AND lower(s.name)=lower(?) AND s.active=1`, r.school, clsName(r.cls), str(r.name, 120));
+      const st = all(`SELECT s.id,s.name FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id
+        WHERE sc.num=? AND c.name=? AND s.active=1`, r.school, clsName(r.cls)).find(x => nameKey(x.name) === nameKey(str(r.name, 120).split(' ').slice(0, 2).join(' ')));
       if (!st) { miss.push(r.name + ' (' + r.school + '-maktab, ' + r.cls + ')'); continue; }
-      A['result.save'](u, { test_id: b.test_id, student_id: st.id, absent: r.absent, mode: r.mode, bits: r.bits, answers: r.answers }); ok++;
+      A['result.save'](u, { test_id: b.test_id, student_id: st.id, absent: r.absent, mode: r.mode, bits: r.bits, answers: r.answers, score: r.score }); ok++;
     }
   });
   return { ok, miss };
