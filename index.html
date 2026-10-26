@@ -1085,6 +1085,7 @@ function render(){
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
+  navSync();
 }
 function renderLogin(){
   $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">PIN kodingizni kiriting</p></div>
@@ -1099,8 +1100,19 @@ function renderConsent(){
   <p class="note">Ma’lumotlar O’zbekistondagi serverda saqlanadi va faqat sizga, sinf rahbariga, maktab direktoriga hamda loyiha jamoasiga ko’rinadi. Boshqa ota-onalar farzandingiz natijasini ko’rmaydi.</p></div>
   <button class="btn pri" data-act="consent">Roziman, davom etish</button><button class="btn sec" data-act="logout">Chiqish</button></main>`;
 }
-function openSheet(html){const el=$('#sheet');el.innerHTML=`<div class="in gut">${html}</div>`;el.hidden=false;document.body.style.overflow='hidden'}
+function openSheet(html){const el=$('#sheet');el.innerHTML=`<div class="in gut">${html}</div>`;el.hidden=false;document.body.style.overflow='hidden';navSync()}
 function closeSheet(){const el=$('#sheet');el.hidden=true;el.innerHTML='';document.body.style.overflow='';E=null}
+// ---- telefonning "orqaga" tugmasi: saytdagi ◀ tugmasi bilan bir xil ishlaydi
+let navGuard=false;
+function firstTab(){if(!S)return null;const t=TABS[isTeam()?'team':S.me.role]();return t[0]?.[0]||null}
+function navDeep(){return !!S&&(!$('#sheet').hidden||stack.length>0||(tab&&tab!==firstTab()))}
+function navSync(){if(navDeep()&&!navGuard){try{history.pushState({yx:1},'')}catch(e){}navGuard=true}}
+addEventListener('popstate',()=>{navGuard=false;
+  if(!$('#sheet').hidden)closeSheet();
+  else if(stack.length){stack.pop();render();scrollTo(0,0)}
+  else if(S&&tab&&tab!==firstTab()){tab=firstTab();stack=[];render();scrollTo(0,0)}
+  else{history.back();return}
+  navSync()});
 function go(k){stack.push(k);if(k==='pins')PINS=null;if(k==='history'){HIST=null;histStudent=null}if(k==='mashq')EXL=null;if(k==='settings')SET=null;render();scrollTo(0,0)}
 
 // ================================================================ forms
