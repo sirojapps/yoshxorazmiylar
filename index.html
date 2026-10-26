@@ -386,7 +386,9 @@ function sortStu(list){const a=[...list];
   if(sortBy==='ism')a.sort((x,y)=>x.name.localeCompare(y.name,'uz'));
   else a.sort((x,y)=>(R(y.id)?.score??-1)-(R(x.id)?.score??-1)||x.name.localeCompare(y.name,'uz'));return a}
 const sortSeg=()=>`<div class="seg"><button data-sort="ball" aria-pressed="${sortBy==='ball'}">Ball bo’yicha</button><button data-sort="ism" aria-pressed="${sortBy==='ism'}">Ism bo’yicha</button></div>`;
-function hardBox(list,title){
+// "Eng ko'p xato qilingan savollar" bo'limi hozircha o'chirilgan (natijalar asosan umumiy ball bilan kiritilgan). Qaytarish uchun true qiling.
+const SHOW_HARD=false;
+function hardBox(list,title){if(!SHOW_HARD)return '';
   const t=curTest(); if(!t)return'';
   const blocks=[...new Set(list.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b).map(g=>{
     const gl=list.filter(s=>s.grade===g); const n=present(gl).filter(s=>R(s.id)?.bits).length;
@@ -658,6 +660,7 @@ function scrPins(){
   <div class="seg">${[['ota','Ota-onalar'],['rahbar','Sinf rahbarlari'],['direktor','Direktorlar'],['jamoa','Jamoa']].map(([k,n])=>`<button data-pk="${k}" aria-pressed="${pinKind===k}">${n}</button>`).join('')}</div>
   ${pinKind!=='jamoa'?`<div class="seg"><button data-ps="0" aria-pressed="${!pinSchool}">Hammasi</button>${S.schools.map(sc=>`<button data-ps="${sc.id}" aria-pressed="${pinSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
   <div class="seg"><button data-ph="no" aria-pressed="${pinHas==='no'}">Berilmagan (${no.length})</button><button data-ph="yes" aria-pressed="${pinHas==='yes'}">Berilgan (${has.length})</button></div>
+  ${ceo&&pinKind==='jamoa'?`<div class="card pad"><div class="note">Jamoa a’zosi qo’shilganda unga PIN avtomatik beriladi va “Berilgan” ro’yxatida chiqadi. Huquqlarini “Jamoa” bo’limida o’zgartirasiz.</div><button class="btn pri" data-act="teamEdit">+ Jamoa a’zosi qo’shish</button></div>`:''}
   ${ceo&&pinHas==='no'&&no.filter(x=>x.phone||x.kind!=='ota').length>1?`<button class="btn pri" data-act="pinBulk">Ro’yxatdagi hammasiga PIN berish (${no.filter(x=>x.phone||x.kind!=='ota').length})</button>`:''}
   <div class="card list">${view.map(x=>`<div class="row"><div class="m"><div class="n">${esc(x.name)}</div><div class="s">${x.phone?ph(x.phone):'<span style="color:var(--wrong)">Telefon kerak</span>'}${x.user?.pin_at?' · '+fmtDate(x.user.pin_at):''}${x.user?.last_login?' · kirgan':''}</div></div>
    ${x.user?.pin?`<span class="num" style="font-family:var(--display);letter-spacing:.08em">${esc(x.user.pin)}</span>`:''}
@@ -1198,7 +1201,7 @@ document.addEventListener('click',async e=>{
      <div class="card list"><label class="check"><input type="checkbox" id="pm_sardor" ${u.perms.sardor?'checked':''} data-act="sardorToggle"><b>Jamoa sardori</b>&nbsp;— e’lonni tasdiqlaydi</label>${Object.entries(PL).map(([k,l])=>`<label class="check"><input type="checkbox" id="pm_${k}" ${u.perms[k]?'checked':''}>${l}</label>`).join('')}</div>
      <p class="note">PIN berish faqat sizda qoladi.</p><button class="btn pri" data-act="teamSave" data-id="${d.id||''}">Saqlash</button>${d.id?`<button class="btn dan" data-act="teamRemove" data-id="${d.id}">Jamoadan chiqarish</button>`:''}`);
      $('#pm_sardor').onchange=e=>{if(e.target.checked)Object.keys(PL).forEach(k=>{if(k!=='pin_korish')$('#pm_'+k).checked=true})};break}
-   case 'teamSave':{const perms={sardor:$('#pm_sardor').checked};S.perms.forEach(k=>perms[k]=$('#pm_'+k)?.checked||false);const r=await api('team.save',{id:+d.id||undefined,name:val('tmN'),phone:val('tmP'),perms});
+   case 'teamSave':{PINS=null;const perms={sardor:$('#pm_sardor').checked};S.perms.forEach(k=>perms[k]=$('#pm_'+k)?.checked||false);const r=await api('team.save',{id:+d.id||undefined,name:val('tmN'),phone:val('tmP'),perms});
      if(r.pin)showPin({pin:r.pin,name:val('tmN'),phone:val('tmP').replace(/\D/g,'').slice(-9)},'jamoa');else{closeSheet();toast('Saqlandi')}await load();break}
    case 'teamRemove':await api('team.remove',{id:+d.id});closeSheet();toast('Jamoadan chiqarildi');await load();break;
    case 'noteSave':{const t=val('noteText');if(!t)break;await api('note.save',{student_id:+d.id,text:t});toast('Izoh saqlandi');await load();break}
