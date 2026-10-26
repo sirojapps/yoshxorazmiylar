@@ -253,7 +253,7 @@ const ROLE_L={ceo:'CEO',jamoa:'Jamoa',direktor:'Direktor',rahbar:'Sinf rahbari',
 
 // ================================================================ state
 let S=null;            // server state
-let homeSchool=0, homeClass=0, gq='', schGrade=0;
+let homeSchool=0, homeClass=0, gq='', schGrade=0, schClass=0;
 let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola', q='', qSchool=0;
 let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
@@ -388,9 +388,11 @@ function scrSchool(id){
   ${P('maktab')?`<button class="btn sec" data-act="classEdit" data-school="${id}">+ Sinf qo’shish</button>`:''}
   ${hardBox(l)}
   ${l.length?(()=>{const gs=[...new Set(cls.map(c=>c.grade))].sort((a,b)=>a-b);if(schGrade&&!gs.includes(schGrade))schGrade=0;
-   const ll=sortStu(l.filter(s=>!schGrade||s.grade===schGrade));const gifted=giftedSet();
+   const gcl=schGrade?cls.filter(c=>c.grade===schGrade).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})):[];if(schClass&&!gcl.some(c=>c.id===schClass))schClass=0;
+   const ll=sortStu(l.filter(s=>(!schGrade||s.grade===schGrade)&&(!schClass||s.class_id===schClass)));const gifted=giftedSet();
    return `<section class="sec"><div class="sec-h"><p class="label">O’quvchilar</p><span class="pill gray">${ll.length} ta</span></div>
    ${gs.length>1?`<div class="seg"><button data-sg="0" aria-pressed="${!schGrade}">Hammasi</button>${gs.map(g=>`<button data-sg="${g}" aria-pressed="${schGrade===g}">${g}-sinflar</button>`).join('')}</div>`:''}
+   ${gcl.length>1?`<div class="seg"><button data-scl="0" aria-pressed="${!schClass}">Barcha ${schGrade}-sinflar</button>${gcl.map(c=>`<button data-scl="${c.id}" aria-pressed="${schClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
    ${sortSeg()}
    <div class="card list">${ll.map((x,i)=>stuRow(x,i,{rank:sortBy==='ball',sub:x=>x.cls,gifted})).join('')}</div></section>`})():''}`]}
 function scrClass(id,mode){
@@ -974,7 +976,7 @@ document.addEventListener('click',async e=>{
   if(d.rg){rGrade=+d.rg;render();return}
   if(d.rm){rMode=d.rm;render();return}
   if(d.qs!=null){qSchool=+d.qs;render();return}
-  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;render();return} if(d.hc!=null){homeClass=+d.hc;render();return}
+  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;schClass=0;render();return} if(d.scl!=null){schClass=+d.scl;render();return} if(d.hc!=null){homeClass=+d.hc;render();return}
   if(d.child){child=+d.child;render();return}
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
   if(d.bit!=null){E.bits[d.bit]=E.bits[d.bit]==='1'?'0':'1';drawEntry();return}
