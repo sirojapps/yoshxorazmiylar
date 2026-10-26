@@ -407,11 +407,12 @@ function stageBox(t,sid=0){
     i=ap.done?3:!n?0:left>0?1:2;
   }else{
     steps=STATUS.map(x=>x[1]);
-    const auto=t.status==='yakunlandi'?3:!n?0:left>0?1:2;
+    const auto=t.status==='yakunlandi'?3:n?1:0; // Tekshiruvga faqat qo'lda o'tkaziladi: maktablar hali qo'shilishi mumkin
     i=Math.max(auto,STATUS.findIndex(x=>x[0]===t.status));
   }
   if(i===0&&!n)note=sid?'Hali birorta natija kiritilmagan.':'';
-  else if(i===1)note=`<b>${left}</b> ta o’quvchi hali kiritilmagan. Kelmaganlarni “Kelmadi” deb belgilang.`;
+  else if(i===1&&sid)note=`<b>${left}</b> ta o’quvchi hali kiritilmagan. Kelmaganlarni “Kelmadi” deb belgilang.`;
+  else if(i===1)note=`${left?`<b>${left}</b> ta o’quvchi hali kiritilmagan. `:''}Barcha maktablarda sinov o’tkazilib bo’lgach, sinovni Tekshiruvga o’tkazing.${P('maktab')?`<div style="margin-top:10px"><button class="btn sec sm" data-act="toCheck" data-id="${t.id}">Tekshiruvga o’tkazish</button></div>`:''}`;
   else if(i===2)note=sid?`Hamma kiritildi. E’lon uchun tasdiq: ${ap.ceo?'CEO ✓':'CEO'} · ${ap.hasSardor?(ap.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}`:'Hamma kiritildi. Maktablar e’lon qilingach, sinovni yakunlang.';
   return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">${sid?`${X.sc[sid]?.num}-maktab · bosqich`:'Joriy sinov'}</div><div class="t">${esc(t.name)}</div></div>
    ${isTeam()&&S.tests.length>1?`<button class="pill gray" data-act="pickTest" style="color:var(--fg)">almashtirish</button>`:''}</div>
@@ -489,13 +490,16 @@ function annBox(t){
   const rows=S.schools.filter(sc=>!homeSchool||sc.id===homeSchool).map(sc=>{const list=X.st.filter(s=>s.school_id===sc.id);const n=list.filter(s=>R(s.id)).length;if(!n)return'';
     const a=ap[sc.id]||{};const mine=a.by?.includes(S.me.id);
     const st=a.done?`<span class="pill ok">e’lon qilindi</span>`:`<span class="pill gray">${a.ceo?'CEO ✓':'CEO'} · ${a.hasSardor?(a.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}</span>`;
+    const left=list.length-n; const wait=left>0&&!a.done&&!a.by?.length;
     return `<div class="row"><div class="m"><div class="n">${sc.num}-maktab</div><div class="s">${n} / ${list.length} kiritildi</div></div>
-     ${st}${canAp&&!a.done&&!mine?`<button class="btn pri sm" data-act="approve" data-s="${sc.id}">Tasdiqlash</button>`:''}${canAp&&mine&&(S.me.role==='ceo'||!a.done)?`<button class="btn sec sm" data-act="unapprove" data-s="${sc.id}">Bekor</button>`:''}</div>`}).join('');
+     ${wait?`<span class="pill gray">${left} ta qoldi</span>`:st+(canAp&&!a.done&&!mine?`<button class="btn pri sm" data-act="approve" data-s="${sc.id}">Tasdiqlash</button>`:'')}${canAp&&mine&&(S.me.role==='ceo'||!a.done)?`<button class="btn sec sm" data-act="unapprove" data-s="${sc.id}">Bekor</button>`:''}</div>`}).join('');
   if(!rows)return'';
   const f=ap[0]||{};
+  const allAnn=S.schools.every(sc=>!X.st.some(s=>s.school_id===sc.id&&R(s.id))||ap[sc.id]?.done);
+  const showFin=f.done||f.by?.length||(['tekshiruv','yakunlandi'].includes(t.status)&&allAnn);
   return `<section class="sec"><p class="label">E’lon qilish</p><div class="card list">${rows}
-   <div class="row"><div class="m"><div class="n">Sinovni yakunlash</div><div class="s">Tuman o’rtachasi va reyting ota-onalar va direktorlarga ochiladi</div></div>
-   ${f.done?`<span class="pill ok">yakunlandi</span>`:canAp&&!f.by?.includes(S.me.id)?`<button class="btn pri sm" data-act="approve" data-s="0">Tasdiqlash</button>`:`<span class="pill gray">${f.ceo?'CEO ✓':'CEO'} · ${f.hasSardor?(f.sardor?'Sardor ✓':'Sardor'):'—'}</span>`}</div></div>
+   ${showFin?`<div class="row"><div class="m"><div class="n">Sinovni yakunlash</div><div class="s">Tuman o’rtachasi va reyting ota-onalar va direktorlarga ochiladi</div></div>
+   ${f.done?`<span class="pill ok">yakunlandi</span>`:canAp&&!f.by?.includes(S.me.id)?`<button class="btn pri sm" data-act="approve" data-s="0">Tasdiqlash</button>`:`<span class="pill gray">${f.ceo?'CEO ✓':'CEO'} · ${f.hasSardor?(f.sardor?'Sardor ✓':'Sardor'):'—'}</span>`}</div>`:''}</div>
    <p class="note">Maktab natijasi CEO va jamoa sardori ikkalasi tasdiqlagach ota-onalar, sinf rahbarlari va direktorga ko’rinadi.</p></section>`}
 
 function scrSchools(){
@@ -1256,6 +1260,8 @@ document.addEventListener('click',async e=>{
    case 'impSave':{const num=val('impNum');if(!num){toast('Maktab raqamini yozing',true);break}const r=await api('students.import',{school_num:num,rows:IMP,test_id:testId});closeSheet();toast(`${r.added} ta qo’shildi${r.skipped?`, ${r.skipped} ta avvaldan bor edi`:''}${r.results?`, ${r.results} ta natija yozildi`:''}${r.absents?`, ${r.absents} ta kelmadi`:''}`,!!r.errors?.length);if(r.errors?.length)alert('Natija yozilmadi:\n'+r.errors.join('\n'));await load();break}
    case 'testEdit':{const t=d.id?S.tests.find(x=>x.id===+d.id):{status:'tayyor',gifted_top:10,gifted_min:70};
      formSheet(d.id?'Sinovni tahrirlash':'Yangi sinov',[{id:'fTN',label:'Nomi',value:t.name,ph:'2026–2027 · 1-bosqich'},{id:'fTD',label:'Sana',type:'date',value:t.date},{id:'fTS',label:'Holati',type:'select',options:STATUS.slice(0,3).concat(t.status==='yakunlandi'?[STATUS[3]]:[]),value:t.status},{id:'fTG',label:'Iqtidorli: eng yaxshi necha foiz',value:t.gifted_top,mode:'numeric'},{id:'fTM',label:'Iqtidorli: kamida necha foiz ball',value:t.gifted_min,mode:'numeric'}],'testSave');$('#sheet').dataset.id=d.id||'';break}
+   case 'toCheck':{const t=S.tests.find(x=>x.id===+d.id);if(!t)break;if(!confirm('Barcha maktablarda sinov o’tkazildimi? Sinov Tekshiruv bosqichiga o’tadi.'))break;
+     await api('test.save',{id:t.id,name:t.name,date:t.date,status:'tekshiruv',gifted_top:t.gifted_top,gifted_min:t.gifted_min});toast('Tekshiruvga o’tkazildi');await load();break}
    case 'testSave':{const r=await api('test.save',{id:+$('#sheet').dataset.id||undefined,name:val('fTN'),date:val('fTD'),status:val('fTS'),gifted_top:val('fTG'),gifted_min:val('fTM')});if(!testId){testId=r.id;ls.set('test',testId)}closeSheet();toast('Saqlandi');await load();break}
    case 'keyEdit':{const tid=+d.id;const k=S.keys?.[tid]||{};openSheet(`<div class="sh-top"><div class="m"><h2>Kalit kiritish</h2><div class="s">Har sinf uchun javoblar ketma-ket, masalan: ABECDCBDCE…</div></div><button class="ib" data-act="close">${I.x}</button></div>
      ${[2,3,4].map(g=>`<label class="field"><span class="label">${g}-sinf</span><input id="key${g}" value="${esc(k[g]&&!k[g].includes('?')?k[g]:'')}" autocapitalize="characters" placeholder="${k[g]?'kiritilgan':'20 ta harf'}" style="font-family:ui-monospace,monospace;letter-spacing:.1em"></label>`).join('')}
