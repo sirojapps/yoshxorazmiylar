@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS audit(
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires TEXT);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS student_phones(student_id INTEGER NOT NULL, phone TEXT NOT NULL, PRIMARY KEY(student_id,phone));
+CREATE TABLE IF NOT EXISTS phone_hints(student_id INTEGER PRIMARY KEY, phone TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS threads(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, user_id INTEGER, class_id INTEGER, student_id INTEGER,
   topic TEXT DEFAULT '', status TEXT DEFAULT 'ochiq', created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, user_id INTEGER NOT NULL, text TEXT DEFAULT '', image TEXT DEFAULT '', at TEXT);
@@ -151,6 +152,7 @@ function state(u) {
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
     out.team = all("SELECT id,role,name,phone,perms,active,last_login FROM users WHERE role IN ('ceo','jamoa')").map(x => ({ ...x, perms: perms(x) }));
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
+    out.hints = hintsMap();
     Object.assign(out, extras(u, out));
     return out;
   }
@@ -169,7 +171,9 @@ function state(u) {
   out.schools = all(`SELECT id,num,name FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
   let studs = all(`SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address }));
+  const hm = u.role === 'rahbar' ? hintsMap() : {};
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address,
+    ...(u.role === 'rahbar' ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
   const sIds = studs.map(s => s.id);
@@ -246,6 +250,8 @@ A['student.save'] = (u, b) => {
   need(can(u, 'maktab') || can(u, 'kiritish'));
   const name = str(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
   const by = b.birth_year ? parseInt(b.birth_year, 10) || null : null;
+  checkPhone(phone9(b.phone), b.id ? +b.id : 0);
+  if (phone9(b.phone) && b.id) run('DELETE FROM phone_hints WHERE student_id=?', +b.id);
   if (b.id) {
     need(can(u, 'maktab'));
     const old = one('SELECT * FROM students WHERE id=?', b.id);
@@ -290,8 +296,9 @@ A['students.import'] = (u, b) => {
       let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', sc.id, cn);
       if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, cn, gradeOf(cn)).lastInsertRowid) }; newCls++; }
       const ex = all('SELECT id,phone,name FROM students WHERE class_id=? AND active=1', c.id).find(x => nameKey(x.name) === nameKey(name));
-      if (ex) { if (!ex.phone && phone9(r.phone)) run('UPDATE students SET phone=? WHERE id=?', phone9(r.phone), ex.id); skipped++; withScore(ex.id, r); continue; }
-      const sid = Number(run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, phone9(r.phone), now()).lastInsertRowid); added++;
+      if (ex) { if (!ex.phone && phone9(r.phone)) run('INSERT OR IGNORE INTO phone_hints(student_id,phone) VALUES(?,?)', ex.id, phone9(r.phone)); skipped++; withScore(ex.id, r); continue; }
+      const sid = Number(run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, '', now()).lastInsertRowid); added++;
+      if (phone9(r.phone)) run('INSERT OR IGNORE INTO phone_hints(student_id,phone) VALUES(?,?)', sid, phone9(r.phone));
       withScore(sid, r);
     }
     log(u.id, 'royxat.import', { num, added, skipped, newCls, results, absents });
@@ -486,11 +493,52 @@ const studentInfo = id => one(`SELECT s.id,s.name,s.class_id,c.name cls,c.grade,
 const parentsOf = sid => all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidsOfPhone(phone9(x.phone)).includes(sid));
 const rahbarsOf = classId => all("SELECT * FROM users WHERE role='rahbar' AND active=1 AND class_id=?", classId);
 const ceoId = () => one("SELECT id FROM users WHERE role='ceo'").id;
+// Ro'yxatdan (Excel) kelgan ota-ona raqamlariga ishonilmaydi: ular faqat "tekshirilmagan taklif" bo'lib turadi.
+// Haqiqiy raqamni sinf rahbari yoki jamoa qo'lda kiritadi (yoki sinf rahbari bot so'rovini tasdiqlaydi).
+const MAX_KIDS = 4;
+function checkPhone(p, sid) {
+  if (!p) return;
+  const k = kidsOfPhone(p).filter(id => id !== sid);
+  if (k.length >= MAX_KIDS) bad(`Bu raqam allaqachon ${k.length} ta bolaga yozilgan. Bitta ota-onada bunchalik farzand kam bo‘ladi, raqamni tekshiring.`);
+}
+if (!getSet('phones_reset_v1')) tx(() => {
+  for (const r of all("SELECT student_id,phone FROM tg_requests WHERE status='tasdiqlandi' AND student_id IS NOT NULL"))
+    if (phone9(r.phone)) run('INSERT OR IGNORE INTO student_phones(student_id,phone) VALUES(?,?)', r.student_id, phone9(r.phone));
+  let moved = 0;
+  for (const st of all("SELECT id,phone FROM students WHERE phone IS NOT NULL AND phone!=''")) {
+    const p = phone9(st.phone); if (!p) continue;
+    run('INSERT OR REPLACE INTO phone_hints(student_id,phone) VALUES(?,?)', st.id, p); moved++;
+  }
+  run("UPDATE students SET phone=''");
+  // tasdiqlanmagan raqam bilan PIN olgan ota-onalar o'chiriladi (PIN'i ishlamay qoladi)
+  let off = 0;
+  for (const x of all("SELECT id,phone FROM users WHERE role='ota' AND active=1"))
+    if (!kidsOfPhone(phone9(x.phone)).length) { run('UPDATE users SET active=0 WHERE id=?', x.id); run('DELETE FROM sessions WHERE user_id=?', x.id); off++; }
+  setSet('phones_reset_v1', now());
+  log(one("SELECT id FROM users WHERE role='ceo'")?.id || 0, 'telefon.tozalash', { moved, off });
+});
+const hintsMap = () => Object.fromEntries(all('SELECT student_id,phone FROM phone_hints').map(r => [r.student_id, r.phone]));
+const extraPhones = sid => all('SELECT phone FROM student_phones WHERE student_id=?', sid).map(r => r.phone);
+// sinf rahbari (o'z sinfi) yoki jamoa ota-ona telefonini kiritadi
+A['student.phone'] = (u, b) => {
+  const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
+  need(can(u, 'maktab') || (u.role === 'rahbar' && u.class_id === s.class_id));
+  const raw = String(b.phone || '').trim(); const p = phone9(raw);
+  if (raw && !p) bad('Telefon raqamini to‘liq yozing (masalan, 90 123 45 67)');
+  checkPhone(p, s.id);
+  run('UPDATE students SET phone=? WHERE id=?', p, s.id);
+  if (b.remove_extra) run('DELETE FROM student_phones WHERE student_id=? AND phone=?', s.id, phone9(b.remove_extra));
+  run('DELETE FROM phone_hints WHERE student_id=?', s.id);
+  log(u.id, 'oquvchi.telefon', { id: s.id, old: s.phone, new: p });
+  return {};
+};
 
 // ---------------------------------------------------------------- extras for state
 function extras(u, out) {
   const ex = { texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
   ex.bot = getSet('bot_username');
+  ex.school = { name: getSet('sch_name') || 'KARAKUL INTERNATIONAL SCHOOL', about: getSet('sch_about'), address: getSet('sch_address') || 'Qorako‘l tumani, Buxoro viloyati',
+    phone: getSet('sch_phone'), telegram: getSet('sch_telegram'), instagram: getSet('sch_instagram'), facebook: getSet('sch_facebook'), youtube: getSet('sch_youtube'), site: getSet('sch_site') };
   ex.assetsReady = !!(getSet('logo') && getSet('imzo') && getSet('muhr'));
   const vis = visibleThreads(u);
   ex.unread = vis.filter(t => !(isTeam(u) && (t.kind === 'ota' || t.kind === 'sinf'))).reduce((n, t) => n + t.unread, 0);
@@ -633,6 +681,7 @@ A['tg.approve'] = async (u, b) => {
   }
   const s = one('SELECT * FROM students WHERE id=? AND active=1', b.student_id); if (!s) bad('O‘quvchini tanlang');
   if (u.role === 'rahbar') need(s.class_id === u.class_id, 'Faqat o‘z sinfingiz o‘quvchisi');
+  checkPhone(r.phone, s.id);
   if (!phone9(s.phone)) run('UPDATE students SET phone=? WHERE id=?', r.phone, s.id);
   else if (phone9(s.phone) !== r.phone) run('INSERT OR IGNORE INTO student_phones(student_id,phone) VALUES(?,?)', s.id, r.phone);
   run("UPDATE tg_requests SET status='tasdiqlandi',student_id=?,by=? WHERE id=?", s.id, u.id, r.id);
@@ -642,10 +691,12 @@ A['tg.approve'] = async (u, b) => {
 };
 
 // ---------------------------------------------------------------- settings (CEO)
-const SET_KEYS = ['bot_token', 'logo', 'imzo', 'muhr', 'signer', 'signer_role', 'tabrik_ota', 'tabrik_rahbar', 'tabrik_direktor', 'ceo_phone', 'site_url'];
+const SET_KEYS = ['bot_token', 'logo', 'imzo', 'muhr', 'signer', 'signer_role', 'tabrik_ota', 'tabrik_rahbar', 'tabrik_direktor', 'ceo_phone', 'site_url',
+  'sch_name', 'sch_about', 'sch_address', 'sch_phone', 'sch_telegram', 'sch_instagram', 'sch_facebook', 'sch_youtube', 'sch_site'];
 A['settings.get'] = u => {
   need(u.role === 'ceo');
   const o = {}; for (const k of SET_KEYS) o[k] = k === 'bot_token' ? (getSet(k) ? '••••••' + getSet(k).slice(-4) : '') : getSet(k);
+  o.sch_name ||= 'KARAKUL INTERNATIONAL SCHOOL'; o.sch_address ||= 'Qorako‘l tumani, Buxoro viloyati';
   o.signer ||= 'Abdurashidov G‘ulom O‘ktamovich'; o.signer_role ||= 'Loyiha rahbari';
   for (const k in DEFAULT_TEXTS) o[k] ||= DEFAULT_TEXTS[k];
   o.bot_username = getSet('bot_username'); o.bot_error = getSet('bot_error');

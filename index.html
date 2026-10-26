@@ -169,14 +169,25 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .bubble img{display:block;max-width:100%;border-radius:10px;margin-top:6px}
 .offline{background:var(--gold-soft);color:var(--fg);font-size:13px;padding:8px 14px;border-radius:10px}
 @media (min-width:900px){
-.app:has(> .tabs){max-width:none;margin:0 0 0 240px}
+.app:has(> .tabs){max-width:none;margin:0 0 0 256px}
 .app:has(> .tabs) .top,.app:has(> .tabs) main{padding-left:40px;padding-right:40px}
 .app:has(> .tabs) main{max-width:1040px;width:100%;padding-bottom:48px}
 .top h1{font-size:20px}
 .tabs{top:0;bottom:0;right:auto;width:240px;border-top:0;border-right:1px solid var(--line);padding:20px 14px}
-.tabs .in{max-width:none;display:flex;flex-direction:column;gap:4px}
-.tabs .in::before{content:"Yosh Xorazmiylar";display:flex;align-items:center;height:52px;padding-left:60px;margin:0 0 18px;background:url(/icon-192.png) 4px center/46px no-repeat;font-weight:700;font-size:16px;color:var(--fg)}
-.tabs button{flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 14px;border-radius:11px;font-size:15px}
+.tabs .in{max-width:none;display:flex;flex-direction:column;gap:3px;min-height:100%}
+.tabs{width:256px;overflow-y:auto;scrollbar-width:thin}
+.tabs .in>.dk{display:flex}
+.brand{align-items:center;gap:12px;padding:2px 6px 18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.brand img{width:54px;height:54px;border-radius:50%;flex:none;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 14px rgba(31,56,100,.22)}
+.brand b{display:block;font-family:"Unbounded",var(--display);font-weight:600;font-size:15px;line-height:1.25;color:var(--navy)}
+.brand span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.side-l{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:16px 14px 4px}
+.tabs button.sl{padding:8px 14px;font-size:14px;color:var(--fg)}
+.tabs button.sl svg{width:18px;height:18px;color:var(--muted)}
+.tabs button.sl[aria-current="true"]{background:var(--accent-soft);color:var(--accent-strong)}
+.tabs .sch{margin-top:auto;padding-top:16px}
+.tabs .sch .schc{padding:14px;font-size:12.5px}
+.tabs button{flex-direction:row;justify-content:flex-start;gap:12px;padding:9px 14px;border-radius:11px;font-size:15px}
 .tabs button[aria-current="true"]{background:var(--accent-soft)}
 .tabs .badge{position:static;margin-left:auto}
 .kpis{grid-template-columns:repeat(6,1fr)}
@@ -227,7 +238,19 @@ body[data-theme=sun]{--c1:#ffe89c;--c2:#c4eed3;--c3:#ffd4c2}
 @keyframes spin{to{transform:rotate(360deg)}}
 .yx-cap{display:none;position:fixed;left:28px;bottom:24px;z-index:7;max-width:200px;text-align:left;font-size:12.5px;line-height:1.5;color:var(--muted);pointer-events:none}
 .yx-cap b{display:block;font-family:"Unbounded",var(--display);font-weight:500;font-size:14px;color:var(--navy);letter-spacing:.02em}
-@media (min-width:900px){.yx-cap{display:block}}
+@media (min-width:900px){.yx-cap{display:block}body:has(.tabs) .yx-cap{display:none}}
+.tabs .dk{display:none}
+@media (min-width:900px){.mob-sch{display:none}}
+.schc{display:flex;flex-direction:column;gap:9px;padding:16px;font-size:13.5px;line-height:1.45}
+.schc .nm{font-family:"Unbounded",var(--display);font-weight:600;font-size:13px;letter-spacing:.03em;color:var(--navy)}
+.schc .ab{color:var(--muted)}
+.schc .ln{display:flex;gap:8px;align-items:flex-start;color:var(--fg);text-decoration:none}
+.schc .ln svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--accent-strong)}
+.schc .soc{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.schc .soc a{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong)}
+.schc .soc svg{width:18px;height:18px}
+.schc .cp{font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+.schc .fix{font-size:12px;color:var(--accent-strong);text-decoration:underline;text-align:left;padding:0}
 .top{background:color-mix(in srgb,var(--bg) 76%,transparent)!important;-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px)}
 .tabs{background:color-mix(in srgb,var(--surface) 86%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px)}
 body{background:var(--bg)}
@@ -572,7 +595,28 @@ async function entrySave(absent){
 }
 
 // ---------------- more
-function scrMore(){
+const SI={
+ pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>',
+ tel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg>',
+ web:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>',
+ telegram:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 4 3 11l6 2.5L19 7l-8 8 6 5z"/></svg>',
+ instagram:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg>',
+ facebook:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.5 21v-8h3l.5-3.5h-3.5V7.6c0-1 .4-1.6 1.7-1.6H18V3a19 19 0 0 0-2.6-.2C12.7 2.8 11 4.4 11 7.3v2.2H8V13h3v8"/></svg>',
+ youtube:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10 9.2 5 2.8-5 2.8z" fill="currentColor"/></svg>'};
+const socUrl=(k,v)=>{v=String(v||'').trim();if(!v)return '';if(/^https?:\/\//i.test(v))return v;const h=v.replace(/^@/,'');
+ return k==='telegram'?'https://t.me/'+h:k==='instagram'?'https://instagram.com/'+h:k==='facebook'?'https://facebook.com/'+h:k==='youtube'?'https://youtube.com/@'+h:'https://'+h};
+const SOC_L={telegram:'Telegram',instagram:'Instagram',facebook:'Facebook',youtube:'YouTube'};
+function schoolCard(){const s=S.school||{};const d=String(s.phone||'').replace(/\D/g,'').slice(-9);
+ const soc=['telegram','instagram','facebook','youtube'].filter(k=>s[k]).map(k=>`<a href="${esc(socUrl(k,s[k]))}" target="_blank" rel="noopener" aria-label="${SOC_L[k]}" title="${SOC_L[k]}">${SI[k]}</a>`).join('');
+ const empty=!d&&!soc&&!s.site;
+ return `<div class="card schc"><div class="nm">${esc(s.name||'KARAKUL INTERNATIONAL SCHOOL')}</div>${s.about?`<div class="ab">${esc(s.about)}</div>`:''}
+  ${s.address?`<div class="ln">${SI.pin}<span>${esc(s.address)}</span></div>`:''}
+  ${d?`<a class="ln" href="tel:+998${d}">${SI.tel}<span>${ph(d)}</span></a>`:''}
+  ${s.site?`<a class="ln" href="${esc(socUrl('site',s.site))}" target="_blank" rel="noopener">${SI.web}<span>${esc(String(s.site).replace(/^https?:\/\//,'').replace(/\/$/,''))}</span></a>`:''}
+  ${soc?`<div class="soc">${soc}</div>`:''}
+  ${empty&&S.me.role==='ceo'?`<button class="fix" data-side="settings">Telefon va ijtimoiy tarmoqlarni Sozlamalarda kiriting</button>`:''}
+  <div class="cp">“Yosh Xorazmiylar” loyihasi · © ${new Date().getFullYear()}</div></div>`}
+function moreItems(){
   const items=[];
   if(P('maktab')||S.me.role==='ceo')items.push(['tests','Sinovlar va kalitlar','Sinov yaratish, holatini o’zgartirish, kalit kiritish']);
   if(P('pinlar'))items.push(['pins','PIN’lar','Kimga PIN berilgan, yangi PIN berish']);
@@ -584,6 +628,19 @@ function scrMore(){
   if(S.me.role==='ceo')items.push(['settings','Sozlamalar','Telegram bot, logotip, imzo, muhr, tabrik matnlari']);
   if(S.me.role==='ceo')items.push(['backup','Zaxira nusxa','Butun bazani telefonga yuklab olish']);
   if(S.me.role==='ceo')items.push(['resimport','Natijalarni import qilish','Vaqtinchalik sahifadan ko’chirish']);
+  return items}
+const SIDE_IC={reyting:I.chart,tests:I.pen,pins:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',team:I.users,history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ certs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 8 5-3 5 3-1.5-8"/></svg>',mashq:I.pen,
+ settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
+ backup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>',
+ resimport:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>'};
+const SIDE_N={reyting:'Tuman reytingi',tests:'Sinovlar va kalitlar',pins:'PIN’lar',team:'Jamoa',history:'O’zgarishlar tarixi',certs:'Sertifikatlar',mashq:'Mashg’ulotlar',settings:'Sozlamalar',backup:'Zaxira nusxa',resimport:'Natijalar importi'};
+function sideExtra(){
+  const top=stack[0]||'';
+  const links=isTeam()?moreItems().map(([k])=>`<button class="sl" data-side="${k}" aria-current="${top===k}">${SIDE_IC[k]||I.chev}${SIDE_N[k]||k}</button>`).join(''):'';
+  return `${links?`<div class="dk side-l">Boshqaruv</div><div class="dk" style="flex-direction:column;gap:2px">${links}</div>`:''}<div class="dk sch">${schoolCard()}</div>`}
+function scrMore(){
+  const items=moreItems();
   return ['Ko’proq',S.me.name,`<div class="card list">${items.map(([k,n,s])=>`<button class="row" data-go="${k}"><div class="m"><div class="n">${n}</div><div class="s">${s}</div></div>${I.chev}</button>`).join('')}</div>
    ${instBtn()}<button class="btn sec" data-act="logout">Chiqish</button>`]}
 function scrTests(){
@@ -650,8 +707,8 @@ function scrDirHome(){
 function scrDirAnalysis(){const l=X.st;return ['Tahlil',`${S.schools[0]?.num}-maktab`,`${hardBox(l,'Maktab bolalari eng qiynalgan savollar')||'<div class="card empty">Hali ma’lumot yo’q</div>'}
   <section class="sec"><p class="label">Sinovlar tarixi</p><div class="card list">${S.tests.map(t=>`<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${present(l,t.id).length} ta bola qatnashdi</div></div><div class="num">${avgPct(l,t.id)??'—'}%</div></div>`).join('')||'<div class="empty">Yo’q</div>'}</div></section>`]}
 function scrRahbar(){const c=S.classes[0];if(!c)return['Sinfim','',''];if(S.tests[0])testId=S.tests[0].id;
-  if(!S.tests.length)return [`${c.name} sinf`,`${S.schools[0]?.num}-maktab`,`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${rahbarInfo(c)}<section class="sec"><p class="label">O’quvchilar</p><div class="card list">${X.st.map(s=>`<div class="row"><div class="m"><div class="n">${esc(s.name)}</div></div></div>`).join('')}</div></section>`];
-  const v=scrClass(c.id,'rahbar');v[2]=searchBox('O’quvchi ismi yoki familiyasi…')+tabrikCard('rahbar')+rahbarInfo(c)+v[2];return v}
+  if(!S.tests.length)return [`${c.name} sinf`,`${S.schools[0]?.num}-maktab`,`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${rahbarPhones(c)}${rahbarInfo(c)}<section class="sec"><p class="label">O’quvchilar</p><div class="card list">${X.st.map(s=>`<div class="row"><div class="m"><div class="n">${esc(s.name)}</div></div></div>`).join('')}</div></section>`];
+  const v=scrClass(c.id,'rahbar');v[2]=searchBox('O’quvchi ismi yoki familiyasi…')+tabrikCard('rahbar')+rahbarPhones(c)+rahbarInfo(c)+v[2];return v}
 function scrRahbarAnalysis(){const l=X.st;
   const buckets=[[17,20],[13,16],[9,12],[0,8]];const p=present(l).map(s=>R(s.id));
   return ['Tahlil','',`${hardBox(l,'Sinf eng qiynalgan savollar')||'<div class="card empty">Hali ma’lumot yo’q</div>'}
@@ -669,6 +726,18 @@ function openInfo(id){const s=X.st.find(x=>x.id===id);if(!s)return;
   <label class="field"><span class="label">Tug’ilgan yili</span><input id="inY" type="text" inputmode="numeric" maxlength="4" value="${s.birth_year||''}" placeholder="Masalan: 2018"></label>
   <label class="field"><span class="label">Manzili</span><input id="inA" type="text" value="${esc(s.address||'')}" placeholder="Masalan: Qorako’l tumani, Mirzaqal’a qishlog’i"></label>
   <button class="btn pri" data-act="infoSave" data-id="${id}">Saqlash</button>`);$('#inY')?.focus()}
+const kidPhones=s=>[s.phone,...(s.extra||[])].filter(Boolean);
+function rahbarPhones(c){const l=X.st.filter(s=>s.class_id===c.id);const miss=l.filter(s=>!kidPhones(s).length).length;
+  return `<button class="card row${miss?' warnc':''}" data-go="phones" style="width:100%;text-align:left;margin-bottom:10px"><div class="m"><div class="n">Ota-onalar telefoni</div><div class="s">${miss?`${miss} ta bolaniki kiritilmagan`:'Hammasi kiritilgan ✓'}</div></div>${I.chev}</button>`}
+function scrPhones(){const c=S.classes[0];const l=X.st.filter(s=>s.class_id===c?.id).sort((a,b)=>(kidPhones(a).length>0)-(kidPhones(b).length>0)||a.name.localeCompare(b.name));
+  return ['Ota-onalar telefoni',`${c?.name||''} sinf`,`<p class="note">Har bir bolaning ota-onasidan raqamini o’zingiz so’rab, tekshirib kiriting. Ro’yxatdan kelgan raqamlar “tekshirilmagan” deb ko’rsatiladi: ular ota-onaniki ekaniga ishonch hosil qilmaguningizcha tasdiqlamang. Ota-ona faqat shu raqam orqali farzandining natijasini ko’radi.</p>
+  <div class="card list">${l.map(s=>{const ps=kidPhones(s);return `<button class="row" data-act="phoneEdit" data-id="${s.id}"><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${ps.length?ps.map(ph).join(', '):s.hint?`<span style="color:var(--wrong)">kiritilmagan</span> · ro’yxatda: ${ph(s.hint)} (tekshirilmagan)`:'<span style="color:var(--wrong)">kiritilmagan</span>'}</div></div>${I.chev}</button>`}).join('')}</div>`]}
+function openPhone(id){const s=X.st.find(x=>x.id===id);if(!s)return;
+  openSheet(`<div class="sh-top"><div class="m"><h2>${esc(s.name)}</h2><div class="s">Ota-onasining telefon raqami</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  ${s.hint&&!s.phone?`<div class="note">Ro’yxatda <b>${ph(s.hint)}</b> yozilgan, lekin bu raqam tekshirilmagan. Ota-onaniki ekaniga ishonchingiz komil bo’lsagina kiriting.</div>`:''}
+  ${(s.extra||[]).length?`<div class="note">Bot orqali tasdiqlangan: ${s.extra.map(ph).join(', ')}</div>`:''}
+  <label class="field"><span class="label">Telefon raqami</span><input id="inP" type="tel" inputmode="tel" value="${esc(s.phone||'')}" placeholder="90 123 45 67"></label>
+  <button class="btn pri" data-act="phoneSave" data-id="${id}">Saqlash</button>`);$('#inP')?.focus()}
 function rahbarInfo(c){const l=X.st.filter(s=>s.class_id===c.id);const miss=l.filter(s=>!hasInfo(s)).length;
   return `<button class="card row${miss?' warnc':''}" data-go="info" style="width:100%;text-align:left"><div class="m"><div class="n">Tug’ilgan yil va manzillar</div><div class="s">${miss?`${miss} ta bolaniki kiritilmagan`:'Hammasi kiritilgan ✓'}</div></div>${I.chev}</button>`}
 function scrInfo(){const c=S.classes[0];const l=X.st.filter(s=>s.class_id===c?.id).sort((a,b)=>hasInfo(a)-hasInfo(b)||a.name.localeCompare(b.name));
@@ -889,6 +958,10 @@ function scrSettings(){
    <button class="btn pri sm" data-act="setSave" data-k="bot_token" data-src="stTok" style="align-self:flex-start">Kalitni saqlash</button>
    <label class="field"><span class="label">Sizning telefoningiz (bot sizga xabar yuborishi uchun)</span><input id="stCeo" type="tel" value="${esc(SET.ceo_phone)}" placeholder="90 123 45 67"></label>
    <button class="btn sec sm" data-act="setSave" data-k="ceo_phone" data-src="stCeo" style="align-self:flex-start">Saqlash</button></div></section>
+  <section class="sec"><p class="label">Maktab ma’lumotlari (sayt pastida ko’rinadi)</p><div class="card pad">
+   ${[['sch_name','Maktab nomi','KARAKUL INTERNATIONAL SCHOOL'],['sch_about','Qisqa tavsif','Masalan: 1–11-sinflar, xususiy maktab'],['sch_address','Manzil','Qorako’l tumani, ...'],['sch_phone','Telefon','90 123 45 67'],['sch_telegram','Telegram kanal','@kanal_nomi yoki havola'],['sch_instagram','Instagram','@sahifa_nomi yoki havola'],['sch_facebook','Facebook','sahifa nomi yoki havola'],['sch_youtube','YouTube','@kanal yoki havola'],['sch_site','Veb-sayt','masalan: maktab.uz']].map(([k,l,p])=>`<label class="field"><span class="label">${l}</span><input id="st_${k}" value="${esc(SET[k]||'')}" placeholder="${esc(p)}"${k==='sch_phone'?' type="tel" inputmode="tel"':''}></label>`).join('')}
+   <button class="btn pri sm" data-act="setSch" style="align-self:flex-start">Saqlash</button>
+   <p class="note">Bo’sh qoldirilgan qatorlar saytda ko’rinmaydi.</p></div></section>
   <section class="sec"><p class="label">Sertifikat</p>${img('logo','Logotip')}${img('imzo','Imzo')}${img('muhr','Muhr')}
    <p class="note">Imzo va muhrni oq qog’ozda rasmga oling. Orqa fonsiz PNG bo’lsa, chiroyliroq chiqadi.</p>
    <div class="card pad"><label class="field"><span class="label">Imzo qo’yuvchi</span><input id="stSig" value="${esc(SET.signer)}"></label><label class="field"><span class="label">Lavozimi</span><input id="stRole" value="${esc(SET.signer_role)}"></label>
@@ -935,6 +1008,7 @@ document.addEventListener('click',async e=>{
    case 'exSave':await api('ex.save',{id:CMP.id||undefined,grade:+val('exG'),day:val('exD'),text:val('exT'),image:CMP.exImg,options:[0,1,2,3,4].map(i=>val('exO'+i)),answer:val('exA'),explain:val('exE')});closeSheet();toast('Mashq saqlandi');EXL=null;render();break;
    case 'exDel':await api('ex.delete',{id:+d.id});closeSheet();toast('O’chirildi');EXL=null;render();break;
    case 'setSave':{const v=val(d.src);if(d.k==='bot_token'&&!v){toast('Kalitni kiriting',true);break}const r=await api('settings.save',{key:d.k,value:v});toast(d.k==='bot_token'?`Bot ulandi: @${r.bot_username}`:'Saqlandi');SET=null;await load();break}
+   case 'setSch':for(const k of ['sch_name','sch_about','sch_address','sch_phone','sch_telegram','sch_instagram','sch_facebook','sch_youtube','sch_site'])await api('settings.save',{key:k,value:val('st_'+k)});SET=null;toast('Saqlandi');await load();break;
    case 'setSig':await api('settings.save',{key:'signer',value:val('stSig')});await api('settings.save',{key:'signer_role',value:val('stRole')});CA=null;toast('Saqlandi');SET=null;render();break;
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
@@ -954,7 +1028,7 @@ function screen(){
   if(top){const [k,v]=top.split(':');
     if(k==='school')return scrSchool(+v); if(k==='class')return scrClass(+v); if(k==='stu')return scrStudent(+v);
     if(k==='tests')return scrTests(); if(k==='pins')return scrPins(); if(k==='team')return scrTeam(); if(k==='history')return scrHistory();
-    if(k==='info')return scrInfo(); if(k==='backup')return scrBackup(); if(k==='resimport')return scrResImport();
+    if(k==='info')return scrInfo(); if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='resimport')return scrResImport();
     if(k==='certs')return scrCerts(); if(k==='mashq')return scrExTeam(); if(k==='settings')return scrSettings(); if(k==='reyting')return scrRanking();}
   const r=S.me.role;
   if(tab==='xabar')return scrMessages();
@@ -988,8 +1062,8 @@ function render(){
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span>
    ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
-   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner():''}${body}</main>
-   ${tabs.length>1?`<nav class="tabs"><div class="in">${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}</div></nav>`:''}`;
+   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
+   ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
 }
@@ -1038,7 +1112,7 @@ function openImport(){
       const by={};data.forEach(r=>{const k=r.cls.toUpperCase();by[k]=(by[k]||0)+1});
       IMP=data;
       $('#impPrev').innerHTML=`<div class="card pad"><b>${data.length} ta o’quvchi topildi</b><div class="note">${Object.entries(by).sort().map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')}</div>
-       ${cb>=0?`<div class="note"><b>${data.filter(r=>r.score!==''&&!/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} ta bolaning bali bor${data.some(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score))?`, ${data.filter(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} tasi kelmagan`:''}</b> — joriy sinovga (${esc(curTest()?.name||'sinov tanlanmagan')}) natija sifatida yoziladi.</div>`:''}<div class="note">Telefon ${cp>=0?data.filter(r=>r.phone).length+' ta bolada bor':'ustuni yo’q'}. Otasining ismi olib tashlanadi, faqat familiya va ism qoladi.</div>
+       ${cb>=0?`<div class="note"><b>${data.filter(r=>r.score!==''&&!/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} ta bolaning bali bor${data.some(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score))?`, ${data.filter(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} tasi kelmagan`:''}</b> — joriy sinovga (${esc(curTest()?.name||'sinov tanlanmagan')}) natija sifatida yoziladi.</div>`:''}<div class="note">${cp>=0?'Fayldagi telefon raqamlari ota-onaga bog’lanmaydi: ular faqat “tekshirilmagan” deb saqlanadi, haqiqiy raqamni sinf rahbari tekshirib kiritadi.':'Telefon ustuni yo’q.'} Otasining ismi olib tashlanadi, faqat familiya va ism qoladi.</div>
        <div class="note">Masalan: ${data.slice(0,3).map(r=>esc(r.name.split(/\s+/).slice(0,2).join(' '))).join(', ')}</div></div>
        <button class="btn pri" data-act="impSave">Yuklash</button>`;
     }catch(err){$('#impPrev').innerHTML=`<p class="err">${esc(err.message)}</p>`}};
@@ -1049,6 +1123,7 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-go]'); if(!b)return; const d=b.dataset;
   try{
   if(d.d!=null){if(pin.length<6){pin+=d.d;pinErr=''}render();if(pin.length===6){const p=pin;pin='';try{await api('login',{pin:p});await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}}return}
+  if(d.side){stack=[];go(d.side);return}
   if(d.go){go(d.go);return}
   if(d.tab){tab=d.tab;stack=[];if(tab==='xabar')TH=null;if(tab==='mashq')EXL=null;render();scrollTo(0,0);return}
   if(d.sort){sortBy=d.sort;render();return}
@@ -1068,6 +1143,8 @@ document.addEventListener('click',async e=>{
    case 'close':closeSheet();break;
    case 'install':await doInstall();break;
    case 'infoEdit':openInfo(+d.id);break;
+   case 'phoneEdit':openPhone(+d.id);break;
+   case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi');await load();break;
    case 'infoSave':await api('student.info',{id:+d.id,birth_year:val('inY'),address:val('inA')});closeSheet();toast('Saqlandi');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
    case 'logout':await api('logout');S=null;stack=[];tab=null;render();break;
@@ -1086,7 +1163,7 @@ document.addEventListener('click',async e=>{
    case 'classEdit':{const c=d.id?X.cl[d.id]:{school_id:+d.school};formSheet(d.id?'Sinfni tahrirlash':'Yangi sinf',[{id:'fCls',label:'Sinf',value:c.name,ph:'3-A'},{id:'fT',label:'Sinf rahbari',value:c.teacher_name},{id:'fTP',label:'Sinf rahbari telefoni',value:c.teacher_phone,type:'tel',mode:'tel'}],'classSave');Object.assign($('#sheet').dataset,{id:d.id||'',school:c.school_id});break}
    case 'classSave':await api('class.save',{id:+$('#sheet').dataset.id||undefined,school_id:+$('#sheet').dataset.school,name:val('fCls'),teacher_name:val('fT'),teacher_phone:val('fTP')});closeSheet();toast('Saqlandi');await load();break;
    case 'studentEdit':{const s=d.id?X.st.find(x=>x.id===+d.id):{class_id:+d.class||S.classes[0]?.id,name:d.quick?q:''};
-     formSheet(d.id?'O’quvchini tahrirlash':'Yangi o’quvchi',[{id:'fSN',label:'Familiya va ism',value:s.name},{id:'fSC',label:'Maktab va sinf',type:'select',options:classOpts(),value:s.class_id},{id:'fSP',label:'Ota-ona telefoni',value:s.phone,type:'tel',mode:'tel'},{id:'fSB',label:'Tug’ilgan yil',value:s.birth_year,mode:'numeric'},{id:'fSA',label:'Manzil',value:s.address}],'studentSave',d.id&&P('maktab')?`<button class="btn dan" data-act="studentDel">O’quvchini o’chirish</button>`:'');
+     formSheet(d.id?'O’quvchini tahrirlash':'Yangi o’quvchi',[{id:'fSN',label:'Familiya va ism',value:s.name},{id:'fSC',label:'Maktab va sinf',type:'select',options:classOpts(),value:s.class_id},{id:'fSP',label:'Ota-ona telefoni'+(!s.phone&&S.hints?.[s.id]?` (ro’yxatda: ${ph(S.hints[s.id])}, tekshirilmagan)`:''),value:s.phone,type:'tel',mode:'tel'},{id:'fSB',label:'Tug’ilgan yil',value:s.birth_year,mode:'numeric'},{id:'fSA',label:'Manzil',value:s.address}],'studentSave',d.id&&P('maktab')?`<button class="btn dan" data-act="studentDel">O’quvchini o’chirish</button>`:'');
      Object.assign($('#sheet').dataset,{id:d.id||'',quick:d.quick||''});break}
    case 'studentSave':{const quick=$('#sheet').dataset.quick;const r=await api('student.save',{id:+$('#sheet').dataset.id||undefined,name:val('fSN'),class_id:+val('fSC'),phone:val('fSP'),birth_year:val('fSB'),address:val('fSA')});closeSheet();toast('Saqlandi');await load();if(quick&&testId)openEntry(r.id);break}
    case 'studentDel':await api('student.delete',{id:+$('#sheet').dataset.id});closeSheet();stack.pop();toast('O’chirildi. Tarixdan qaytarish mumkin');await load();break;
