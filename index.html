@@ -386,12 +386,26 @@ function hardest(list,k=5,tid=testId){const p=present(list,tid).map(s=>R(s.id,ti
 const colorFor=p=>p>=70?'var(--good)':p>=45?'var(--accent)':'var(--low)';
 
 // ================================================================ shared ui bits
-function stageBox(t){
+function stageBox(t,sid=0){
   if(!t)return `<div class="stage"><div class="slb">Sinov</div><div class="t">Hali sinov yaratilmagan</div></div>`;
-  const i=STATUS.findIndex(s=>s[0]===t.status);
-  return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">Joriy sinov</div><div class="t">${esc(t.name)}</div></div>
+  // bosqich natijalar kiritilishiga qarab o'zi o'tadi; qo'lda qo'yilgan holat undan yuqori bo'lsa, o'sha ko'rinadi
+  const list=sid?X.st.filter(s=>s.school_id===sid):X.st; const n=list.filter(s=>R(s.id,t.id)).length; const left=list.length-n;
+  const ap=S.approvals?.[t.id]?.[sid]||{};
+  let steps,i,note='';
+  if(sid){
+    steps=['Kutilmoqda','Kiritilmoqda','Tekshiruv','E’lon'];
+    i=ap.done?3:!n?0:left>0?1:2;
+  }else{
+    steps=STATUS.map(x=>x[1]);
+    const auto=t.status==='yakunlandi'?3:!n?0:left>0?1:2;
+    i=Math.max(auto,STATUS.findIndex(x=>x[0]===t.status));
+  }
+  if(i===0&&!n)note=sid?'Hali birorta natija kiritilmagan.':'';
+  else if(i===1)note=`<b>${left}</b> ta o’quvchi hali kiritilmagan. Kelmaganlarni “Kelmadi” deb belgilang.`;
+  else if(i===2)note=sid?`Hamma kiritildi. E’lon uchun tasdiq: ${ap.ceo?'CEO ✓':'CEO'} · ${ap.hasSardor?(ap.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}`:'Hamma kiritildi. Maktablar e’lon qilingach, sinovni yakunlang.';
+  return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">${sid?`${X.sc[sid]?.num}-maktab · bosqich`:'Joriy sinov'}</div><div class="t">${esc(t.name)}</div></div>
    ${isTeam()&&S.tests.length>1?`<button class="pill gray" data-act="pickTest" style="color:var(--fg)">almashtirish</button>`:''}</div>
-   <div class="steps">${STATUS.map((s,k)=>`<span class="${k<i?'done':k===i?'on':''}">${s[1]}</span>`).join('')}</div></div>`}
+   <div class="steps">${steps.map((s,k)=>`<span class="${k<i?'done':k===i?'on':''}">${s}</span>`).join('')}</div>${note?`<div style="font-size:13px;opacity:.85">${note}</div>`:''}</div>`}
 const kpis=items=>`<div class="kpis">${items.map(([v,l])=>`<div class="card kpi"><b>${v??'—'}</b><small>${l}</small></div>`).join('')}</div>`;
 function stuRow(s,i,o={}){
   const r=R(s.id); const g=o.gifted&&o.gifted.has(s.id);
@@ -451,7 +465,7 @@ function scrTeamHome(){
   return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`
   ${searchBox('Ism, familiya, sinf yoki telefon…')}
   ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
-  ${stageBox(t)}
+  ${stageBox(t,homeSchool)}
   ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
   ${t?annBox(t):''}
   ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}
@@ -486,6 +500,7 @@ function scrSchool(id){
   const cls=S.classes.filter(c=>c.school_id===id); const l=X.st.filter(s=>s.school_id===id);
   return [`${sc.num}-maktab`,`${cls.length} sinf · ${l.length} o’quvchi`,`
   <div class="card list"><div class="row"><div class="m"><div class="s">Direktor</div><div class="n">${esc(sc.director_name)||'—'}</div><div class="s">${ph(sc.director_phone)}</div></div>${P('maktab')?`<button class="btn sec sm" data-act="schoolEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>
+  ${curTest()?stageBox(curTest(),id):''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%','o’rtacha']])}
   ${[...new Set(cls.map(c=>c.grade))].sort().map(g=>`<section class="sec"><p class="label">${g}-sinflar</p><div class="card list">
    ${cls.filter(c=>c.grade===g).map(c=>{const cl=X.st.filter(s=>s.class_id===c.id);const v=avgPct(cl);const n=cl.filter(s=>R(s.id)).length;
