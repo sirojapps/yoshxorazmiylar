@@ -301,7 +301,9 @@ async function doInstall(){
 }
 let toastT;function toast(t,err){const el=$('#toast');el.textContent=t;el.className='toast'+(err?' err':'');el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,err?4000:2200)}
 async function api(name,body){
-  const r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),credentials:'same-origin'});
+  let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),credentials:'same-origin'})}
+  catch(e){const er=new Error('Server bilan aloqa yo’q. Internetni tekshiring yoki birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
+  if(r.status>=502&&r.status<=504){const er=new Error('Sayt bir daqiqaga yangilanmoqda. Birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
   let d={};try{d=await r.json()}catch(e){}
   if(r.status===401&&name!=='login'){S=null;render();throw new Error(d.error||'Qaytadan kiring')}
   if(!r.ok)throw new Error(d.error||'Xatolik');
@@ -340,8 +342,18 @@ let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
 const isTeam=()=>S&&(S.me.role==='ceo'||S.me.role==='jamoa');
 
+let netTry=0,netTimer=null;
 async function load(){
-  try{S=await api('state');}catch(e){S=null}
+  try{S=await api('state');if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
+  catch(e){
+    if(!e.net){S=null;if(netTry){netTry=0;pinErr=''}}
+    else{ // aloqa uzilsa — tizimdan chiqarmaymiz, o'zi qayta urinadi
+      netTry++;if(netTry===1)toast(e.message,true);
+      if(!S)pinErr=e.message;
+      clearTimeout(netTimer);netTimer=setTimeout(load,Math.min(30000,4000*netTry));
+      if(S)return;
+    }
+  }
   if(S){if(!S.tests.some(t=>t.id===testId))testId=S.tests[0]?.id??null;}
   render();
 }
