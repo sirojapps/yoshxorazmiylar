@@ -184,10 +184,65 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .sheet .in{max-width:600px;background:var(--bg);border-radius:18px;padding:20px 24px 26px}
 .toast{bottom:28px}
 }
+
+/* ============ atmosfera: har bo'limga o'z yumshoq rangi, sokin harakat ============ */
+@property --c1{syntax:'<color>';inherits:true;initial-value:#cdeeea}
+@property --c2{syntax:'<color>';inherits:true;initial-value:#d6e6ff}
+@property --c3{syntax:'<color>';inherits:true;initial-value:#fdf3d8}
+body{--c1:#b6ebe3;--c2:#c6dbff;--c3:#ffeab8;--gop:.13;transition:--c1 .9s ease,--c2 .9s ease,--c3 .9s ease}
+body[data-theme=mint]{--c1:#bdeccb;--c2:#def3b4;--c3:#bfe8ec}
+body[data-theme=sand]{--c1:#ffd9b8;--c2:#ffecbd;--c3:#d4ece7;--gop:.08}
+body[data-theme=lilac]{--c1:#dccfff;--c2:#c9e0ff;--c3:#fbd5e6}
+body[data-theme=rose]{--c1:#ffd1dc;--c2:#ffe3bb;--c3:#ddd6ff}
+body[data-theme=dusk]{--c1:#ccd2ff;--c2:#b8e9e3;--c3:#ecdcff}
+body[data-theme=sun]{--c1:#ffe89c;--c2:#c4eed3;--c3:#ffd4c2}
+@media (prefers-color-scheme: dark){
+ body{--c1:#123a3d;--c2:#1a2a52;--c3:#3a3320;--gop:.11}
+ body[data-theme=mint]{--c1:#14402c;--c2:#2c3d18;--c3:#123a40}
+ body[data-theme=sand]{--c1:#46301c;--c2:#3d3518;--c3:#14373a;--gop:.08}
+ body[data-theme=lilac]{--c1:#2e2456;--c2:#18305a;--c3:#45203a}
+ body[data-theme=rose]{--c1:#4a2030;--c2:#43331a;--c3:#2a2552}
+ body[data-theme=dusk]{--c1:#232a60;--c2:#123f3d;--c3:#3a2552}
+ body[data-theme=sun]{--c1:#45401a;--c2:#163d29;--c3:#45281e}
+}
+#atmo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+#atmo .b{position:absolute;width:80vmax;height:80vmax;border-radius:50%;opacity:1}
+#atmo .b1{background:radial-gradient(circle at center,var(--c1) 0,transparent 62%);left:-30vmax;top:-32vmax;animation:drift1 46s ease-in-out infinite alternate}
+#atmo .b2{background:radial-gradient(circle at center,var(--c2) 0,transparent 62%);right:-32vmax;top:18vh;animation:drift2 58s ease-in-out infinite alternate}
+#atmo .b3{background:radial-gradient(circle at center,var(--c3) 0,transparent 62%);left:5vw;bottom:-45vmax;animation:drift3 64s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate(12vw,10vh) scale(1.08)}}
+@keyframes drift2{to{transform:translate(-10vw,-8vh) scale(1.12)}}
+@keyframes drift3{to{transform:translate(14vw,-6vh) scale(.94)}}
+#atmo .pat{position:absolute;inset:0;opacity:.5;color:var(--navy);
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%232f4f8f' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M48 20l8 20 20 8-20 8-8 20-8-20-20-8 20-8z'/%3E%3Crect x='30' y='30' width='36' height='36' transform='rotate(45 48 48)'/%3E%3Crect x='30' y='30' width='36' height='36'/%3E%3Ccircle cx='48' cy='48' r='6'/%3E%3Cpath d='M0 0l12 12M96 0L84 12M0 96l12-12M96 96L84 84'/%3E%3C/g%3E%3C/svg%3E");
+ -webkit-mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.35) 45%,#000 100%);mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.35) 45%,#000 100%)}
+@media (prefers-color-scheme: dark){#atmo .pat{filter:invert(1) hue-rotate(180deg);opacity:.6}#atmo .b{opacity:.85}}
+#atmo .g{position:absolute;bottom:-12vh;left:var(--x);font-family:"Unbounded",var(--display);font-weight:500;font-size:var(--s);color:var(--navy);opacity:0;animation:rise var(--d) linear var(--w) infinite}
+@keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}12%{opacity:var(--gop)}85%{opacity:var(--gop)}100%{transform:translateY(-125vh) rotate(var(--r));opacity:0}}
+#atmo .astro{display:none}
+@media (min-width:1300px){
+ #atmo .astro{display:block;position:absolute;right:-150px;bottom:-150px;width:620px;height:620px;color:var(--navy);opacity:.16;animation:spin 300s linear infinite}
+ #atmo .astro .ri{transform-origin:310px 310px;animation:spin 180s linear infinite reverse}
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.yx-cap{display:none;position:fixed;left:28px;bottom:24px;z-index:7;max-width:200px;text-align:left;font-size:12.5px;line-height:1.5;color:var(--muted);pointer-events:none}
+.yx-cap b{display:block;font-family:"Unbounded",var(--display);font-weight:500;font-size:14px;color:var(--navy);letter-spacing:.02em}
+@media (min-width:900px){.yx-cap{display:block}}
+.top{background:color-mix(in srgb,var(--bg) 76%,transparent)!important;-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px)}
+.tabs{background:color-mix(in srgb,var(--surface) 86%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px)}
+body{background:var(--bg)}
+@media (prefers-reduced-motion:reduce){#atmo *{animation:none!important}#atmo .g{display:none}}
 @media (prefers-reduced-motion:no-preference){main{animation:in .16s ease-out}@keyframes in{from{opacity:.5}to{opacity:1}}}
 </style>
 </head>
 <body>
+<div id="atmo" aria-hidden="true"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="pat"></div>
+<svg class="astro" viewBox="0 0 620 620" fill="none" stroke="currentColor"><circle cx="310" cy="310" r="300" stroke-width="2"/><circle cx="310" cy="310" r="268" stroke-width="1"/>
+<g id="tk"></g><g class="ri"><circle cx="310" cy="310" r="200" stroke-width="1.5"/><circle cx="310" cy="250" r="150" stroke-width="1"/><circle cx="310" cy="370" r="120" stroke-width="1"/><ellipse cx="310" cy="310" rx="200" ry="80" stroke-width="1"/>
+<path d="M310 110v400M110 310h400" stroke-width="1"/><path d="M310 140l18 150 132 20-132 20-18 150-18-150-132-20 132-20z" stroke-width="1.5"/></g>
+<g id="dg" fill="currentColor" stroke="none" font-size="22" text-anchor="middle"></g></svg>
+<div id="gl"></div></div>
+<div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
 <div class="app" id="app"></div>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
@@ -308,9 +363,19 @@ function sortStu(list){const a=[...list];
   if(sortBy==='ism')a.sort((x,y)=>x.name.localeCompare(y.name,'uz'));
   else a.sort((x,y)=>(R(y.id)?.score??-1)-(R(x.id)?.score??-1)||x.name.localeCompare(y.name,'uz'));return a}
 const sortSeg=()=>`<div class="seg"><button data-sort="ball" aria-pressed="${sortBy==='ball'}">Ball bo’yicha</button><button data-sort="ism" aria-pressed="${sortBy==='ism'}">Ism bo’yicha</button></div>`;
-function hardBox(list,title){const h=hardest(list);if(!h.length)return'';
-  return `<section class="sec"><p class="label">${title||'Eng ko’p xato qilingan savollar'}</p><div class="hard">${h.map(x=>`<span>${x.q}-savol <small>· ${x.p}% xato</small></span>`).join('')}</div>
-  ${isTeam()?`<p class="note">Savolni ko’pchilik xato qilgan bo’lsa, e’londan oldin kalitni tekshirib ko’ring.</p>`:''}</section>`}
+function hardBox(list,title){
+  const t=curTest(); if(!t)return'';
+  const blocks=[...new Set(list.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b).map(g=>{
+    const gl=list.filter(s=>s.grade===g); const n=present(gl).filter(s=>R(s.id)?.bits).length;
+    const h=hardest(gl).filter(x=>x.p>0); if(!h.length)return'';
+    return `<div class="card pad"><div class="sec-h"><b>${g}-sinf testi</b><span class="pill gray">${n} ta bola</span></div>
+     <div class="hard">${h.map(x=>`<span>${x.q}-savol <small>· ${x.p}% xato</small></span>`).join('')}</div>
+     ${n<10?`<p class="note" style="margin:0">Faqat ${n} ta bolaning javoblari savol bo’yicha kiritilgan, shuning uchun bu ko’rsatkich hali aniq emas.</p>`:''}</div>`}).filter(Boolean);
+  if(!blocks.length)return'';
+  return `<section class="sec"><p class="label">${title||'Eng ko’p xato qilingan savollar'}</p>
+   <p class="note" style="margin:0">«${esc(t.name)}» sinovi bo’yicha. Har sinfning testi alohida, shuning uchun savollar sinflar bo’yicha ajratilgan. Foiz — shu savolga noto’g’ri javob bergan yoki javob bermagan bolalar ulushi.</p>
+   ${blocks.join('')}
+   ${isTeam()?`<p class="note">Biror savolni ko’pchilik xato qilgan bo’lsa, e’londan oldin shu sinf kalitini tekshirib ko’ring.</p>`:''}</section>`}
 function gradeBars(list){return `<div class="card cmp">${[...new Set(list.map(s=>s.grade))].sort().map(g=>{const v=avgPct(list.filter(s=>s.grade===g));
   return `<div class="r"><span>${g}-sinflar</span><div class="track"><i style="width:${v||0}%;background:${colorFor(v)}"></i></div><b class="num">${v==null?'—':v+'%'}</b></div>`}).join('')}</div>`}
 function qGrid(r){if(r&&!r.absent&&r.mode==='ball')return `<div class="card pad"><p class="note" style="margin:0">Bu sinovda faqat umumiy ball kiritilgan. Savollar bo’yicha ma’lumot yo’q.</p></div>`;if(!r||r.absent||!r.bits)return'';
@@ -898,12 +963,26 @@ function screen(){
   if(r==='rahbar')return tab==='tahlil'?scrRahbarAnalysis():scrRahbar();
   return tab==='mashq'?scrExParent():scrParent();
 }
+
+// ---- atmosfera
+const THEME={bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
+(function atmo(){
+  const tk=document.getElementById('tk'),dg=document.getElementById('dg'),gl=document.getElementById('gl');if(!gl)return;
+  let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}tk.innerHTML=t;
+  const D='٠١٢٣٤٥٦٧٨٩';let d='';for(let i=0;i<10;i++){const a=(i*36-90)*Math.PI/180;d+=`<text x="${310+Math.cos(a)*240}" y="${318+Math.sin(a)*240}">${D[i]}</text>`}dg.innerHTML=d;
+  const G=['x²','π','√','∑','÷','=','7','3','9','∞','△','½','+','×','a+b','%','0','1'];
+  const n=innerWidth>=900?18:7;let h='';
+  for(let i=0;i<n;i++){h+=`<span class="g" style="--x:${(i*97)%100}vw;--s:${16+(i*7)%26}px;--d:${38+(i*13)%40}s;--w:-${(i*11)%60}s;--r:${(i%2?1:-1)*(20+i*9)}deg">${G[i%G.length]}</span>`}
+  gl.innerHTML=h;
+})();
 function render(){
+  document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
   if(!S){renderLogin();return}
   if(S.me.role==='ota'&&!S.me.consent){renderConsent();return}
   X=idx();
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
+  document.body.dataset.theme=THEME[tab]||'sky';
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
