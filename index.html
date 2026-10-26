@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1f3864">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1424" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -16,15 +17,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
 <style>
 :root{
-  --bg:#f3f5f9; --surface:#ffffff; --surface2:#e9eef6; --fg:#14213d; --muted:#5d6a83; --line:#d9e0ec;
-  --navy:#1b2f5e; --stage:#1b2f5e; --accent:#0f9d9a; --accent-strong:#0b7f7c; --accent-soft:#d6f1ef; --gold:#a07612; --gold-soft:#f8ecd0;
+  --bg:#f8fafc; --surface:#ffffff; --surface2:#eef2f7; --fg:#1e293b; --muted:#64748b; --line:#e5eaf1;
+  --navy:#2f4f8f; --stage:linear-gradient(135deg,#e9f3ff 0%,#e7f8f5 100%); --stage-fg:#1e293b; --stage-lb:#0b7f7c; --stage-line:rgba(15,157,154,.18); --stage-on:#12a39f; --accent:#12a39f; --accent-strong:#0b8581; --accent-soft:#e0f5f3; --gold:#a07612; --gold-soft:#f8ecd0;
   --good:#1f8a4c; --low:#6a7792; --wrong:#c2414b; --wrong-soft:#f7dfe1; --blank:#c3cad8; --on-accent:#fff;
-  --display:"Unbounded","Golos Text",system-ui,sans-serif; --body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Golos Text",system-ui,sans-serif; --body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0e1424; --surface:#161e33; --surface2:#1e2842; --fg:#e7ecf6; --muted:#9aa6bf; --line:#2a3552;
-  --navy:#8fb0ff; --stage:#1d3266; --accent:#2fb8b3; --accent-strong:#3cc7c2; --accent-soft:#163b3d; --gold:#e3b54a; --gold-soft:#3b3218;
+  --navy:#8fb0ff; --stage:linear-gradient(135deg,#1a2540 0%,#16303a 100%); --stage-fg:#e7ecf6; --stage-lb:#7fdcd7; --stage-line:rgba(255,255,255,.18); --stage-on:#5fe0d9; --accent:#2fb8b3; --accent-strong:#3cc7c2; --accent-soft:#163b3d; --gold:#e3b54a; --gold-soft:#3b3218;
   --good:#4cc47f; --low:#8d99b3; --wrong:#ee6b74; --wrong-soft:#41222a; --blank:#3a4562; --on-accent:#06201f; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
@@ -50,16 +51,16 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .sec-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
 .pad{padding:14px;display:flex;flex-direction:column;gap:10px}
-.stage{display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--stage);color:#fff;border-radius:16px}
-.stage .t{font-family:var(--display);font-size:15px;font-weight:500}
-.stage .slb{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#bfe9e6}
+.stage{display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--stage);color:var(--stage-fg);border:1px solid var(--line);border-radius:16px}
+.stage .t{font-family:var(--display);font-size:17px;font-weight:700}
+.stage .slb{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--stage-lb)}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-.steps span{font-size:11px;text-align:center;padding-top:7px;border-top:3px solid rgba(255,255,255,.25);opacity:.7}
-.steps span.on{border-color:#5fe0d9;opacity:1;font-weight:600}
-.steps span.done{border-color:rgba(95,224,217,.6)}
+.steps span{font-size:11px;text-align:center;padding-top:7px;border-top:3px solid var(--stage-line);opacity:.65;border-radius:2px}
+.steps span.on{border-color:var(--stage-on);opacity:1;font-weight:600}
+.steps span.done{border-color:var(--stage-on);opacity:.85}
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .kpi{padding:12px;display:flex;flex-direction:column;gap:2px}
-.kpi b{font-family:var(--display);font-size:19px;font-weight:500;font-variant-numeric:tabular-nums}
+.kpi b{font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 .kpi small{font-size:12px;color:var(--muted)}
 .list{display:flex;flex-direction:column;overflow:hidden}
 .list>*{border-bottom:1px solid var(--line)}
@@ -90,17 +91,19 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .hero{padding:18px;display:flex;flex-direction:column;gap:6px}
-.big{font-family:var(--display);font-size:40px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums}
+.big{font-family:var(--display);font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
 .big small{font-size:17px;color:var(--muted);font-weight:500}
 .cmp{display:flex;flex-direction:column;gap:10px;padding:14px}
 .cmp .r{display:grid;grid-template-columns:104px 1fr 46px;align-items:center;gap:10px;font-size:13.5px}
 .cmp .track{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden}
 .cmp .track i{display:block;height:100%;border-radius:5px}
 .note{font-size:13px;color:var(--muted);margin:0}
-.inst{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px}
-.inst img{width:40px;height:40px;border-radius:10px;flex:none}
-.inst .m{flex:1;min-width:0;font-size:14px;line-height:1.35}
-.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.inst{display:flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:12px}
+.inst .go{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:6px 0;text-align:left;font-size:14px;font-weight:600;color:var(--accent-strong)}
+.inst .go img{width:26px;height:26px;flex:none}
+.inst .go span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inst .ib{width:32px;height:32px;background:none;color:var(--muted)}
+.isteps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 .hard{display:flex;gap:6px;flex-wrap:wrap}
 .hard span{padding:6px 10px;border-radius:10px;background:var(--wrong-soft);color:var(--wrong);font-size:13px;font-weight:600}
 .hard span small{font-weight:500;opacity:.8}
@@ -188,14 +191,14 @@ addEventListener('beforeinstallprompt',e=>{e.preventDefault();DPI=e;reInst()});
 addEventListener('appinstalled',()=>{DPI=null;toast('Ilova o’rnatildi! Endi telefon ekranidan oching');reInst()});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 const instBtn=(cls='btn sec')=>isApp()?'':`<button class="${cls}" data-act="install">📲 Telefonga ilova qilib o’rnatish</button>`;
-const instBanner=()=>isApp()||ls.get('noinst',false)?'':`<div class="card inst"><img src="/icon-192.png" alt=""><div class="m"><b>Ilova qilib o’rnating</b><div class="note">Telefon ekranidan bir bosishda ochiladi</div></div><button class="btn pri sm" data-act="install">O’rnatish</button><button class="ib" data-act="noinst" aria-label="Yopish">${I.x}</button></div>`;
+const instBanner=()=>isApp()||ls.get('noinst',false)?'':`<div class="card inst"><button class="go" data-act="install"><img src="/icon-192.png" alt=""><span>Telefonga ilova qilib o’rnatish</span></button><button class="ib" data-act="noinst" aria-label="Yopish">${I.x}</button></div>`;
 async function doInstall(){
   if(DPI){const p=DPI;DPI=null;p.prompt();try{await p.userChoice}catch(e){}render();return}
   const ios=isIOS();
   openSheet(`<div class="sh-top"><div class="m"><h2>Ilova qilib o’rnatish</h2><div class="s">${ios?'iPhone':'Android'} uchun</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   ${inTg()?`<div class="card pad" style="background:var(--gold-soft)"><b>Avval saytni brauzerda oching.</b><div class="note">Telegram ichida o’rnatib bo’lmaydi. Yuqoridagi ⋮ (yoki ⋯) tugmasini bosing → <b>“Brauzerda ochish”</b>. Keyin shu tugmani yana bosing.</div></div>`:''}
-  <div class="card pad">${ios?`<ol class="steps"><li>Saytni <b>Safari</b>da oching (yoshxorazmiylar.uz)</li><li>Pastdagi <b>Ulashish</b> tugmasini bosing (kvadrat ichida ↑ strelka)</li><li>Ro’yxatdan <b>“Ekranga qo’shish”</b> (“На экран «Домой»” / “Add to Home Screen”) ni tanlang</li><li>O’ng yuqoridagi <b>“Qo’shish”</b> ni bosing</li></ol>`
-   :`<ol class="steps"><li>Saytni <b>Chrome</b>da oching (yoshxorazmiylar.uz)</li><li>O’ng yuqoridagi <b>⋮</b> (uch nuqta) tugmasini bosing</li><li><b>“Ilovani o’rnatish”</b> yoki <b>“Bosh ekranga qo’shish”</b> (“Установить приложение” / “Install app”) ni tanlang</li><li><b>“O’rnatish”</b> ni bosing</li></ol>`}</div>
+  <div class="card pad">${ios?`<ol class="isteps"><li>Saytni <b>Safari</b>da oching (yoshxorazmiylar.uz)</li><li>Pastdagi <b>Ulashish</b> tugmasini bosing (kvadrat ichida ↑ strelka)</li><li>Ro’yxatdan <b>“Ekranga qo’shish”</b> (“На экран «Домой»” / “Add to Home Screen”) ni tanlang</li><li>O’ng yuqoridagi <b>“Qo’shish”</b> ni bosing</li></ol>`
+   :`<ol class="isteps"><li>Saytni <b>Chrome</b>da oching (yoshxorazmiylar.uz)</li><li>O’ng yuqoridagi <b>⋮</b> (uch nuqta) tugmasini bosing</li><li><b>“Ilovani o’rnatish”</b> yoki <b>“Bosh ekranga qo’shish”</b> (“Установить приложение” / “Install app”) ni tanlang</li><li><b>“O’rnatish”</b> ni bosing</li></ol>`}</div>
   <p class="note">Shundan keyin telefon ekranida “Yosh Xorazmiylar” belgisi paydo bo’ladi. PIN kodni bir marta kiritsangiz, keyin qayta so’ralmaydi.</p>
   <button class="btn pri" data-act="close">Tushunarli</button>`);
 }
