@@ -295,6 +295,26 @@ A['student.move'] = (u, b) => {
   log(u.id, 'oquvchi.kochirish', { id: st.id, name: st.name, from: st.cname, to: to.name, from_class: st.class_id, to_class: to.id });
   return {};
 };
+// takroriy nusxani asosiy nusxaga qo'shib, keyin o'chirish (telefon, tug'ilgan yil, manzil yo'qolmaydi)
+A['students.merge'] = (u, b) => {
+  need(can(u, 'maktab'));
+  const pairs = Array.isArray(b.pairs) ? b.pairs : []; let n = 0;
+  tx(() => {
+    for (const [keepId, dropId] of pairs) {
+      const k = one('SELECT * FROM students WHERE id=? AND active=1', +keepId), d = one('SELECT * FROM students WHERE id=? AND active=1', +dropId);
+      if (!k || !d || k.id === d.id || k.class_id !== d.class_id || nameKey(k.name) !== nameKey(d.name)) continue;
+      const kr = all('SELECT test_id FROM results WHERE student_id=? AND absent=0', d.id); if (kr.length) continue; // ikkinchisida ham ball bo'lsa, qo'lda hal qilinadi
+      run('UPDATE students SET phone=CASE WHEN phone IS NULL OR phone=\'\' THEN ? ELSE phone END, birth_year=COALESCE(birth_year,?), address=CASE WHEN address IS NULL OR address=\'\' THEN ? ELSE address END WHERE id=?', d.phone || '', d.birth_year, d.address || '', k.id);
+      run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', k.id, d.id);
+      run('INSERT OR IGNORE INTO phone_hints(student_id,phone) SELECT ?,phone FROM phone_hints WHERE student_id=?', k.id, d.id);
+      run('INSERT OR IGNORE INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) SELECT test_id,?,absent,mode,answers,bits,score,qn,entered_by,at FROM results WHERE student_id=?', k.id, d.id);
+      run('DELETE FROM results WHERE student_id=?', d.id); run('DELETE FROM phone_hints WHERE student_id=?', d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
+      run('UPDATE students SET active=0 WHERE id=?', d.id);
+      log(u.id, 'oquvchi.birlashtirish', { keep: k.id, drop: d.id, name: k.name }); n++;
+    }
+  });
+  return { n };
+};
 A['student.delete'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
 A['student.restore'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=1 WHERE id=?', b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
 const nameKey = n => String(n || '').toLowerCase().replace(/[`‘’'ʻʼ´]/g, "'").replace(/\s+/g, ' ').trim();
