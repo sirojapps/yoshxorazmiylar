@@ -984,7 +984,7 @@ async function drawCert(c){
   ctr(line1,logo?1030:910,'400 48px "Golos Text", sans-serif',INK);ctr(line2,logo?1100:980,'400 48px "Golos Text", sans-serif',INK);
   // signature block
   const by=H-360; g.textAlign='left';
-  const imzo=await loadImg(a.imzo), muhr=await loadImg(a.muhr);
+  const imzo=inkOnly(await loadImg(a.imzo)), muhr=inkOnly(await loadImg(a.muhr));
   if(muhr){const h=300,w=muhr.width*h/muhr.height;g.globalAlpha=.9;g.drawImage(muhr,640,by-250,w,h);g.globalAlpha=1}
   if(imzo){const h=150,w=imzo.width*h/imzo.height;g.drawImage(imzo,250,by-120,w,h)}
   g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.moveTo(240,by+50);g.lineTo(900,by+50);g.stroke();
@@ -1126,6 +1126,28 @@ async function dlGo(f){
   });
   const n=pdf.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(140);pdf.text(`KARAKUL INTERNATIONAL SCHOOL · yoshxorazmiylar.uz · ${i}/${n}`,W/2,290,{align:'center'})}
   saveBlob(pdf.output('blob'),d.file+'.pdf');closeSheet()}
+// imzo/muhr rasmidan qog'oz fonini olib tashlab, faqat siyohni qoldiradi va chetlarini kesadi
+function inkOnly(img){
+  if(!img)return null;
+  try{const W=img.width,H=img.height,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.drawImage(img,0,0);
+    const d=g.getImageData(0,0,W,H),p=d.data;
+    // fon rangi: chetlardagi piksellarning o'rtachasi
+    let r=0,gg=0,b=0,n=0;const add=i=>{r+=p[i];gg+=p[i+1];b+=p[i+2];n++};
+    for(let x=0;x<W;x+=4){add((x)*4);add(((H-1)*W+x)*4)}for(let y=0;y<H;y+=4){add((y*W)*4);add((y*W+W-1)*4)}
+    r/=n;gg/=n;b/=n;
+    let x0=W,y0=H,x1=0,y1=0;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;if(p[i+3]<10){p[i+3]=0;continue}
+      // ko'k/rangli siyoh rang to'yinganligidan, qora siyoh esa fondan ancha to'qligidan topiladi (soya va notekis yorug'lik hisobga olinmaydi)
+      const mx=Math.max(p[i],p[i+1],p[i+2]),mn=Math.min(p[i],p[i+1],p[i+2]),chroma=(mx-mn)-(Math.max(r,gg,b)-Math.min(r,gg,b));
+      const dark=(r+gg+b)/3-(p[i]+p[i+1]+p[i+2])/3;
+      const a=Math.max(0,Math.min(1,Math.max((chroma-14)/30,(dark-60)/40)));
+      p[i+3]=Math.round(p[i+3]*a);
+      if(a>.5){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}}
+    g.putImageData(d,0,0);
+    if(x1<=x0||y1<=y0)return img;
+    const pad=Math.round(Math.max(x1-x0,y1-y0)*.04);x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(W-1,x1+pad);y1=Math.min(H-1,y1+pad);
+    const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;o.getContext('2d').drawImage(c,x0,y0,o.width,o.height,0,0,o.width,o.height);return o}
+  catch(e){return img}}
 function scrCerts(){
   const certs=(S.certs||[]).map(c=>({...c,s:X.st.find(x=>x.id===c.student_id)})).filter(c=>c.s).sort((a,b)=>a.code.localeCompare(b.code));
   return ['Sertifikatlar',`${certs.length} ta`,`
