@@ -173,6 +173,8 @@ function state(u) {
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
   let studs = all(`SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
+    out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = u.role === 'rahbar' ? hintsMap() : {};
   out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address,
@@ -254,6 +256,9 @@ A['student.save'] = (u, b) => {
   const name = str(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
   const by = b.birth_year ? parseInt(b.birth_year, 10) || null : null;
   checkPhone(phone9(b.phone), b.id ? +b.id : 0);
+  // bir sinfda bir xil familiya-ism ikki marta bo'lmasin
+  const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1 AND id<>?', b.class_id, +b.id || 0).find(x => nameKey(x.name) === nameKey(name));
+  if (twin) bad(`Bu sinfda «${twin.name}» allaqachon bor. Ro’yxatdan o’sha bolani toping`);
   if (phone9(b.phone) && b.id) run('DELETE FROM phone_hints WHERE student_id=?', +b.id);
   if (b.id) {
     need(can(u, 'maktab'));
@@ -276,6 +281,18 @@ A['student.info'] = (u, b) => {
   const addr = str(b.address, 200);
   run('UPDATE students SET birth_year=?,address=? WHERE id=?', by, addr, s.id);
   log(u.id, 'oquvchi.malumot', { id: s.id, old: { birth_year: s.birth_year, address: s.address }, new: { birth_year: by, address: addr } });
+  return {};
+};
+// boshqa sinfga ko'chirish: jamoa (maktab huquqi) istalgan sinfga; sinf rahbari o'z sinfidan shu maktabdagi parallel sinfga
+A['student.move'] = (u, b) => {
+  const st = one('SELECT s.id,s.name,s.class_id,c.school_id,c.grade,c.name cname FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.active=1', +b.id); if (!st) bad('O‘quvchi topilmadi');
+  const to = one('SELECT id,school_id,grade,name FROM classes WHERE id=?', +b.class_id); if (!to) bad('Sinf topilmadi');
+  if (to.id === st.class_id) bad('Bola allaqachon shu sinfda');
+  if (!can(u, 'maktab')) need(u.role === 'rahbar' && u.class_id === st.class_id && to.school_id === st.school_id && to.grade === st.grade, 'Faqat o‘z sinfingizdagi bolani shu maktabdagi parallel sinfga ko‘chira olasiz');
+  const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1', to.id).find(x => nameKey(x.name) === nameKey(st.name));
+  if (twin) bad(`${to.name} sinfida «${twin.name}» allaqachon bor. Bu ortiqcha nusxa bo‘lsa, uni o‘chiring`);
+  run('UPDATE students SET class_id=? WHERE id=?', to.id, st.id);
+  log(u.id, 'oquvchi.kochirish', { id: st.id, name: st.name, from: st.cname, to: to.name, from_class: st.class_id, to_class: to.id });
   return {};
 };
 A['student.delete'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
@@ -355,6 +372,23 @@ A['result.save'] = (u, b) => {
   if (old) log(u.id, 'natija.tuzatish', { student_id: s.id, test_id: t.id, old: { absent: old.absent, score: old.score, bits: old.bits, answers: old.answers }, new: { absent, ...sc } });
   else log(u.id, 'natija.kiritish', { student_id: s.id, test_id: t.id, absent, score: sc.score });
   return { score: sc.score, qn: sc.qn };
+};
+// Maktab yoki sinfda natijasi hali kiritilmagan hamma bolani bir bosishda "kelmadi" qilish
+A['results.absentRest'] = (u, b) => {
+  need(can(u, 'kiritish'));
+  const t = one('SELECT * FROM tests WHERE id=?', b.test_id); if (!t) bad('Sinov topilmadi');
+  const cid = +b.class_id || 0, sid = +b.school_id || 0; if (!cid && !sid) bad('Maktab yoki sinf tanlanmagan');
+  const list = all(`SELECT s.id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id
+    WHERE s.active=1 AND ${cid ? 'c.id=?' : 'c.school_id=?'}
+    AND NOT EXISTS (SELECT 1 FROM results r WHERE r.test_id=? AND r.student_id=s.id)`, cid || sid, t.id);
+  if (!list.length) return { n: 0 };
+  if (announced(t.id, list[0].school_id)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
+  tx(() => {
+    for (const s of list) run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) VALUES(?,?,1,'belgi','','',0,20,?,?)
+      ON CONFLICT(test_id,student_id) DO NOTHING`, t.id, s.id, u.id, now());
+  });
+  log(u.id, 'natija.kelmadi_hammasi', { test_id: t.id, school_id: sid || list[0].school_id, class_id: cid || null, soni: list.length });
+  return { n: list.length };
 };
 A['result.delete'] = (u, b) => {
   const old = one('SELECT * FROM results WHERE test_id=? AND student_id=?', b.test_id, b.student_id); if (!old) return {};
@@ -965,10 +999,22 @@ const server = http.createServer(async (req, res) => {
     const ip = String(req.headers['x-real-ip'] || req.socket.remoteAddress);
     if (url.pathname === '/api/login' && req.method === 'POST') {
       const f = fails.get(ip); if (f && f.until > Date.now()) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
-      const { pin } = JSON.parse(await readBody(req) || '{}');
-      const u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
-      if (!u) { const n = (f && f.until < Date.now() ? 0 : f?.n || 0) + 1; fails.set(ip, { n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 }); return send(res, 401, { error: n >= 5 ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : 'PIN noto‘g‘ri. Qaytadan kiriting.' }); }
-      fails.delete(ip);
+      const { pin, phone } = JSON.parse(await readBody(req) || '{}');
+      const p9 = phone9(phone);
+      if (!p9) return send(res, 400, { error: 'Telefon raqamingizni kiriting.' });
+      // bitta raqamga ham ko'p qurilmadan urinishni to'xtatish
+      const pk = 'tel:' + p9, fp = fails.get(pk); if (fp && fp.until > Date.now()) return send(res, 429, { error: 'Bu raqam bilan ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
+      let u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
+      if (u) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
+        const own = u.role === 'ceo' ? (phone9(getSet('ceo_phone')) || phone9(u.phone)) : phone9(u.phone);
+        if (own && own !== p9) u = null; // raqami yozilmagan eski foydalanuvchilar vaqtincha faqat PIN bilan kiradi
+      }
+      if (!u) {
+        const bump = (k, o) => { const n = (o && o.until < Date.now() ? 0 : o?.n || 0) + 1; fails.set(k, { n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 }); return n; };
+        const n = Math.max(bump(ip, f), bump(pk, fp));
+        return send(res, 401, { error: n >= 5 ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.' });
+      }
+      fails.delete(ip); fails.delete(pk);
       const token = crypto.randomBytes(32).toString('hex');
       run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
       run('UPDATE users SET last_login=? WHERE id=?', now(), u.id);
