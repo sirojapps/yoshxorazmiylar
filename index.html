@@ -1028,24 +1028,40 @@ function dlOpen(kind,id){
   openSheet(`<div class="sh-top"><div class="m"><h2>Natijalarni yuklab olish</h2><div class="s">${esc(curTest()?.name||'')}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    ${ok.length>1?`<p class="label">Nimani yuklab olasiz?</p><div class="card list">${ok.map((o,i)=>`<label class="row" style="cursor:pointer"><input type="radio" name="dlScope" value="${o[0]}" ${i?'':'checked'} style="width:20px;height:20px;accent-color:var(--accent)"><div class="m"><div class="n">${esc(o[1])}</div>${o[2]?`<div class="s">${o[2]}</div>`:''}</div></label>`).join('')}</div>`:''}
    <p class="label">Rangli belgilash</p>
-   <div class="card pad" style="gap:12px">
-    <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>Nechanchi o’ringacha rangli bo’lsin?</span>
-     <input id="dlTop" type="number" inputmode="numeric" min="0" max="50" value="${dlPref().top}" style="width:72px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center"></label>
-    <p class="note" style="margin:0">Masalan 3 — eng yaxshi 3 ta bola sariq bo’ladi. Chegaradagi balni bir nechta bola olgan bo’lsa, ularning hammasi. 0 — rangsiz.</p>
-    <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>Nechanchi o’ringacha ★ qo’yilsin?</span>
-     <input id="dlStar" type="number" inputmode="numeric" min="0" max="50" value="${dlPref().star}" style="width:72px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center"></label>
-    <p class="note" style="margin:0">★ ism yonida kichik yulduzcha bo’lib chiqadi. Har safar shu ro’yxat uchun o’zingiz tanlaysiz. 0 — yulduzchasiz.</p>
-   </div>
+   <div class="card pad" style="gap:12px" id="dlMarkBox">${dlMarkHtml(dlPref().mode)}</div>
    <p class="note">Faqat sinovda qatnashgan bolalar, ball bo’yicha tartiblangan va 1, 2, 3… deb raqamlangan. Bir xil ball olganlar familiyasi bo’yicha alifbo tartibida turadi.</p>
    <button class="btn pri" data-act="dlGo" data-f="pdf">PDF yuklab olish</button>
-   <button class="btn sec" data-act="dlGo" data-f="xlsx">Excel yuklab olish</button>`)}
-function dlPref(){const v={top:3,star:0,...ls.get('dlpref',{})};delete v.gift;return v}
+   <button class="btn sec" data-act="dlGo" data-f="xlsx">Excel yuklab olish</button>`);dlCountShow()}
+function dlPref(){const v={mode:'o',top:3,star:0,ptop:80,pstar:90,...ls.get('dlpref',{})};delete v.gift;if(v.mode!=='p')v.mode='o';return v}
+function dlMarkHtml(mode){const p=dlPref(),isP=mode==='p';
+  const inp=(id,val)=>`<input id="${id}" type="number" inputmode="numeric" min="0" max="${isP?100:50}" value="${val}" style="width:72px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center">`;
+  const seg=(v,t)=>`<label style="flex:1;cursor:pointer;text-align:center;padding:9px 6px;border-radius:10px;font-weight:600;${mode===v?'background:var(--accent);color:#fff':'background:transparent'}"><input type="radio" name="dlMode" value="${v}" ${mode===v?'checked':''} onchange="dlSwitch(this.value)" style="display:none">${t}</label>`;
+  return `<div style="display:flex;gap:4px;padding:4px;border-radius:12px;border:1px solid var(--line,#ccd)">${seg('o','O’rin bo’yicha')}${seg('p','Foiz bo’yicha')}</div>
+   <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>${isP?'Necha foizdan yuqori rangli bo’lsin?':'Nechanchi o’ringacha rangli bo’lsin?'}</span>${inp('dlTop',isP?p.ptop:p.top)}</label>
+   <p class="note" style="margin:0">${isP?'Masalan 80 — 80% va undan yuqori olgan hamma bola sariq bo’ladi. Soni o’zi aniqlanadi. 0 — rangsiz.':'Masalan 3 — eng yaxshi 3 ta bola sariq bo’ladi. Chegaradagi balni bir nechta bola olgan bo’lsa, ularning hammasi. 0 — rangsiz.'}</p>
+   <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>${isP?'Necha foizdan yuqori ★ qo’yilsin?':'Nechanchi o’ringacha ★ qo’yilsin?'}</span>${inp('dlStar',isP?p.pstar:p.star)}</label>
+   <p class="note" style="margin:0">${isP?'Masalan 90 — 90% va undan yuqori olganlar ismi yonida ★ chiqadi.':'★ ism yonida kichik yulduzcha bo’lib chiqadi.'} Har safar shu ro’yxat uchun o’zingiz tanlaysiz. 0 — yulduzchasiz.</p>
+   <p class="note" id="dlCount" style="margin:0;font-weight:600"></p>`}
+function dlSwitch(mode){dlSaveMark();const b=$('#dlMarkBox');if(b){b.innerHTML=dlMarkHtml(mode);dlCountShow()}}
+function dlReadMark(){const p=dlPref(),mode=document.querySelector('input[name=dlMode]:checked')?.value||p.mode,isP=mode==='p',mx=isP?100:50;
+  const num=(id,def)=>{const e=$('#'+id);return Math.max(0,Math.min(mx,parseInt(e?e.value:def,10)||0))};
+  return{mode,top:num('dlTop',isP?p.ptop:p.top),star:num('dlStar',isP?p.pstar:p.star)}}
+function dlSaveMark(){const m=dlReadMark(),p=dlPref();if(m.mode==='p'){p.ptop=m.top;p.pstar=m.star}else{p.top=m.top;p.star=m.star}p.mode=m.mode;ls.set('dlpref',p)}
+// belgilash qoidasi: o'rin bo'yicha yoki foiz bo'yicha
+function dlHit(r,mode,n){return n>0&&(mode==='p'?(r.pct??-1)>=n:r.o<=n)}
+function dlCountShow(){const el=$('#dlCount');if(!el)return;
+  const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope){el.textContent='';return}
+  const m=dlReadMark(),rows=dlBuild(scope).sections.flatMap(s=>s.rows);
+  const c=rows.filter(r=>dlHit(r,m.mode,m.top)).length,st=rows.filter(r=>dlHit(r,m.mode,m.star)).length;
+  el.textContent=`Jami ${rows.length} nafar: ${c} tasi rangli${m.star?`, ${st} tasiga ★`:''}`}
+document.addEventListener('input',e=>{if(e.target.closest?.('#dlMarkBox'))dlCountShow()});
+document.addEventListener('change',e=>{if(e.target.name==='dlScope')dlCountShow()});
 function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 async function dlGo(f){
   const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
   const d=dlBuild(scope);if(!d.sections.length){toast('Natija yo’q',true);return}
-  const top=Math.max(0,Math.min(50,parseInt($('#dlTop')?.value??dlPref().top,10)||0));const star=Math.max(0,Math.min(50,parseInt($('#dlStar')?.value??dlPref().star,10)||0));ls.set('dlpref',{top,star});
-  d.sections.forEach(s=>s.rows.forEach(r=>r.g=star>0&&r.o<=star));
+  const {mode,top,star}=dlReadMark();dlSaveMark();
+  d.sections.forEach(s=>s.rows.forEach(r=>{r.g=dlHit(r,mode,star);r.hl=dlHit(r,mode,top)}));
   toast('Tayyorlanmoqda…');
   const head=['T/r','O\'quvchi','Sinf',...(d.school?['Maktab']:[]),'Ball','Foiz'];
   const row=(r,i)=>[i+1,plain(r.name),r.cls,...(d.school?[r.sch]:[]),`${r.score} / ${r.qn}`,r.pct+'%'];
@@ -1076,7 +1092,7 @@ async function dlGo(f){
       styles:{font:'helvetica',fontSize:10,cellPadding:1.8,textColor:30,lineColor:200,lineWidth:.2},
       headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},
       columnStyles:{0:{halign:'center',cellWidth:16},2:{halign:'center',cellWidth:16},...(d.school?{3:{halign:'center',cellWidth:24}}:{}),[head.length-2]:{halign:'center',cellWidth:20},[head.length-1]:{halign:'center',cellWidth:16}},
-      didParseCell:c=>{if(c.section==='body'&&top&&s.rows[c.row.index]?.o<=top)c.cell.styles.fillColor=[252,239,199]},
+      didParseCell:c=>{if(c.section==='body'&&s.rows[c.row.index]?.hl)c.cell.styles.fillColor=[252,239,199]},
       didDrawCell:c=>{const r=s.rows[c.row.index];if(c.section!=='body'||c.column.index!==1||!r?.g)return;
         // ★ ism yonida (PDF shriftida bu belgi yo'q, shuning uchun chizamiz)
         pdf.setFontSize(10);const cx=c.cell.x+c.cell.padding('left')+pdf.getTextWidth(plain(r.name))+3.2,cy=c.cell.y+c.cell.height/2,R=1.9,q=.8;
