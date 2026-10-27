@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Yosh Xorazmiylar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap">
 <style>
 :root{
   --bg:#f8fafc; --surface:#ffffff; --surface2:#eef2f7; --fg:#1e293b; --muted:#64748b; --line:#e5eaf1;
@@ -963,42 +963,97 @@ const loadImg=src=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();
 async function drawCert(c){
   const a=await certAssets();
   await loadLib('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js',()=>window.qrcode);
-  try{await document.fonts.load('700 40px Unbounded');await document.fonts.load('600 40px "Golos Text"')}catch(e){}
-  const s=X.st.find(x=>x.id===c.student_id)||{name:'',num:'',cls:''}; const t=S.tests.find(x=>x.id===c.test_id)||{}; const r=R(c.student_id,c.test_id);
+  try{await Promise.all(['700 80px "Playfair Display"','italic 400 60px "Playfair Display"','600 40px "Golos Text"','400 40px "Golos Text"'].map(f=>document.fonts.load(f)))}catch(e){}
+  const s=c.demo?c.demo.s:(X.st.find(x=>x.id===c.student_id)||{name:'',num:'',cls:''}); const t=c.demo?c.demo.t:(S.tests.find(x=>x.id===c.test_id)||{}); const r=c.demo?c.demo.r:R(c.student_id,c.test_id);
   const W=2480,H=1754,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
-  const NAVY='#1b2f5e',TEAL='#0f9d9a',GOLD='#c8961e',INK='#14213d';
-  g.fillStyle='#fffdf8';g.fillRect(0,0,W,H);
-  // corner ornaments: soft tinted bands
-  g.fillStyle='rgba(15,157,154,.07)';g.beginPath();g.moveTo(0,0);g.lineTo(620,0);g.lineTo(0,460);g.fill();g.beginPath();g.moveTo(W,H);g.lineTo(W-620,H);g.lineTo(W,H-460);g.fill();
-  g.strokeStyle=NAVY;g.lineWidth=28;g.strokeRect(60,60,W-120,H-120);g.strokeStyle=GOLD;g.lineWidth=5;g.strokeRect(108,108,W-216,H-216);
-  const ctr=(txt,y,font,col)=>{g.font=font;g.fillStyle=col;g.textAlign='center';g.fillText(txt,W/2,y)};
-  const logo=await loadImg(a.logo); if(logo){const h=250,w=logo.width*h/logo.height;g.drawImage(logo,W/2-w/2,170,w,h)}
-  ctr('SERTIFIKAT',logo?560:420,'700 120px Unbounded, sans-serif',NAVY);
-  ctr('“YOSH XORAZMIY” UNVONI',logo?640:500,'600 46px "Golos Text", sans-serif',TEAL);
-  ctr('Ushbu sertifikat',logo?760:640,'400 44px "Golos Text", sans-serif','#5d6a83');
-  let fs=110;g.font=`700 ${fs}px "Golos Text", sans-serif`;while(g.measureText(s.name).width>W-600&&fs>60){fs-=6;g.font=`700 ${fs}px "Golos Text", sans-serif`}
-  ctr(s.name,logo?900:780,`700 ${fs}px "Golos Text", sans-serif`,INK);
-  g.strokeStyle=GOLD;g.lineWidth=3;g.beginPath();g.moveTo(W/2-520,(logo?940:820));g.lineTo(W/2+520,(logo?940:820));g.stroke();
-  const line1=`${s.num}-maktab ${s.cls}-sinf o‘quvchisiga “${t.name||''}” sinovida`;
-  const line2=`${r&&!r.absent?`${r.score}/${r.qn} (${pct(r)}%) natija ko‘rsatib,`:''} iqtidorli o‘quvchi sifatida beriladi.`;
-  ctr(line1,logo?1030:910,'400 48px "Golos Text", sans-serif',INK);ctr(line2,logo?1100:980,'400 48px "Golos Text", sans-serif',INK);
-  // signature block
-  const by=H-360; g.textAlign='left';
+  const NAVY='#13244f',NAVY2='#1d3570',INK='#1a2440',MUTE='#5f6880';
+  const SERIF='"Playfair Display","GFS Baskerville",Georgia,serif',SANS='"Golos Text",Inter,sans-serif';
+  // oltin rang: yaltiroq gradient
+  const gold=(x0,y0,x1,y1)=>{const q=g.createLinearGradient(x0,y0,x1,y1);q.addColorStop(0,'#9a6b1f');q.addColorStop(.25,'#e9c977');q.addColorStop(.5,'#b8862e');q.addColorStop(.75,'#f3d98c');q.addColorStop(1,'#8f6219');return q};
+  const star=(x,y,R,pts,ri,fill,stroke,lw)=>{g.beginPath();for(let k=0;k<pts*2;k++){const an=k*Math.PI/pts-Math.PI/2,rr=k%2?R*ri:R;g[k?'lineTo':'moveTo'](x+rr*Math.cos(an),y+rr*Math.sin(an))}g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.strokeStyle=stroke;g.lineWidth=lw||2;g.stroke()}};
+  // 1. pergament fon
+  const bg=g.createRadialGradient(W/2,H/2,150,W/2,H/2,W*.65);bg.addColorStop(0,'#fffcf3');bg.addColorStop(.7,'#f7eedb');bg.addColorStop(1,'#ecdfc2');g.fillStyle=bg;g.fillRect(0,0,W,H);
+  // 2. gilyosh (pul qog'ozidagi kabi to'lqin chiziqlar) markazda
+  g.save();g.globalAlpha=.10;g.strokeStyle='#b8862e';g.lineWidth=1.4;
+  for(let k=0;k<36;k++){g.beginPath();for(let an=0;an<=Math.PI*2+.01;an+=Math.PI/180){const rr=360+60*Math.sin(an*12+k*Math.PI/18);const x=W/2+rr*1.9*Math.cos(an+k*.03),y=H/2+40+rr*Math.sin(an+k*.03);an?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}g.restore();
+  // 3. markazda katta och logotip (suv belgisi)
+  const logo=await loadImg(a.logo);
+  if(logo){g.save();g.globalAlpha=.05;const h=900,w=logo.width*h/logo.height;g.drawImage(logo,W/2-w/2,H/2-h/2+60,w,h);g.restore()}
+  // 4. ramka: to'q ko'k keng hoshiya ichida oltin girih naqsh
+  const B=96;g.fillStyle=NAVY;g.fillRect(0,0,W,B);g.fillRect(0,H-B,W,B);g.fillRect(0,0,B,H);g.fillRect(W-B,0,B,H);
+  g.save();g.globalAlpha=.9;
+  const band=(x,y)=>{star(x,y,26,8,.55,null,'#d8b664',2);g.beginPath();g.arc(x,y,9,0,7);g.fillStyle='#d8b664';g.fill()};
+  for(let x=B+30;x<W-B;x+=72){band(x,B/2);band(x,H-B/2)}for(let y=B+30;y<H-B;y+=72){band(B/2,y);band(W-B/2,y)}g.restore();
+  g.strokeStyle=gold(0,0,W,H);g.lineWidth=10;g.strokeRect(B+14,B+14,W-2*B-28,H-2*B-28);
+  g.lineWidth=3;g.strokeRect(B+36,B+36,W-2*B-72,H-2*B-72);
+  // 5. burchak medalyonlari
+  [[B+36,B+36],[W-B-36,B+36],[B+36,H-B-36],[W-B-36,H-B-36]].forEach(([x,y])=>{
+    g.beginPath();g.arc(x,y,78,0,7);g.fillStyle=NAVY;g.fill();g.lineWidth=6;g.strokeStyle=gold(x-78,y-78,x+78,y+78);g.stroke();
+    star(x,y,62,8,.62,gold(x-62,y-62,x+62,y+62));star(x,y,30,8,.62,NAVY);g.beginPath();g.arc(x,y,10,0,7);g.fillStyle='#f3d98c';g.fill()});
+  // ramka o'rtalaridagi bezak
+  [[W/2,B+36],[W/2,H-B-36]].forEach(([x,y])=>{g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillStyle=NAVY;g.fillRect(-34,-34,68,68);g.lineWidth=4;g.strokeStyle=gold(-34,-34,34,34);g.strokeRect(-34,-34,68,68);g.restore();star(x,y,22,8,.55,gold(x-22,y-22,x+22,y+22))});
+  const ctr=(txt,y,font,col,sp)=>{g.font=font;g.fillStyle=col;g.textAlign='center';if(sp&&'letterSpacing' in g){g.letterSpacing=sp+'px';g.fillText(txt,W/2+sp/2,y);g.letterSpacing='0px'}else g.fillText(txt,W/2,y)};
+  // 6. tepada logotip oltin halqa ichida
+  let y=200;
+  if(logo){const h=190,w=logo.width*h/logo.height;g.beginPath();g.arc(W/2,y+h/2,h/2+16,0,7);g.lineWidth=8;g.strokeStyle=gold(W/2-110,y,W/2+110,y+h);g.stroke();g.drawImage(logo,W/2-w/2,y,w,h);y+=h+75}else y+=80;
+  ctr('KARAKUL INTERNATIONAL SCHOOL  ·  “YOSH XORAZMIYLAR” LOYIHASI',y,`600 30px ${SANS}`,MUTE,7);y+=150;
+  // 7. SERTIFIKAT: oltin yaltiroq harflar, ko'k soyali
+  g.save();g.font=`700 156px ${SERIF}`;g.textAlign='center';if('letterSpacing' in g)g.letterSpacing='22px';
+  g.fillStyle='rgba(19,36,79,.35)';g.fillText('SERTIFIKAT',W/2+11+4,y+5);
+  g.fillStyle=gold(W/2-650,y-130,W/2+650,y);g.fillText('SERTIFIKAT',W/2+11,y);
+  g.lineWidth=1.5;g.strokeStyle='#7a5414';g.strokeText('SERTIFIKAT',W/2+11,y);g.restore();y+=40;
+  // 8. lenta
+  const rw=1000,rh=92,ry=y;
+  const tail=d=>{const x0=W/2+d*rw/2;g.beginPath();g.moveTo(x0-d*20,ry+18);g.lineTo(x0+d*90,ry+18);g.lineTo(x0+d*55,ry+18+rh/2);g.lineTo(x0+d*90,ry+18+rh);g.lineTo(x0-d*20,ry+18+rh);g.closePath();g.fillStyle='#8f6219';g.fill()};tail(-1);tail(1);
+  const lg=g.createLinearGradient(0,ry,0,ry+rh);lg.addColorStop(0,NAVY2);lg.addColorStop(1,NAVY);g.fillStyle=lg;g.fillRect(W/2-rw/2,ry,rw,rh);
+  g.strokeStyle=gold(W/2-rw/2,ry,W/2+rw/2,ry+rh);g.lineWidth=5;g.strokeRect(W/2-rw/2+10,ry+10,rw-20,rh-20);
+  ctr('“YOSH XORAZMIY” UNVONI',ry+62,`700 44px ${SANS}`,'#f3d98c',6);y=ry+rh+110;
+  ctr('Ushbu sertifikat bilan taqdirlanadi',y,`italic 400 50px ${SERIF}`,MUTE);y+=140;
+  // 9. ism, ikki yonida dafna shoxlari
+  let fs=124;g.font=`700 ${fs}px ${SERIF}`;while(g.measureText(s.name).width>W-900&&fs>70){fs-=6;g.font=`700 ${fs}px ${SERIF}`}
+  const nw=g.measureText(s.name).width;ctr(s.name,y,`700 ${fs}px ${SERIF}`,NAVY);
+  const laurel=(cx,cy,d,len)=>{g.save();g.translate(cx,cy);g.scale(d,1);g.strokeStyle='#a7792a';g.lineWidth=4;g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(-len*.5,-len*.05,-len,-len*.45);g.stroke();
+    for(let k=1;k<=8;k++){const tt=k/9,px=-len*tt,py=-len*.45*tt*tt;g.save();g.translate(px,py);g.rotate(-.5-tt*.6);g.fillStyle=gold(-30,-12,30,12);g.beginPath();g.ellipse(0,-16,30,11,-.5,0,7);g.fill();g.beginPath();g.ellipse(4,16,30,11,.5,0,7);g.fill();g.restore()}g.restore()};
+  laurel(W/2-nw/2-40,y-20,1,230);laurel(W/2+nw/2+40,y-20,-1,230);y+=48;
+  g.strokeStyle=gold(W/2-600,y,W/2+600,y);g.lineWidth=4;g.beginPath();g.moveTo(W/2-600,y);g.lineTo(W/2-40,y);g.moveTo(W/2+40,y);g.lineTo(W/2+600,y);g.stroke();star(W/2,y,24,8,.5,gold(W/2-24,y-24,W/2+24,y+24));y+=86;
+  const line1=`${s.num}-maktab ${s.cls} sinf o‘quvchisi “${t.name||''}” matematika sinovida`;
+  const line2=`${r&&!r.absent?`${r.score}/${r.qn} (${pct(r)}%) natija ko‘rsatib, `:''}iqtidorli o‘quvchi deb topildi.`;
+  ctr(line1,y,`400 44px ${SANS}`,INK);ctr(line2,y+62,`400 44px ${SANS}`,INK);
+  // 10. pastki qism
+  const by=H-330;
+  // imzo va uning ustiga qisman urilgan muhr
+  g.textAlign='left';const sx=330,lw=640;
   const imzo=inkOnly(await loadImg(a.imzo)), muhr=inkOnly(await loadImg(a.muhr));
-  if(muhr){const h=300,w=muhr.width*h/muhr.height;g.globalAlpha=.9;g.drawImage(muhr,640,by-250,w,h);g.globalAlpha=1}
-  if(imzo){const h=150,w=imzo.width*h/imzo.height;g.drawImage(imzo,250,by-120,w,h)}
-  g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.moveTo(240,by+50);g.lineTo(900,by+50);g.stroke();
-  g.fillStyle=INK;g.font='600 40px "Golos Text", sans-serif';g.fillText(a.signer,240,by+105);g.fillStyle='#5d6a83';g.font='400 36px "Golos Text", sans-serif';g.fillText(a.signer_role,240,by+152);
-  // qr
+  let iw=0;if(imzo){const h=210;iw=Math.min(imzo.width*h/imzo.height,450);const ih=iw*imzo.height/imzo.width;g.drawImage(imzo,sx+30,by+30-ih,iw,ih)}
+  g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.moveTo(sx,by+40);g.lineTo(sx+lw,by+40);g.stroke();
+  g.fillStyle=INK;g.font=`700 38px ${SANS}`;g.fillText(a.signer,sx,by+92);g.fillStyle=MUTE;g.font=`400 32px ${SANS}`;g.fillText(a.signer_role,sx,by+136);
+  if(muhr){const h=290,w=muhr.width*h/muhr.height;const mx=sx+30+(iw?iw+70:300),my=by-45; // muhr imzoning o'ng uchiga qisman urilgan
+    g.save();g.globalCompositeOperation='multiply';g.globalAlpha=.88;g.translate(mx,my);g.rotate(-.18);g.drawImage(muhr,-w/2,-h/2,w,h);g.restore()}
+  // o'rtada: dafna gulchambari ichida oltin medal
+  const cx=W/2,cy=by-45;
+  [-1,1].forEach(d=>{g.fillStyle='#7d1f2c';g.beginPath();g.moveTo(cx+d*20,cy+60);g.lineTo(cx+d*90,cy+190);g.lineTo(cx+d*56,cy+172);g.lineTo(cx+d*34,cy+205);g.lineTo(cx-d*8,cy+75);g.closePath();g.fill()});
+  for(let k=0;k<2;k++){const d=k?-1:1;g.save();g.translate(cx,cy);for(let i=0;i<11;i++){const an=Math.PI/2+d*(.35+i*.21),rx=Math.cos(an)*165,ry2=Math.sin(an)*165;g.save();g.translate(rx,ry2);g.rotate(an+d*Math.PI/2.2);g.fillStyle=gold(-26,-10,26,10);g.beginPath();g.ellipse(0,0,28,10,0,0,7);g.fill();g.restore()}g.restore()}
+  g.beginPath();for(let k=0;k<48;k++){const an=k*Math.PI/24,rr=k%2?118:132;g[k?'lineTo':'moveTo'](cx+rr*Math.cos(an),cy+rr*Math.sin(an))}g.closePath();g.fillStyle=gold(cx-132,cy-132,cx+132,cy+132);g.fill();
+  g.beginPath();g.arc(cx,cy,98,0,7);g.fillStyle=NAVY;g.fill();g.lineWidth=5;g.strokeStyle='#f3d98c';g.stroke();
+  g.beginPath();g.arc(cx,cy,84,0,7);g.lineWidth=2;g.stroke();
+  star(cx,cy-20,36,8,.55,gold(cx-36,cy-56,cx+36,cy+16));
+  g.textAlign='center';g.fillStyle='#f3d98c';g.font=`700 26px ${SANS}`;g.fillText('YOSH',cx,cy+42);g.font=`700 20px ${SANS}`;g.fillText('XORAZMIY',cx,cy+66);
+  // o'ngda: QR
   const url=(a.site||location.origin)+'/t/'+c.code; const qr=qrcode(0,'M');qr.addData(url);qr.make();
-  const n=qr.getModuleCount(),cell=Math.floor(300/n),qs=cell*n,qx=W-240-qs,qy=by-150;
-  g.fillStyle='#fff';g.fillRect(qx-16,qy-16,qs+32,qs+32);g.fillStyle=INK;
+  const n=qr.getModuleCount(),cell=Math.floor(210/n),qs=cell*n,qx=W-420-qs/2-qs/2,qy=by-150;
+  g.fillStyle='#fff';g.fillRect(qx-18,qy-18,qs+36,qs+36);g.strokeStyle=gold(qx,qy,qx+qs,qy+qs);g.lineWidth=4;g.strokeRect(qx-18,qy-18,qs+36,qs+36);g.fillStyle=NAVY;
   for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(qr.isDark(i,j))g.fillRect(qx+j*cell,qy+i*cell,cell,cell);
-  g.textAlign='right';g.fillStyle=INK;g.font='600 38px "Golos Text", sans-serif';g.fillText('№ '+c.code,qx-50,qy+qs-60);
-  g.fillStyle='#5d6a83';g.font='400 32px "Golos Text", sans-serif';g.fillText((t.date||'').split('-').reverse().join('.'),qx-50,qy+qs-10);
-  ctr('KARAKUL INTERNATIONAL SCHOOL',H-150,'600 34px "Golos Text", sans-serif','#5d6a83');
+  g.textAlign='center';g.fillStyle=INK;g.font=`700 32px ${SANS}`;g.fillText('№ '+c.code,qx+qs/2,qy+qs+64);
+  g.fillStyle=MUTE;g.font=`400 26px ${SANS}`;g.fillText('Tekshirish uchun skanerlang',qx+qs/2,qy+qs+100);
+  const dt=(t.date||'').split('-').reverse().join('.');if(dt)g.fillText(dt,qx+qs/2,qy+qs+134);
   return cv;
 }
+// sozlamalardagi "Namunani ko'rish": o'ylab topilgan bola bilan sertifikat ko'rinishi
+async function certDemo(){toast('Tayyorlanmoqda…');CA=null;
+  const cv=await drawCert({code:'NAMUNA',demo:{s:{name:'Namunaviy O’quvchi',num:1,cls:'3-A'},t:{name:curTest()?.name||'2026–2027 · 1-bosqich'},r:{score:19,qn:20,absent:0}}});
+  openSheet(`<div class="sh-top"><div class="m"><h2>Sertifikat namunasi</h2><div class="s">Bola ismi va ball o’rniga namunaviy ma’lumot</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+   <img src="${cv.toDataURL('image/jpeg',.85)}" alt="Sertifikat namunasi" style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd)">
+   <p class="note">Imzo yoki muhr yoqmasa, shu sahifada “Almashtirish” orqali boshqa rasm yuklang va qayta ko’ring.</p>`)}
 async function certPng(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;toast('Tayyorlanmoqda…');
   const cv=await drawCert(c);cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`Sertifikat-${code}.png`;document.body.appendChild(a);a.click();a.remove()},'image/png')}
 async function certPdf(list){
@@ -1215,7 +1270,8 @@ function scrSettings(){
    <button class="btn pri sm" data-act="setSch" style="align-self:flex-start">Saqlash</button>
    <p class="note">Bo’sh qoldirilgan qatorlar saytda ko’rinmaydi.</p></div></section>
   <section class="sec"><p class="label">Sertifikat</p>${img('logo','Logotip')}${img('imzo','Imzo')}${img('muhr','Muhr')}
-   <p class="note">Imzo va muhrni oq qog’ozda rasmga oling. Orqa fonsiz PNG bo’lsa, chiroyliroq chiqadi.</p>
+   <p class="note">Imzo va muhrni oq qog’ozda rasmga oling. Qog’oz foni sertifikatda o’zi olib tashlanadi.</p>
+   <button class="btn sec" data-act="certDemo">👁 Sertifikat namunasini ko’rish</button>
    <div class="card pad"><label class="field"><span class="label">Imzo qo’yuvchi</span><input id="stSig" value="${esc(SET.signer)}"></label><label class="field"><span class="label">Lavozimi</span><input id="stRole" value="${esc(SET.signer_role)}"></label>
    <button class="btn sec sm" data-act="setSig" style="align-self:flex-start">Saqlash</button></div></section>
   <section class="sec"><p class="label">Tabrik matnlari</p><p class="note">{ism}, {ball}, {foiz}, {soni} o’rniga sayt o’zi qo’yadi.</p>
@@ -1261,6 +1317,7 @@ document.addEventListener('click',async e=>{
    case 'certPng':await certPng(d.c);break;
    case 'dl':dlOpen(d.k,+d.id);break;
    case 'dlGo':await dlGo(d.f);break;
+   case 'certDemo':await certDemo();break;
    case 'certPdf':await certPdf((S.certs||[]).filter(c=>X.st.some(s=>s.id===c.student_id)));break;
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;

@@ -90,6 +90,8 @@ class HttpErr extends Error { constructor(code, msg) { super(msg); this.code = c
 const need = (cond, msg = 'Bu amal uchun huquqingiz yo‘q') => { if (!cond) throw new HttpErr(403, msg); };
 const bad = msg => { throw new HttpErr(400, msg); };
 const str = (v, max = 200) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
+// ism-familiyalarda bir xil yozuv: o‘ g‘ (‘ belgisi), qolgan joyda tutuq belgisi ’ (A’zamjon, Ma’ruf)
+const fixName = (v, max = 200) => str(String(v ?? '').replace(/\u00a0/g, ' '), max).replace(/([oOgG])?[`'‘’ʻʼ´]/g, (m, l) => l ? l + '‘' : '’');
 function gradeOf(name) { const g = parseInt(name, 10); return g >= 1 && g <= 11 ? g : 0; }
 function clsName(n) { const m = String(n).toUpperCase().replace(/\s| /g, '').match(/^(\d{1,2})-?([A-ZА-Я]+)?$/); return m ? m[1] + (m[2] ? '-' + m[2] : '') : ''; }
 
@@ -236,7 +238,7 @@ A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.i
 A['school.save'] = (u, b) => {
   need(can(u, 'maktab'));
   const num = parseInt(b.num, 10); if (!num) bad('Maktab raqamini yozing');
-  const f = [num, str(b.name), str(b.director_name), phone9(b.director_phone)];
+  const f = [num, str(b.name), fixName(b.director_name), phone9(b.director_phone)];
   if (b.id) { const old = one('SELECT * FROM schools WHERE id=?', b.id); run('UPDATE schools SET num=?,name=?,director_name=?,director_phone=? WHERE id=?', ...f, b.id); log(u.id, 'maktab.tahrir', { old, new: f }); return { id: b.id }; }
   if (one('SELECT 1 FROM schools WHERE num=?', num)) bad(num + '-maktab allaqachon bor');
   const r = run('INSERT INTO schools(num,name,director_name,director_phone,created_at) VALUES(?,?,?,?,?)', ...f, now());
@@ -245,7 +247,7 @@ A['school.save'] = (u, b) => {
 A['class.save'] = (u, b) => {
   need(can(u, 'maktab'));
   const name = clsName(b.name); if (!name) bad('Sinf nomi noto‘g‘ri. Masalan: 3-A');
-  const f = [name, gradeOf(name), str(b.teacher_name), phone9(b.teacher_phone)];
+  const f = [name, gradeOf(name), fixName(b.teacher_name), phone9(b.teacher_phone)];
   if (b.id) { const old = one('SELECT * FROM classes WHERE id=?', b.id); run('UPDATE classes SET name=?,grade=?,teacher_name=?,teacher_phone=? WHERE id=?', ...f, b.id); log(u.id, 'sinf.tahrir', { old, new: f }); return { id: b.id }; }
   if (one('SELECT 1 FROM classes WHERE school_id=? AND name=?', b.school_id, name)) bad(name + ' sinfi allaqachon bor');
   const r = run('INSERT INTO classes(school_id,name,grade,teacher_name,teacher_phone) VALUES(?,?,?,?,?)', b.school_id, ...f);
@@ -253,7 +255,7 @@ A['class.save'] = (u, b) => {
 };
 A['student.save'] = (u, b) => {
   need(can(u, 'maktab') || can(u, 'kiritish'));
-  const name = str(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
+  const name = fixName(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
   const by = b.birth_year ? parseInt(b.birth_year, 10) || null : null;
   checkPhone(phone9(b.phone), b.id ? +b.id : 0);
   // bir sinfda bir xil familiya-ism ikki marta bo'lmasin
@@ -331,7 +333,7 @@ A['students.import'] = (u, b) => {
       if (!can(u, 'kiritish')) return;
       const abs = /^(kelmadi|yo.?q|-)$/i.test(v); try { A['result.save'](u, abs ? { test_id: t.id, student_id: sid, absent: 1 } : { test_id: t.id, student_id: sid, mode: 'ball', score: v }); if (abs) absents++; else results++; } catch (e) { bad_.push(r.name + ': ' + e.message); } };
     for (const r of rows) {
-      const name = str(r.name, 120).split(' ').slice(0, 2).join(' '); const cn = clsName(r.cls);
+      const name = fixName(r.name, 120).split(' ').slice(0, 2).join(' '); const cn = clsName(r.cls);
       if (name.split(' ').length < 2 || !cn) { skipped++; continue; }
       let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', sc.id, cn);
       if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, cn, gradeOf(cn)).lastInsertRowid) }; newCls++; }
@@ -503,7 +505,7 @@ A['pin.revoke'] = (u, b) => {
 };
 A['team.save'] = (u, b) => {
   need(u.role === 'ceo', 'Jamoani faqat CEO boshqaradi');
-  const name = str(b.name, 80); if (!name) bad('Ismni yozing');
+  const name = fixName(b.name, 80); if (!name) bad('Ismni yozing');
   const p = {}; for (const k of PERMS) p[k] = !!b.perms?.[k]; p.sardor = !!b.perms?.sardor;
   if (b.id) { const old = one('SELECT * FROM users WHERE id=? AND role=\'jamoa\'', b.id); run('UPDATE users SET name=?,phone=?,perms=? WHERE id=?', name, phone9(b.phone), JSON.stringify(p), b.id); log(u.id, 'jamoa.huquq', { name, old: old && JSON.parse(old.perms), new: p }); return { id: b.id }; }
   const pin = newPin();
@@ -1074,4 +1076,15 @@ const server = http.createServer(async (req, res) => {
   }
 });
 setInterval(() => { try { run('DELETE FROM sessions WHERE expires<?', now()); } catch {} }, 36e5);
+// bir martalik: bazadagi eski ismlarni ham bir xil yozuvga keltirish
+try {
+  let fixed = 0;
+  tx(() => {
+    for (const r of all('SELECT id,name FROM students')) { const n = fixName(r.name, 120); if (n !== r.name) { run('UPDATE students SET name=? WHERE id=?', n, r.id); fixed++; } }
+    for (const r of all("SELECT id,teacher_name FROM classes WHERE teacher_name<>''")) { const n = fixName(r.teacher_name); if (n !== r.teacher_name) { run('UPDATE classes SET teacher_name=? WHERE id=?', n, r.id); fixed++; } }
+    for (const r of all("SELECT id,director_name FROM schools WHERE director_name<>''")) { const n = fixName(r.director_name); if (n !== r.director_name) { run('UPDATE schools SET director_name=? WHERE id=?', n, r.id); fixed++; } }
+    for (const r of all("SELECT id,name FROM users WHERE name<>''")) { const n = fixName(r.name, 120); if (n !== r.name) { run('UPDATE users SET name=? WHERE id=?', n, r.id); fixed++; } }
+  });
+  if (fixed) console.log('Ismlar yozuvi bir xillashtirildi:', fixed);
+} catch (e) { console.error('Ismlarni bir xillashtirib bo‘lmadi:', e.message); }
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));
