@@ -224,16 +224,17 @@ function state(u) {
       if (u.role === 'ota') for (const kid of out.children) { const i = gr.findIndex(r => r.student_id === kid); if (i >= 0) out.district[t.id + ':rank:' + kid] = [gr.filter(r => r.score > gr[i].score).length + 1, gr.length]; }
     }
   }
-  for (const t of out.tests) if (t.finished) out.gifted.push(...giftedIds(t).filter(id => out.students.some(s => s.id === id)).map(id => t.id + ':' + id));
+  for (const t of out.tests) for (const sid of schoolIds) if (announced(t.id, sid)) out.gifted.push(...giftedIds(t, sid).filter(id => out.students.some(s => s.id === id)).map(id => t.id + ':' + id));
   Object.assign(out, extras(u, out));
   return out;
 }
-function giftedIds(t) {
-  const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
-    WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL`, t.id);
+// iqtidorli: har bir maktab ichida, o'z sinf bosqichida eng yaxshi gifted_top% va kamida gifted_min%
+function giftedIds(t, schoolId) {
+  const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
+    WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL AND s.active=1`, t.id).filter(r => !schoolId || r.school_id === schoolId);
   const ids = [];
-  for (const g of [...new Set(rows.map(r => r.grade))]) {
-    const gr = rows.filter(r => r.grade === g).sort((a, b) => b.score - a.score);
+  for (const g of [...new Set(rows.map(r => r.school_id + ':' + r.grade))]) {
+    const gr = rows.filter(r => r.school_id + ':' + r.grade === g).sort((a, b) => b.score - a.score);
     const cut = gr[Math.max(0, Math.ceil(gr.length * t.gifted_top / 100) - 1)].score;
     gr.forEach(r => { if (r.score >= cut && r.score / r.qn * 100 >= t.gifted_min) ids.push(r.student_id); });
   }
@@ -461,13 +462,14 @@ A['approve'] = (u, b) => {
   let st = approvedState(b.test_id, b.school_id);
   if (st.ceo && st.sardor && !st.done) { run('INSERT OR IGNORE INTO announcements(test_id,school_id,at) VALUES(?,?,?)', b.test_id, b.school_id, now()); st = approvedState(b.test_id, b.school_id); }
   if (b.school_id === 0 && st.done) { run("UPDATE tests SET status='yakunlandi' WHERE id=?", b.test_id); assignCerts(b.test_id); }
-  if (b.school_id && st.done) notifyAnnounce(b.test_id, b.school_id);
+  if (b.school_id && st.done) { assignCerts(b.test_id, b.school_id); notifyAnnounce(b.test_id, b.school_id); }
   log(u.id, b.school_id ? 'elon.tasdiq' : 'yakunlash.tasdiq', { test_id: b.test_id, school_id: b.school_id, done: st.done });
   return st;
 };
 A['unapprove'] = (u, b) => {
   need(u.role === 'ceo' || perms(u).sardor);
   run('DELETE FROM approvals WHERE test_id=? AND school_id=? AND user_id=?', b.test_id, b.school_id, u.id);
+  if (u.role === 'ceo' && b.school_id) run('DELETE FROM certificates WHERE test_id=? AND student_id IN (SELECT s.id FROM students s JOIN classes c ON c.id=s.class_id WHERE c.school_id=?)', b.test_id, b.school_id);
   if (u.role === 'ceo') { run('DELETE FROM announcements WHERE test_id=? AND school_id=?', b.test_id, b.school_id); if (b.school_id === 0) run("UPDATE tests SET status='tekshiruv' WHERE id=?", b.test_id); }
   log(u.id, 'tasdiq.bekor', { test_id: b.test_id, school_id: b.school_id }); return approvedState(b.test_id, b.school_id);
 };
@@ -848,10 +850,10 @@ A['settings.save'] = async (u, b) => {
 A['cert.assets'] = () => ({ logo: getSet('logo'), imzo: getSet('imzo'), muhr: getSet('muhr'), signer: getSet('signer') || 'Abdurashidov G‘ulom O‘ktamovich', signer_role: getSet('signer_role') || 'Loyiha rahbari', site: siteUrl() });
 
 // ---------------------------------------------------------------- certificates
-function assignCerts(testId) {
+function assignCerts(testId, schoolId) {
   const t = one('SELECT * FROM tests WHERE id=?', testId); if (!t) return 0;
   const year = (t.date || now()).slice(0, 4); let n = 0;
-  for (const sid of giftedIds(t)) {
+  for (const sid of giftedIds(t, schoolId)) {
     if (one('SELECT 1 FROM certificates WHERE test_id=? AND student_id=?', testId, sid)) continue;
     const seq = (one('SELECT count(*) n FROM certificates').n || 0) + 1;
     run('INSERT INTO certificates(code,test_id,student_id,at) VALUES(?,?,?,?)', `YX-${year}-${String(seq).padStart(4, '0')}`, testId, sid, now()); n++;
@@ -1178,6 +1180,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 setInterval(() => { try { run('DELETE FROM sessions WHERE expires<?', now()); } catch {} }, 36e5);
+// e'lon qilingan maktablar uchun sertifikatlar (eski holatda faqat yakunlanganda berilardi)
+try { for (const a of all('SELECT test_id,school_id FROM announcements WHERE school_id>0')) assignCerts(a.test_id, a.school_id); } catch (e) { console.error('Sertifikat berishda xato:', e.message); }
 // bir martalik: bazadagi eski ismlarni ham bir xil yozuvga keltirish
 try {
   let fixed = 0;

@@ -388,8 +388,8 @@ function present(list,tid=testId){return list.filter(s=>{const r=R(s.id,tid);ret
 function giftedSet(tid=testId){
   const t=S.tests.find(x=>x.id===tid);const set=new Set();if(!t)return set;
   if(!isTeam()){(S.gifted||[]).forEach(k=>{const[a,b]=k.split(':');if(+a===tid)set.add(+b)});return set}
-  [...new Set(X.st.map(s=>s.grade))].forEach(g=>{
-    const p=present(X.st.filter(s=>s.grade===g),tid).map(s=>R(s.id,tid)).filter(r=>r.score!=null).sort((a,b)=>b.score-a.score);
+  [...new Set(X.st.map(s=>s.school_id+':'+s.grade))].forEach(g=>{ // har bir maktab va sinf bosqichi alohida
+    const p=present(X.st.filter(s=>s.school_id+':'+s.grade===g),tid).map(s=>R(s.id,tid)).filter(r=>r.score!=null).sort((a,b)=>b.score-a.score);
     if(!p.length)return;const cut=p[Math.max(0,Math.ceil(p.length*t.gifted_top/100)-1)].score;
     p.forEach(r=>{if(r.score>=cut&&r.score/r.qn*100>=t.gifted_min)set.add(r.student_id)});});
   return set;
@@ -611,7 +611,7 @@ function scrRanking(){
   <div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>
   <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
   ${present(X.st).length?dlBtn('district'):''}
-  ${body}<p class="note">★ iqtidorli: o’z sinfi testida eng yaxshi ${curTest()?.gifted_top??10}% ichida va kamida ${curTest()?.gifted_min??70}%.</p>`]}
+  ${body}<p class="note">★ iqtidorli: o’z maktabida, o’z sinf bosqichida eng yaxshi ${curTest()?.gifted_top??10}% ichida va kamida ${curTest()?.gifted_min??70}%.</p>`]}
 
 // ---------------- yuqori natijalar: chegaradan yuqori olgan barcha bolalar (hamma maktablar)
 function topStu(min=topMin,g=topGrade,sc=topSchool){
@@ -1284,9 +1284,9 @@ function scrCerts(){
   return ['Sertifikatlar',`${certs.length} ta`,`
   ${!S.assetsReady?`<div class="offline">Logotip, imzo yoki muhr rasmi hali yuklanmagan. ${S.me.role==='ceo'?'Ko’proq → Sozlamalar bo’limida yuklang.':'Sertifikat ularsiz chiqadi.'}</div>`:''}
   ${certs.length>1?`<button class="btn pri" data-act="certPdf">Hammasini PDF qilib yuklab olish</button>`:''}
-  <div class="card list">${certs.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certPng" data-c="${c.code}">Yuklab olish</button></div>`).join('')||'<div class="empty">Sertifikatlar sinov yakunlangach iqtidorli o’quvchilarga beriladi.</div>'}</div>`]}
+  <div class="card list">${certs.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certPng" data-c="${c.code}">Yuklab olish</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
 function tabrikCard(role){
-  const t=S.tests.find(x=>x.finished||x.status==='yakunlandi'); if(!t)return'';
+  const t=S.tests.find(x=>(S.gifted||[]).some(k=>+k.split(':')[0]===x.id)); if(!t)return'';
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
   return `<div class="card hero" style="background:var(--gold-soft);border-color:transparent"><p class="label" style="color:var(--gold)">Tabrik</p><p style="margin:0">${esc(fill(S.texts?.['tabrik_'+role],{soni:g}))}</p>
    ${(S.certs||[]).length?`<button class="btn sec" data-go="certs">Sertifikatlar (${(S.certs||[]).length})</button>`:''}</div>`}
