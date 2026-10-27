@@ -1001,20 +1001,32 @@ function dlOpen(kind,id){
   DL={scope:ok[0][0]};
   openSheet(`<div class="sh-top"><div class="m"><h2>Natijalarni yuklab olish</h2><div class="s">${esc(curTest()?.name||'')}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    ${ok.length>1?`<p class="label">Nimani yuklab olasiz?</p><div class="card list">${ok.map((o,i)=>`<label class="row" style="cursor:pointer"><input type="radio" name="dlScope" value="${o[0]}" ${i?'':'checked'} style="width:20px;height:20px;accent-color:var(--accent)"><div class="m"><div class="n">${esc(o[1])}</div>${o[2]?`<div class="s">${o[2]}</div>`:''}</div></label>`).join('')}</div>`:''}
+   <p class="label">Rangli belgilash</p>
+   <div class="card pad" style="gap:12px">
+    <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>Nechanchi o’ringacha rangli bo’lsin?</span>
+     <input id="dlTop" type="number" inputmode="numeric" min="0" max="50" value="${dlPref().top}" style="width:72px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center"></label>
+    <p class="note" style="margin:0">Masalan 3 — 1, 2, 3-o’rinlar sariq bo’ladi (bir xil ball olganlar ham). 0 — rangsiz.</p>
+    <label style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>Nechanchi o’ringacha ★ qo’yilsin?</span>
+     <input id="dlStar" type="number" inputmode="numeric" min="0" max="50" value="${dlPref().star}" style="width:72px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center"></label>
+    <p class="note" style="margin:0">★ ism yonida kichik yulduzcha bo’lib chiqadi. Har safar shu ro’yxat uchun o’zingiz tanlaysiz. 0 — yulduzchasiz.</p>
+   </div>
    <p class="note">Faqat sinovda qatnashgan bolalar, ball bo’yicha tartiblangan. Bir xil ball olganlar bir xil o’rinda.</p>
    <button class="btn pri" data-act="dlGo" data-f="pdf">PDF yuklab olish</button>
    <button class="btn sec" data-act="dlGo" data-f="xlsx">Excel yuklab olish</button>`)}
+function dlPref(){const v={top:3,star:0,...ls.get('dlpref',{})};delete v.gift;return v}
 function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 async function dlGo(f){
   const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
   const d=dlBuild(scope);if(!d.sections.length){toast('Natija yo’q',true);return}
+  const top=Math.max(0,Math.min(50,parseInt($('#dlTop')?.value??dlPref().top,10)||0));const star=Math.max(0,Math.min(50,parseInt($('#dlStar')?.value??dlPref().star,10)||0));ls.set('dlpref',{top,star});
+  d.sections.forEach(s=>s.rows.forEach(r=>r.g=star>0&&r.o<=star));
   toast('Tayyorlanmoqda…');
   const head=['O\'rin','O\'quvchi','Sinf',...(d.school?['Maktab']:[]),'Ball','Foiz'];
   const row=r=>[r.o,plain(r.name),r.cls,...(d.school?[r.sch]:[]),`${r.score} / ${r.qn}`,r.pct+'%'];
   if(f==='xlsx'){
     await loadXLSX();const wb=XLSX.utils.book_new();const used=new Set();
     d.sections.forEach(s=>{const ws=XLSX.utils.aoa_to_sheet([['YOSH XORAZMIYLAR — '+plain(d.title)],[plain(d.test)],[plain(s.h)+' · qatnashdi: '+s.rows.length+' nafar'],[],head,
-      ...s.rows.map(r=>[r.o,plain(r.name),r.cls,...(d.school?[r.sch]:[]),r.score,r.qn?Math.round(r.score/r.qn*100)/100:''])]);
+      ...s.rows.map(r=>[r.o,plain(r.name)+(r.g?' ★':''),r.cls,...(d.school?[r.sch]:[]),r.score,r.qn?Math.round(r.score/r.qn*100)/100:''])]);
       ws['!cols']=[{wch:6},{wch:32},{wch:7},...(d.school?[{wch:11}]:[]),{wch:7},{wch:7}];
       const pc=head.length-1;for(let i=0;i<s.rows.length;i++){const c=ws[XLSX.utils.encode_cell({r:5+i,c:pc})];if(c)c.z='0%'}
       ws[XLSX.utils.encode_cell({r:4,c:head.length-2})].v=`Ball (${s.rows[0].qn} tadan)`;
@@ -1038,7 +1050,12 @@ async function dlGo(f){
       styles:{font:'helvetica',fontSize:10,cellPadding:1.8,textColor:30,lineColor:200,lineWidth:.2},
       headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},
       columnStyles:{0:{halign:'center',cellWidth:16},2:{halign:'center',cellWidth:16},...(d.school?{3:{halign:'center',cellWidth:24}}:{}),[head.length-2]:{halign:'center',cellWidth:20},[head.length-1]:{halign:'center',cellWidth:16}},
-      didParseCell:c=>{if(c.section==='body'&&s.rows[c.row.index]?.o<=3)c.cell.styles.fillColor=[252,239,199]}});
+      didParseCell:c=>{if(c.section==='body'&&top&&s.rows[c.row.index]?.o<=top)c.cell.styles.fillColor=[252,239,199]},
+      didDrawCell:c=>{const r=s.rows[c.row.index];if(c.section!=='body'||c.column.index!==1||!r?.g)return;
+        // ★ ism yonida (PDF shriftida bu belgi yo'q, shuning uchun chizamiz)
+        pdf.setFontSize(10);const cx=c.cell.x+c.cell.padding('left')+pdf.getTextWidth(plain(r.name))+3.2,cy=c.cell.y+c.cell.height/2,R=1.9,q=.8;
+        const pts=[];for(let k=0;k<10;k++){const a=-Math.PI/2+k*Math.PI/5,rr=k%2?R*.42:R;pts.push([cx+rr*Math.cos(a),cy+rr*Math.sin(a)])}
+        pdf.setFillColor(232,170,20);pdf.lines(pts.slice(1).map((p,k)=>[p[0]-pts[k][0],p[1]-pts[k][1]]),pts[0][0],pts[0][1],[1,1],'F',true)}});
   });
   const n=pdf.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(140);pdf.text(`KARAKUL INTERNATIONAL SCHOOL · yoshxorazmiylar.uz · ${i}/${n}`,W/2,290,{align:'center'})}
   saveBlob(pdf.output('blob'),d.file+'.pdf');closeSheet()}
