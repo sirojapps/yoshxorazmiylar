@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS iresults(itest_id INTEGER NOT NULL, student_id INTEGE
 // yangi ustunlar (eski bazaga ham qo'shiladi)
 try { db.exec("ALTER TABLE messages ADD COLUMN edited TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) { }
+try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -635,13 +636,15 @@ A['itest.save'] = (u, b) => {
   const name = str(b.name, 120); if (!name) bad('Sinov nomini yozing');
   const qn = parseInt(b.qn, 10); if (!(qn >= 1 && qn <= 100)) bad('Savollar (yoki eng yuqori ball) soni 1 dan 100 gacha');
   const day = /^\d{4}-\d{2}-\d{2}$/.test(String(b.day)) ? b.day : now().slice(0, 10);
-  const grade = parseInt(b.grade, 10) || 0; const subject = str(b.subject, 60);
+  let grade = parseInt(b.grade, 10) || 0; const subject = str(b.subject, 60);
+  const classId = +b.class_id || null; // bitta sinf uchun sinov
+  if (classId) { const c = one('SELECT school_id,grade FROM classes WHERE id=?', classId); need(c && c.school_id === sid, 'Sinf shu maktabniki emas'); grade = c.grade; }
   if (b.id) {
     const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) bad('Sinov topilmadi'); need(canItest(u, t.school_id));
-    run('UPDATE itests SET name=?,day=?,qn=?,grade=?,subject=? WHERE id=?', name, day, qn, grade, subject, t.id);
+    run('UPDATE itests SET name=?,day=?,qn=?,grade=?,subject=?,class_id=? WHERE id=?', name, day, qn, grade, subject, classId, t.id);
     log(u.id, 'ichki.tahrir', { id: t.id, name }); return { id: t.id };
   }
-  const r = run('INSERT INTO itests(school_id,name,day,qn,grade,subject,by,at) VALUES(?,?,?,?,?,?,?,?)', sid, name, day, qn, grade, subject, u.id, now());
+  const r = run('INSERT INTO itests(school_id,name,day,qn,grade,subject,class_id,by,at) VALUES(?,?,?,?,?,?,?,?,?)', sid, name, day, qn, grade, subject, classId, u.id, now());
   log(u.id, 'ichki.yaratish', { school_id: sid, name }); return { id: Number(r.lastInsertRowid) };
 };
 A['itest.delete'] = (u, b) => {
