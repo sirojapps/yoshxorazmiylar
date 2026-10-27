@@ -566,8 +566,9 @@ A['note.summary'] = (u, b) => { need(u.role === 'ceo' || perms(u).sardor); const
 A['audit'] = (u, b) => {
   need(can(u, 'tarix'));
   const rows = b.student_id ? all("SELECT * FROM audit WHERE detail LIKE ? ORDER BY id DESC LIMIT 200", '%"student_id":' + (+b.student_id) + '%')
-    : all('SELECT * FROM audit ORDER BY id DESC LIMIT ? OFFSET ?', 100, (+b.offset || 0));
-  return { rows: rows.map(r => ({ ...r, detail: JSON.parse(r.detail || '{}') })) };
+    : all('SELECT * FROM audit ORDER BY id DESC LIMIT ? OFFSET ?', Math.min(100, Math.max(1, +b.limit || 100)), (+b.offset || 0));
+  const who = {}; for (const r of rows) if (!(r.user_id in who)) { const x = one('SELECT name,role FROM users WHERE id=?', r.user_id); who[r.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'direktor' ? 'Direktor ' + (x.name || '').split(' ')[0] : x.role === 'rahbar' ? 'Ustoz ' + (x.name || '').split(' ')[0] : (x.name || '').split(' ')[0]) : '—'; }
+  return { rows: rows.map(r => ({ ...r, who: who[r.user_id], detail: JSON.parse(r.detail || '{}') })) };
 };
 
 // ================================================================ v2: parents' phones, settings, messages, bot, certificates, exercises

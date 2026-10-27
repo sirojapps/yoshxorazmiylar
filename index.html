@@ -241,9 +241,9 @@ body[data-theme=sun]{--c1:#ffe89c;--c2:#c4eed3;--c3:#ffd4c2}
 #atmo .g{position:absolute;bottom:-12vh;left:var(--x);font-family:"Unbounded",var(--display);font-weight:500;font-size:var(--s);color:var(--navy);opacity:0;animation:rise var(--d) linear var(--w) infinite}
 @keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}12%{opacity:var(--gop)}85%{opacity:var(--gop)}100%{transform:translateY(-125vh) rotate(var(--r));opacity:0}}
 #atmo .astro{display:none}
-@media (min-width:1300px){
- #atmo .astro{display:block;position:absolute;right:-150px;bottom:-150px;width:620px;height:620px;color:var(--navy);opacity:.16;animation:spin 300s linear infinite}
- #atmo .astro .ri{transform-origin:310px 310px;animation:spin 180s linear infinite reverse}
+@media (min-width:1100px){
+ #atmo .astro{display:block;position:absolute;left:calc(50% + 128px);top:50%;width:min(1150px,125vh);height:min(1150px,125vh);transform:translate(-50%,-50%);color:var(--navy);opacity:.075}
+ #atmo .astro .ri{transform-origin:310px 310px;animation:spin 240s linear infinite}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .yx-cap{display:none;position:fixed;left:28px;bottom:24px;z-index:7;max-width:200px;text-align:left;font-size:12.5px;line-height:1.5;color:var(--muted);pointer-events:none}
@@ -267,14 +267,39 @@ body{background:var(--bg)}
 @media (prefers-reduced-motion:reduce){#atmo *{animation:none!important}#atmo .g{display:none}}
 @media (prefers-reduced-motion:no-preference){main{animation:in .16s ease-out}@keyframes in{from{opacity:.5}to{opacity:1}}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* kompyuter: bosh sahifa ikki ustun — chapda asosiy, o'ngda "Bugungi holat" */
+.dside{display:none}
+@media (min-width:1200px){
+.app:has(> .tabs) main:has(.dash){max-width:1420px}
+.dash{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px;align-items:start}
+.dmain{display:flex;flex-direction:column;gap:14px;min-width:0}
+.dside{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px}
+.dpair{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.dpair>*{min-width:0}
+.dmain .kpis{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.dside .card{background:color-mix(in srgb,var(--surface,#fff) 92%,transparent)}
+.qa{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.qa .btn{font-size:13.5px;padding:10px 8px}
+.wrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.wrow:last-child{border-bottom:0}
+.lrow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.lrow:last-child{border-bottom:0}
+.lrow>span{text-align:left;flex:1;min-width:0}.lrow>small{flex:none}
+}
+@media (max-width:1199px){.dash{display:flex;flex-direction:column;gap:14px}.dmain{display:flex;flex-direction:column;gap:14px}.dpair{display:flex;flex-direction:column;gap:14px}}
 </style>
 </head>
 <body>
 <div id="atmo" aria-hidden="true"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="pat"></div>
-<svg class="astro" viewBox="0 0 620 620" fill="none" stroke="currentColor"><circle cx="310" cy="310" r="300" stroke-width="2"/><circle cx="310" cy="310" r="268" stroke-width="1"/>
-<g id="tk"></g><g class="ri"><circle cx="310" cy="310" r="200" stroke-width="1.5"/><circle cx="310" cy="250" r="150" stroke-width="1"/><circle cx="310" cy="370" r="120" stroke-width="1"/><ellipse cx="310" cy="310" rx="200" ry="80" stroke-width="1"/>
-<path d="M310 110v400M110 310h400" stroke-width="1"/><path d="M310 140l18 150 132 20-132 20-18 150-18-150-132-20 132-20z" stroke-width="1.5"/></g>
-<g id="dg" fill="currentColor" stroke="none" font-size="22" text-anchor="middle"></g></svg>
+<svg class="astro" viewBox="0 0 620 620" fill="none" stroke="currentColor"><circle cx="310" cy="310" r="300" stroke-width="2"/><circle cx="310" cy="310" r="228" stroke-width="1.2"/>
+<g class="ri" fill="currentColor" stroke="none" font-family="Georgia,serif" text-anchor="middle"><text x="310.0" y="59.0" font-size="34">0</text><text x="464.0" y="109.0" font-size="34">1</text><text x="559.2" y="240.0" font-size="34">2</text><text x="559.2" y="402.0" font-size="34">3</text><text x="464.0" y="533.0" font-size="34">4</text><text x="310.0" y="583.0" font-size="34">5</text><text x="156.0" y="533.0" font-size="34">6</text><text x="60.8" y="402.0" font-size="34">7</text><text x="60.8" y="240.0" font-size="34">8</text><text x="156.0" y="109.0" font-size="34">9</text><text x="391.0" y="69.8" font-size="26" opacity=".6">٠</text><text x="522.0" y="165.0" font-size="26" opacity=".6">١</text><text x="572.0" y="319.0" font-size="26" opacity=".6">٢</text><text x="522.0" y="473.0" font-size="26" opacity=".6">٣</text><text x="391.0" y="568.2" font-size="26" opacity=".6">٤</text><text x="229.0" y="568.2" font-size="26" opacity=".6">٥</text><text x="98.0" y="473.0" font-size="26" opacity=".6">٦</text><text x="48.0" y="319.0" font-size="26" opacity=".6">٧</text><text x="98.0" y="165.0" font-size="26" opacity=".6">٨</text><text x="229.0" y="69.8" font-size="26" opacity=".6">٩</text></g>
+<g stroke-width="2.5"><rect x="160" y="160" width="300" height="300"/><rect x="220" y="220" width="180" height="180" stroke-width="3.5"/>
+<path d="M220 160V220M400 160V220M220 400V460M400 400V460M160 220H220M400 220H460M160 400H220M400 400H460"/>
+<path d="M160 160l60 60M460 160l-60 60M160 460l60-60M460 460l-60-60" stroke-dasharray="6 6"/></g>
+<g fill="currentColor" stroke="none" font-family="Georgia,serif" font-style="italic" text-anchor="middle"><text x="310" y="326" font-size="54">x²</text>
+<text x="310" y="198" font-size="26">2½·x</text><text x="310" y="442" font-size="26">2½·x</text><text x="190" y="319" font-size="26">2½·x</text><text x="430" y="319" font-size="26">2½·x</text>
+<text x="310" y="132" font-size="30">x² + 10x = 39</text><text x="310" y="506" font-size="24">(x + 5)² = 64 ⇒ x = 3</text></g></svg>
 <div id="gl"></div></div>
 <div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
 <div class="app" id="app"></div>
@@ -493,23 +518,58 @@ function searchRes(){
   ${st.length?`<section class="sec"><p class="label">O’quvchilar · ${st.length}</p><div class="card list">${st.slice(0,30).map((x,i)=>stuRow(x,i,{sub})).join('')}</div>${st.length>30?`<p class="note">Yana ${st.length-30} ta bor. Qidiruvni aniqroq yozing.</p>`:''}</section>`:''}`}
 
 // ================================================================ screens: team
+
+// ---------------- kompyuter: o'ng panel ("Bugungi holat")
+let RECENT=null,RECENT_AT=0;
+function loadRecent(){if(!P('tarix'))return;if(RECENT&&Date.now()-RECENT_AT<60000)return;RECENT_AT=Date.now();api('audit',{limit:7}).then(d=>{RECENT=d.rows;const b=$('#recentBox');if(b)b.innerHTML=recentHtml()}).catch(()=>{})}
+function recentHtml(){if(!RECENT)return '<div class="note">Yuklanmoqda…</div>';if(!RECENT.length)return '<div class="note">Hali o’zgarish yo’q</div>';
+  const names=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name.split(' ')[0]]));const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
+  return RECENT.map(h=>{const d=h.detail||{};let x=d.student_id?stn[d.student_id]||'':d.name||(d.num?d.num+'-maktab':'');
+    if(h.action==='natija.kiritish')x+=` · ${d.absent?'kelmadi':d.score+' ball'}`;if(h.action==='natija.tuzatish')x+=` · ${d.old?.absent?'kelmadi':d.old?.score}→${d.new?.absent?'kelmadi':d.new?.score}`;
+    if(h.action.startsWith('elon')&&d.school_id)x=(X.sc[d.school_id]?.num||'')+'-maktab';
+    if(h.action==='oquvchi.telefon'||h.action==='oquvchi.malumot')x=stn[d.id]||'';
+    return `<div class="lrow"><span><b>${esc(h.who||names[h.user_id]||'—')}</b> ${esc((ACT_L[h.action]||h.action).toLowerCase())}${x?` <span class="note">${esc(x)}</span>`:''}</span><small class="note" style="white-space:nowrap">${ago(h.at)}</small></div>`}).join('')}
+function sideTeam(){
+  const t=curTest();const ap=t?S.approvals?.[t.id]||{}:{};const canAp=S.me.role==='ceo'||P('sardor');
+  const waitAp=t&&canAp?S.schools.filter(sc=>{const l=X.st.filter(s=>s.school_id===sc.id);const n=l.filter(s=>R(s.id)).length;const a=ap[sc.id]||{};return n&&n===l.length&&!a.done&&!a.by?.includes(S.me.id)}):[];
+  const notIn=t?X.st.filter(s=>!R(s.id)).length:0;const dups=findDups(X.st).length;
+  const items=[
+    ...waitAp.map(sc=>[`${sc.num}-maktab tasdig’ingizni kutmoqda`,'tasdiq','gold',`data-go="school:${sc.id}"`]),
+    [S.unread?'Javob kutayotgan xabarlar':'',S.unread,'warn','data-tab="xabar"'],
+    [S.tgPending?'PIN so’rovlari (Telegram)':'',S.tgPending,'warn','data-act="tgReq"'],
+    [dups?'Ikki marta kiritilgan bolalar':'',dups,'gold','data-tab="maktab"'],
+    [notIn&&t&&t.status!=='yakunlandi'?'Natijasi kiritilmagan bolalar':'',notIn,'gray',P('kiritish')?'data-tab="kirit"':'data-tab="maktab"']].filter(x=>x[0]);
+  const qa=[P('kiritish')?['✎ Natija kiritish','data-tab="kirit"','pri']:null,X.st.some(s=>R(s.id))?['⬇ Yuklab olish','data-act="dl" data-k="district" data-id="0"','sec']:null,
+    ['🏅 Sertifikatlar','data-go="certs"','sec'],P('pinlar')?['🔑 PIN berish','data-go="pins"','sec']:null].filter(Boolean);
+  if(P('tarix'))loadRecent();
+  return `<div class="card pad"><p class="label" style="margin:0 0 8px">Tezkor amallar</p><div class="qa">${qa.map(([l,a,c])=>`<button class="btn ${c}" ${a}>${l}</button>`).join('')}</div></div>
+   <div class="card pad"><p class="label" style="margin:0 0 4px">Kutilayotgan ishlar</p>${items.length?items.map(([l,n,c,a])=>`<button class="wrow" ${a}><span>${esc(l)}</span><span class="pill ${c}">${n}</span></button>`).join(''):'<p class="note" style="margin:6px 0 0">Hammasi joyida ✓ Kutilayotgan ish yo’q.</p>'}</div>
+   ${P('tarix')?`<div class="card pad"><div class="sec-h" style="margin-bottom:4px"><p class="label" style="margin:0">Oxirgi o’zgarishlar</p><button class="lnk" data-go="history">Hammasi</button></div><div id="recentBox">${recentHtml()}</div></div>`:''}`}
+function sideDir(){
+  const sc=S.schools[0];const noPh=X.st.filter(s=>!kidPhones(s).length).length;const dups=findDups(X.st).length;const it=(S.itests||[])[0];
+  const items=[[S.unread?'Javob kutayotgan xabarlar':'',S.unread,'warn','data-tab="xabar"'],[noPh?'Ota-ona telefoni yo’q bolalar':'',noPh,'gold','data-tab="bosh"'],[dups?'Ikki marta kiritilgan bolalar':'',dups,'gold','data-tab="bosh"']].filter(x=>x[0]);
+  return `<div class="card pad"><p class="label" style="margin:0 0 8px">Tezkor amallar</p><div class="qa">
+     <button class="btn pri" data-act="itEdit" data-school="${sc?.id||''}">+ Ichki sinov</button>${X.st.some(s=>R(s.id))?`<button class="btn sec" data-act="dl" data-k="school" data-id="${sc?.id}">⬇ Yuklab olish</button>`:''}
+     <button class="btn sec" data-act="compose" data-kind="dotalar">📢 Ota-onalarga</button><button class="btn sec" data-go="certs">🏅 Sertifikatlar</button></div></div>
+   <div class="card pad"><p class="label" style="margin:0 0 4px">Kutilayotgan ishlar</p>${items.length?items.map(([l,n,c,a])=>`<button class="wrow" ${a}><span>${esc(l)}</span><span class="pill ${c}">${n}</span></button>`).join(''):'<p class="note" style="margin:6px 0 0">Hammasi joyida ✓</p>'}</div>
+   ${it?`<div class="card pad"><p class="label" style="margin:0 0 4px">Oxirgi ichki sinov</p><button class="wrow" data-go="itest:${it.id}"><span><b>${esc(it.name)}</b><br><small class="note">${itDate(it.day)}${itScope(it)?' · '+itScope(it):''}</small></span><span class="num">${itAvg(it,itStudents(it))!=null?itAvg(it,itStudents(it))+'%':'—'}</span></button></div>`:''}`}
 function scrTeamHome(){
   if(homeSchool&&!S.schools.some(x=>x.id===homeSchool))homeSchool=0;
   const t=curTest(); const st=homeSchool?X.st.filter(s=>s.school_id===homeSchool):X.st; const p=present(st); const gifted=giftedSet();
   const entered=st.filter(s=>R(s.id)).length; const hsc=homeSchool?X.sc[homeSchool]:null;
-  return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`
+  return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`<div class="dash"><div class="dmain">
   ${searchBox('Ism, familiya, sinf yoki telefon…')}
   ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
   ${stageBox(t,homeSchool)}
   ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
   ${p.length?dlBtn(homeSchool?'school':'district',homeSchool):''}
-  ${t?annBox(t):''}
-  ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}
+  <div class="dpair">${t?annBox(t):''}
+  ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}</div>
   ${gifted.size?`<section class="sec"><div class="sec-h"><p class="label">Iqtidorli bolalar</p><span class="pill gold">★ ${gifted.size} ta</span></div>
    <div class="card list">${st.filter(s=>gifted.has(s.id)).sort((a,b)=>R(b.id).score-R(a.id).score).slice(0,5).map((s,i)=>stuRow(s,i,{sub:s=>`${s.num}-maktab · ${s.cls}`,gifted})).join('')}</div>
    ${P('reyting')?`<button class="lnk" data-go="reyting" style="align-self:flex-start">Reytingni ko’rish</button>`:''}</section>`:''}
   ${hardBox(st)}
-  ${!S.tests.length&&P('maktab')?`<button class="btn pri" data-act="testEdit">Birinchi sinovni yaratish</button>`:''}`]}
+  ${!S.tests.length&&P('maktab')?`<button class="btn pri" data-act="testEdit">Birinchi sinovni yaratish</button>`:''}</div><aside class="dside">${sideTeam()}</aside></div>`]}
 function annBox(t){
   const ap=S.approvals?.[t.id]||{}; const canAp=S.me.role==='ceo'||P('sardor');
   const rows=S.schools.filter(sc=>!homeSchool||sc.id===homeSchool).map(sc=>{const list=X.st.filter(s=>s.school_id===sc.id);const n=list.filter(s=>R(s.id)).length;if(!n)return'';
@@ -782,7 +842,7 @@ function scrTeam(){
     <div class="s">${Object.entries(u.perms).filter(([k,v])=>v&&k!=='sardor').length} ta huquq · ${u.last_login?'oxirgi kirish '+fmtDate(u.last_login):'hali kirmagan'} · ${(S.results||[]).filter(r=>r.entered_by===u.id).length} ta kiritgan</div></div>${I.chev}</button>`).join('')||'<div class="card empty">Hali a’zo yo’q</div>'}
     <button class="btn pri" data-act="teamEdit">+ A’zo qo’shish</button>`]}
 let HIST=null, histStudent=window.__hs??null;
-const ACT_L={'oquvchi.birlashtirish':'Takroriy nusxani olib tashladi','oquvchi.kochirish':'O’quvchini boshqa sinfga ko’chirdi','natija.kelmadi_hammasi':'Qolganlarni “Kelmadi” qildi','natija.kiritish':'Natija kiritdi','natija.tuzatish':'Natijani tuzatdi','natija.ochirish':'Natijani o’chirdi','kalit.kiritish':'Kalit kiritdi','kalit.tuzatish':'Kalitni tuzatdi','oquvchi.qoshish':'O’quvchi qo’shdi','oquvchi.tahrir':'O’quvchini tahrirladi','oquvchi.ochirish':'O’quvchini o’chirdi','oquvchi.qaytarish':'O’quvchini qaytardi','maktab.qoshish':'Maktab qo’shdi','maktab.tahrir':'Maktabni tahrirladi','sinf.qoshish':'Sinf qo’shdi','sinf.tahrir':'Sinfni tahrirladi','royxat.import':'Ro’yxat yukladi','sinov.qoshish':'Sinov yaratdi','sinov.tahrir':'Sinovni tahrirladi','elon.tasdiq':'E’lonni tasdiqladi','yakunlash.tasdiq':'Yakunlashni tasdiqladi','tasdiq.bekor':'Tasdiqni bekor qildi','pin.berish':'PIN berdi','pin.yangilash':'Yangi PIN berdi','pin.ochirish':'PIN o’chirdi','jamoa.qoshish':'Jamoaga qo’shdi','jamoa.huquq':'Huquqlarni o’zgartirdi','jamoa.chiqarish':'Jamoadan chiqardi','zaxira.yuklab_olish':'Zaxira yukladi','rozilik':'Rozilik berdi'};
+const ACT_L={'ichki.yaratish':'Ichki sinov yaratdi','ichki.tahrir':'Ichki sinovni tahrirladi','ichki.ochirish':'Ichki sinovni o’chirdi','oquvchi.telefon':'Ota-ona telefonini kiritdi','oquvchi.malumot':'O’quvchi ma’lumotini kiritdi','bot.tasdiq':'PIN so’rovini tasdiqladi','bot.rad':'PIN so’rovini rad etdi','mashq.qoshish':'Mashq qo’shdi','mashq.tahrir':'Mashqni tahrirladi','mashq.ochirish':'Mashqni o’chirdi','sozlama':'Sozlamani o’zgartirdi','xabar.tahrir':'Xabarni tahrirladi','xabar.ochirish':'Xabarni o’chirdi','oquvchi.birlashtirish':'Takroriy nusxani olib tashladi','oquvchi.kochirish':'O’quvchini boshqa sinfga ko’chirdi','natija.kelmadi_hammasi':'Qolganlarni “Kelmadi” qildi','natija.kiritish':'Natija kiritdi','natija.tuzatish':'Natijani tuzatdi','natija.ochirish':'Natijani o’chirdi','kalit.kiritish':'Kalit kiritdi','kalit.tuzatish':'Kalitni tuzatdi','oquvchi.qoshish':'O’quvchi qo’shdi','oquvchi.tahrir':'O’quvchini tahrirladi','oquvchi.ochirish':'O’quvchini o’chirdi','oquvchi.qaytarish':'O’quvchini qaytardi','maktab.qoshish':'Maktab qo’shdi','maktab.tahrir':'Maktabni tahrirladi','sinf.qoshish':'Sinf qo’shdi','sinf.tahrir':'Sinfni tahrirladi','royxat.import':'Ro’yxat yukladi','sinov.qoshish':'Sinov yaratdi','sinov.tahrir':'Sinovni tahrirladi','elon.tasdiq':'E’lonni tasdiqladi','yakunlash.tasdiq':'Yakunlashni tasdiqladi','tasdiq.bekor':'Tasdiqni bekor qildi','pin.berish':'PIN berdi','pin.yangilash':'Yangi PIN berdi','pin.ochirish':'PIN o’chirdi','jamoa.qoshish':'Jamoaga qo’shdi','jamoa.huquq':'Huquqlarni o’zgartirdi','jamoa.chiqarish':'Jamoadan chiqardi','zaxira.yuklab_olish':'Zaxira yukladi','rozilik':'Rozilik berdi'};
 function scrHistory(){
   if(!HIST){api('audit',histStudent?{student_id:histStudent}:{}).then(d=>{HIST=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’zgarishlar tarixi','',`<div class="empty">Yuklanmoqda…</div>`]}
   const names=Object.fromEntries((S.team||[]).map(u=>[u.id,u.name])); const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
@@ -813,18 +873,18 @@ function dirManage(){const sc=S.schools[0];if(!sc)return'';const l=X.st;const no
 function scrDirHome(){
   if(homeClass&&!S.classes.some(c=>c.id===homeClass))homeClass=0;
   const sc=S.schools[0]; const t=S.tests[0]; const l=homeClass?X.st.filter(s=>s.class_id===homeClass):X.st; const hc=homeClass?X.cl[homeClass]:null;
-  if(!t)return [`${sc?.num}-maktab`,'Direktor',`${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div></section>`];
+  if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div></section></div><aside class="dside">${sideDir()}</aside></div>`];
   testId=t.id;
   const dist=[...new Set(l.map(s=>s.grade))].sort((a,b)=>a-b).map(g=>[g,S.district?.[t.id+':'+g]]).filter(x=>x[1]!=null);
-  return [`${sc.num}-maktab`,t.name,`${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
+  return [`${sc.num}-maktab`,t.name,`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
   ${S.classes.length>1?`<div class="seg"><button data-hc="0" aria-pressed="${!homeClass}">Hammasi</button>${[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<button data-hc="${c.id}" aria-pressed="${homeClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%',hc?`${esc(hc.name)} o’rtacha`:'maktab o’rtacha']])}
   ${present(X.st).length?dlBtn('school',sc.id):''}
-  ${gradeBars(l)}
-  ${dist.length?`<section class="sec"><p class="label">Tuman o’rtachasi bilan</p><div class="card cmp">${dist.map(([g,v])=>{const m=avgPct(l.filter(s=>s.grade===g));return `<div class="r"><span>${hc?esc(hc.name):g+'-sinf · maktab'}</span><div class="track"><i style="width:${m}%;background:var(--accent)"></i></div><b class="num">${m}%</b></div><div class="r"><span>${g}-sinf · tuman</span><div class="track"><i style="width:${v}%;background:var(--low)"></i></div><b class="num">${v}%</b></div>`}).join('')}</div></section>`:`<p class="note">Tuman o’rtachasi bilan solishtirma sinov yakunlangach ochiladi.</p>`}
+  <div class="dpair"><div>${gradeBars(l)}</div><div>
+  ${dist.length?`<section class="sec"><p class="label">Tuman o’rtachasi bilan</p><div class="card cmp">${dist.map(([g,v])=>{const m=avgPct(l.filter(s=>s.grade===g));return `<div class="r"><span>${hc?esc(hc.name):g+'-sinf · maktab'}</span><div class="track"><i style="width:${m}%;background:var(--accent)"></i></div><b class="num">${m}%</b></div><div class="r"><span>${g}-sinf · tuman</span><div class="track"><i style="width:${v}%;background:var(--low)"></i></div><b class="num">${v}%</b></div>`}).join('')}</div></section>`:`<p class="note">Tuman o’rtachasi bilan solishtirma sinov yakunlangach ochiladi.</p>`}</div></div>
   <section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.filter(c=>!homeClass||c.id===homeClass).map(c=>{const cl=l.filter(s=>s.class_id===c.id);const v=avgPct(cl);return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${present(cl).length} / ${cl.length} qatnashdi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div><div class="num">${v??'—'}%</div>${I.chev}</button>`}).join('')}</div></section>
   ${stuListSec(X.st,S.classes)}
-  ${dirManage()}`]}
+  ${dirManage()}</div><aside class="dside">${sideDir()}</aside></div>`]}
 // ---------------- maktab ichki sinovlari (Yosh Xorazmiylar reytingiga qo'shilmaydi)
 let itClass=0;
 const IR=(tid,sid)=>(S.iresults||[]).find(r=>r.itest_id===tid&&r.student_id===sid);
@@ -1489,8 +1549,8 @@ function screen(){
 const THEME={ichki:'sand',bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
 (function atmo(){
   const tk=document.getElementById('tk'),dg=document.getElementById('dg'),gl=document.getElementById('gl');if(!gl)return;
-  let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}tk.innerHTML=t;
-  const D='٠١٢٣٤٥٦٧٨٩';let d='';for(let i=0;i<10;i++){const a=(i*36-90)*Math.PI/180;d+=`<text x="${310+Math.cos(a)*240}" y="${318+Math.sin(a)*240}">${D[i]}</text>`}dg.innerHTML=d;
+  let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}if(tk)tk.innerHTML=t;
+  const D='٠١٢٣٤٥٦٧٨٩';let d='';for(let i=0;i<10;i++){const a=(i*36-90)*Math.PI/180;d+=`<text x="${310+Math.cos(a)*240}" y="${318+Math.sin(a)*240}">${D[i]}</text>`}if(dg)dg.innerHTML=d;
   const G=['x²','π','√','∑','÷','=','7','3','9','∞','△','½','+','×','a+b','%','0','1'];
   const n=innerWidth>=900?18:7;let h='';
   for(let i=0;i<n;i++){h+=`<span class="g" style="--x:${(i*97)%100}vw;--s:${16+(i*7)%26}px;--d:${38+(i*13)%40}s;--w:-${(i*11)%60}s;--r:${(i%2?1:-1)*(20+i*9)}deg">${G[i%G.length]}</span>`}
