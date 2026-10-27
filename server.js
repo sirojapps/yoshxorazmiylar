@@ -61,10 +61,15 @@ CREATE TABLE IF NOT EXISTS certificates(id INTEGER PRIMARY KEY, code TEXT UNIQUE
 CREATE TABLE IF NOT EXISTS tg_users(chat_id TEXT PRIMARY KEY, phone TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS tg_requests(id INTEGER PRIMARY KEY, chat_id TEXT, phone TEXT, class_id INTEGER, child TEXT, status TEXT DEFAULT 'kutilmoqda',
   student_id INTEGER, by INTEGER, at TEXT);
+CREATE TABLE IF NOT EXISTS itests(id INTEGER PRIMARY KEY, school_id INTEGER NOT NULL, name TEXT NOT NULL, day TEXT, qn INTEGER DEFAULT 20, grade INTEGER DEFAULT 0,
+  subject TEXT DEFAULT '', by INTEGER, at TEXT);
+CREATE TABLE IF NOT EXISTS iresults(itest_id INTEGER NOT NULL, student_id INTEGER NOT NULL, score INTEGER, absent INTEGER DEFAULT 0, by INTEGER, at TEXT,
+  PRIMARY KEY(itest_id,student_id));
 `);
 
 // yangi ustunlar (eski bazaga ham qo'shiladi)
 try { db.exec("ALTER TABLE messages ADD COLUMN edited TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) { }
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -86,6 +91,10 @@ function perms(u) {
 }
 const isTeam = u => u.role === 'ceo' || u.role === 'jamoa';
 function can(u, k) { return !!perms(u)[k]; }
+// direktor o'z maktabini boshqaradi (sinf rahbarlari, o'quvchilar, telefonlar, maktab ma'lumotlari)
+const schoolOfClass = cid => one('SELECT school_id FROM classes WHERE id=?', +cid)?.school_id || 0;
+const schoolOfStudent = sid => one('SELECT c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', +sid)?.school_id || 0;
+const ownsSchool = (u, schoolId) => can(u, 'maktab') || (u.role === 'direktor' && !!schoolId && u.school_id === schoolId);
 class HttpErr extends Error { constructor(code, msg) { super(msg); this.code = code; } }
 const need = (cond, msg = 'Bu amal uchun huquqingiz yo‘q') => { if (!cond) throw new HttpErr(403, msg); };
 const bad = msg => { throw new HttpErr(400, msg); };
@@ -171,16 +180,16 @@ function state(u) {
     classIds = [...new Set(kids.map(id => one('SELECT class_id FROM students WHERE id=?', id).class_id))];
   }
   const ph = classIds.map(() => '?').join(',') || 'NULL';
-  out.classes = all(`SELECT id,school_id,name,grade,teacher_name FROM classes WHERE id IN (${ph})`, ...classIds);
+  out.classes = all(`SELECT id,school_id,name,grade,teacher_name${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
-  out.schools = all(`SELECT id,num,name FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
+  out.schools = all(`SELECT id,num,name${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
   let studs = all(`SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
-  const hm = u.role === 'rahbar' ? hintsMap() : {};
+  const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
   out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address,
-    ...(u.role === 'rahbar' ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
+    ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
   const sIds = studs.map(s => s.id);
@@ -236,7 +245,12 @@ const A = {};
 A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.id); log(u.id, 'rozilik', {}); return {}; };
 
 A['school.save'] = (u, b) => {
-  need(can(u, 'maktab'));
+  if (!can(u, 'maktab')) { // direktor: faqat o'z maktabi nomi va direktor ismi
+    need(u.role === 'direktor' && +b.id === u.school_id);
+    const old = one('SELECT * FROM schools WHERE id=?', u.school_id);
+    run('UPDATE schools SET name=?,director_name=? WHERE id=?', str(b.name), fixName(b.director_name), u.school_id);
+    log(u.id, 'maktab.tahrir', { old, new: { name: str(b.name), director_name: fixName(b.director_name) } }); return { id: u.school_id };
+  }
   const num = parseInt(b.num, 10); if (!num) bad('Maktab raqamini yozing');
   const f = [num, str(b.name), fixName(b.director_name), phone9(b.director_phone)];
   if (b.id) { const old = one('SELECT * FROM schools WHERE id=?', b.id); run('UPDATE schools SET num=?,name=?,director_name=?,director_phone=? WHERE id=?', ...f, b.id); log(u.id, 'maktab.tahrir', { old, new: f }); return { id: b.id }; }
@@ -245,7 +259,8 @@ A['school.save'] = (u, b) => {
   log(u.id, 'maktab.qoshish', { num }); return { id: Number(r.lastInsertRowid) };
 };
 A['class.save'] = (u, b) => {
-  need(can(u, 'maktab'));
+  if (u.role === 'direktor') b.school_id = u.school_id;
+  need(ownsSchool(u, b.id ? schoolOfClass(b.id) : +b.school_id));
   const name = clsName(b.name); if (!name) bad('Sinf nomi noto‘g‘ri. Masalan: 3-A');
   const f = [name, gradeOf(name), fixName(b.teacher_name), phone9(b.teacher_phone)];
   if (b.id) { const old = one('SELECT * FROM classes WHERE id=?', b.id); run('UPDATE classes SET name=?,grade=?,teacher_name=?,teacher_phone=? WHERE id=?', ...f, b.id); log(u.id, 'sinf.tahrir', { old, new: f }); return { id: b.id }; }
@@ -254,7 +269,9 @@ A['class.save'] = (u, b) => {
   log(u.id, 'sinf.qoshish', { school_id: b.school_id, name }); return { id: Number(r.lastInsertRowid) };
 };
 A['student.save'] = (u, b) => {
-  need(can(u, 'maktab') || can(u, 'kiritish'));
+  const dir = u.role === 'direktor';
+  if (dir) need(ownsSchool(u, schoolOfClass(b.class_id)) && (!b.id || ownsSchool(u, schoolOfStudent(b.id))));
+  else need(can(u, 'maktab') || can(u, 'kiritish'));
   const name = fixName(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
   const by = b.birth_year ? parseInt(b.birth_year, 10) || null : null;
   checkPhone(phone9(b.phone), b.id ? +b.id : 0);
@@ -263,7 +280,7 @@ A['student.save'] = (u, b) => {
   if (twin) bad(`Bu sinfda «${twin.name}» allaqachon bor. Ro’yxatdan o’sha bolani toping`);
   if (phone9(b.phone) && b.id) run('DELETE FROM phone_hints WHERE student_id=?', +b.id);
   if (b.id) {
-    need(can(u, 'maktab'));
+    if (!dir) need(can(u, 'maktab'));
     const old = one('SELECT * FROM students WHERE id=?', b.id);
     run('UPDATE students SET class_id=?,name=?,phone=?,birth_year=?,address=? WHERE id=?', b.class_id, name, phone9(b.phone), by, str(b.address), b.id);
     log(u.id, 'oquvchi.tahrir', { id: b.id, old, new: { class_id: b.class_id, name, phone: phone9(b.phone), birth_year: by, address: str(b.address) } });
@@ -275,7 +292,7 @@ A['student.save'] = (u, b) => {
 // tug'ilgan yil va manzilni ota-ona (o'z farzandi) yoki sinf rahbari (o'z sinfi) kiritadi
 A['student.info'] = (u, b) => {
   const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
-  const ok = can(u, 'maktab') || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id));
+  const ok = ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id));
   need(ok);
   const y = String(b.birth_year || '').trim(); const by = y ? parseInt(y, 10) : null;
   const max = new Date().getFullYear() - 4;
@@ -290,7 +307,8 @@ A['student.move'] = (u, b) => {
   const st = one('SELECT s.id,s.name,s.class_id,c.school_id,c.grade,c.name cname FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.active=1', +b.id); if (!st) bad('O‘quvchi topilmadi');
   const to = one('SELECT id,school_id,grade,name FROM classes WHERE id=?', +b.class_id); if (!to) bad('Sinf topilmadi');
   if (to.id === st.class_id) bad('Bola allaqachon shu sinfda');
-  if (!can(u, 'maktab')) need(u.role === 'rahbar' && u.class_id === st.class_id && to.school_id === st.school_id && to.grade === st.grade, 'Faqat o‘z sinfingizdagi bolani shu maktabdagi parallel sinfga ko‘chira olasiz');
+  if (u.role === 'direktor') need(st.school_id === u.school_id && to.school_id === u.school_id, 'Faqat o‘z maktabingiz ichida ko‘chira olasiz');
+  else if (!can(u, 'maktab')) need(u.role === 'rahbar' && u.class_id === st.class_id && to.school_id === st.school_id && to.grade === st.grade, 'Faqat o‘z sinfingizdagi bolani shu maktabdagi parallel sinfga ko‘chira olasiz');
   const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1', to.id).find(x => nameKey(x.name) === nameKey(st.name));
   if (twin) bad(`${to.name} sinfida «${twin.name}» allaqachon bor. Bu ortiqcha nusxa bo‘lsa, uni o‘chiring`);
   run('UPDATE students SET class_id=? WHERE id=?', to.id, st.id);
@@ -299,12 +317,13 @@ A['student.move'] = (u, b) => {
 };
 // takroriy nusxani asosiy nusxaga qo'shib, keyin o'chirish (telefon, tug'ilgan yil, manzil yo'qolmaydi)
 A['students.merge'] = (u, b) => {
-  need(can(u, 'maktab'));
+  need(can(u, 'maktab') || u.role === 'direktor');
   const pairs = Array.isArray(b.pairs) ? b.pairs : []; let n = 0;
   tx(() => {
     for (const [keepId, dropId] of pairs) {
       const k = one('SELECT * FROM students WHERE id=? AND active=1', +keepId), d = one('SELECT * FROM students WHERE id=? AND active=1', +dropId);
       if (!k || !d || k.id === d.id || k.class_id !== d.class_id || nameKey(k.name) !== nameKey(d.name)) continue;
+      if (!ownsSchool(u, schoolOfClass(k.class_id))) continue;
       const kr = all('SELECT test_id FROM results WHERE student_id=? AND absent=0', d.id); if (kr.length) continue; // ikkinchisida ham ball bo'lsa, qo'lda hal qilinadi
       run('UPDATE students SET phone=CASE WHEN phone IS NULL OR phone=\'\' THEN ? ELSE phone END, birth_year=COALESCE(birth_year,?), address=CASE WHEN address IS NULL OR address=\'\' THEN ? ELSE address END WHERE id=?', d.phone || '', d.birth_year, d.address || '', k.id);
       run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', k.id, d.id);
@@ -317,8 +336,8 @@ A['students.merge'] = (u, b) => {
   });
   return { n };
 };
-A['student.delete'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
-A['student.restore'] = (u, b) => { need(can(u, 'maktab')); run('UPDATE students SET active=1 WHERE id=?', b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
+A['student.delete'] = (u, b) => { need(ownsSchool(u, schoolOfStudent(b.id))); run('UPDATE students SET active=0 WHERE id=?', b.id); log(u.id, 'oquvchi.ochirish', { id: b.id, name: one('SELECT name FROM students WHERE id=?', b.id)?.name }); return {}; };
+A['student.restore'] = (u, b) => { need(ownsSchool(u, schoolOfStudent(b.id))); run('UPDATE students SET active=1 WHERE id=?', b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
 const nameKey = n => String(n || '').toLowerCase().replace(/[`‘’'ʻʼ´]/g, "'").replace(/\s+/g, ' ').trim();
 A['students.import'] = (u, b) => {
   need(can(u, 'maktab'));
@@ -552,6 +571,9 @@ const studentInfo = id => one(`SELECT s.id,s.name,s.class_id,c.name cls,c.grade,
 const parentsOf = sid => all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidsOfPhone(phone9(x.phone)).includes(sid));
 const rahbarsOf = classId => all("SELECT * FROM users WHERE role='rahbar' AND active=1 AND class_id=?", classId);
 const ceoId = () => one("SELECT id FROM users WHERE role='ceo'").id;
+const directorsOf = schoolId => all("SELECT * FROM users WHERE role='direktor' AND active=1 AND school_id=?", schoolId);
+const rahbarsOfSchool = schoolId => all("SELECT u.* FROM users u JOIN classes c ON c.id=u.class_id WHERE u.role='rahbar' AND u.active=1 AND c.school_id=?", schoolId);
+const kidInSchool = (u, schoolId, classId) => kidsOfPhone(phone9(u.phone)).some(id => { const x = one('SELECT s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', id); return x && x.school_id === schoolId && (!classId || x.class_id === classId); });
 // Ro'yxatdan (Excel) kelgan ota-ona raqamlariga ishonilmaydi: ular faqat "tekshirilmagan taklif" bo'lib turadi.
 // Haqiqiy raqamni sinf rahbari yoki jamoa qo'lda kiritadi (yoki sinf rahbari bot so'rovini tasdiqlaydi).
 const MAX_KIDS = 4;
@@ -581,7 +603,7 @@ const extraPhones = sid => all('SELECT phone FROM student_phones WHERE student_i
 // sinf rahbari (o'z sinfi) yoki jamoa ota-ona telefonini kiritadi
 A['student.phone'] = (u, b) => {
   const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
-  need(can(u, 'maktab') || (u.role === 'rahbar' && u.class_id === s.class_id));
+  need(ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id));
   const raw = String(b.phone || '').trim(); const p = phone9(raw);
   if (raw && !p) bad('Telefon raqamini to‘liq yozing (masalan, 90 123 45 67)');
   checkPhone(p, s.id);
@@ -593,8 +615,51 @@ A['student.phone'] = (u, b) => {
 };
 
 // ---------------------------------------------------------------- extras for state
+// ---------------------------------------------------------------- maktab ichki sinovlari (reytingga qo'shilmaydi)
+function itestsFor(u, out) {
+  if (isTeam(u)) return { itests: all('SELECT * FROM itests ORDER BY day DESC,id DESC'), iresults: all('SELECT itest_id,student_id,score,absent FROM iresults') };
+  const sIds = new Set((out.students || []).map(s => s.id));
+  const schools = [...new Set((out.classes || []).map(c => c.school_id))];
+  if (!schools.length) return { itests: [], iresults: [] };
+  const its = all(`SELECT * FROM itests WHERE school_id IN (${schools.map(() => '?').join(',')}) ORDER BY day DESC,id DESC`, ...schools);
+  const ids = its.map(t => t.id);
+  const res = ids.length ? all(`SELECT itest_id,student_id,score,absent FROM iresults WHERE itest_id IN (${ids.map(() => '?').join(',')})`, ...ids).filter(r => sIds.has(r.student_id)) : [];
+  return { itests: u.role === 'ota' ? its.filter(t => res.some(r => r.itest_id === t.id)) : its, iresults: res };
+}
+const canItest = (u, schoolId) => ownsSchool(u, schoolId);
+A['itest.save'] = (u, b) => {
+  const sid = u.role === 'direktor' ? u.school_id : +b.school_id;
+  need(canItest(u, sid));
+  const name = str(b.name, 120); if (!name) bad('Sinov nomini yozing');
+  const qn = parseInt(b.qn, 10); if (!(qn >= 1 && qn <= 100)) bad('Savollar (yoki eng yuqori ball) soni 1 dan 100 gacha');
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(String(b.day)) ? b.day : now().slice(0, 10);
+  const grade = parseInt(b.grade, 10) || 0; const subject = str(b.subject, 60);
+  if (b.id) {
+    const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) bad('Sinov topilmadi'); need(canItest(u, t.school_id));
+    run('UPDATE itests SET name=?,day=?,qn=?,grade=?,subject=? WHERE id=?', name, day, qn, grade, subject, t.id);
+    log(u.id, 'ichki.tahrir', { id: t.id, name }); return { id: t.id };
+  }
+  const r = run('INSERT INTO itests(school_id,name,day,qn,grade,subject,by,at) VALUES(?,?,?,?,?,?,?,?)', sid, name, day, qn, grade, subject, u.id, now());
+  log(u.id, 'ichki.yaratish', { school_id: sid, name }); return { id: Number(r.lastInsertRowid) };
+};
+A['itest.delete'] = (u, b) => {
+  const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) return {}; need(canItest(u, t.school_id));
+  tx(() => { run('DELETE FROM iresults WHERE itest_id=?', t.id); run('DELETE FROM itests WHERE id=?', t.id); });
+  log(u.id, 'ichki.ochirish', { id: t.id, name: t.name }); return {};
+};
+// ball kiritish: direktor (o'z maktabi), sinf rahbari (o'z sinfi), jamoa (maktab huquqi)
+A['iresult.save'] = (u, b) => {
+  const t = one('SELECT * FROM itests WHERE id=?', +b.itest_id); if (!t) bad('Sinov topilmadi');
+  const st = one('SELECT s.id,s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.active=1', +b.student_id); if (!st) bad('O‘quvchi topilmadi');
+  need(st.school_id === t.school_id && (canItest(u, t.school_id) || (u.role === 'rahbar' && u.class_id === st.class_id)));
+  if (b.clear) { run('DELETE FROM iresults WHERE itest_id=? AND student_id=?', t.id, st.id); return {}; }
+  const absent = b.absent ? 1 : 0; let score = null;
+  if (!absent) { score = parseInt(b.score, 10); if (!(score >= 0 && score <= t.qn)) bad(`Ball 0 dan ${t.qn} gacha bo‘lishi kerak`); }
+  run(`INSERT INTO iresults(itest_id,student_id,score,absent,by,at) VALUES(?,?,?,?,?,?) ON CONFLICT(itest_id,student_id) DO UPDATE SET score=excluded.score,absent=excluded.absent,by=excluded.by,at=excluded.at`, t.id, st.id, score, absent, u.id, now());
+  return {};
+};
 function extras(u, out) {
-  const ex = { texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
+  const ex = { ...itestsFor(u, out), texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
   ex.bot = getSet('bot_username');
   ex.school = { name: getSet('sch_name') || 'KARAKUL INTERNATIONAL SCHOOL', about: getSet('sch_about'), address: getSet('sch_address') || 'Qorako‘l tumani, Buxoro viloyati',
     phone: getSet('sch_phone'), telegram: getSet('sch_telegram'), instagram: getSet('sch_instagram'), facebook: getSet('sch_facebook'), youtube: getSet('sch_youtube'), site: getSet('sch_site') };
@@ -807,6 +872,12 @@ function threadAccess(u, t) {
   if (t.kind === 'chat') return { see: isTeam(u), reply: isTeam(u) };
   if (t.kind === 'jamoa') { const mine = t.user_id === u.id; return { see: mine || (u.role === 'jamoa' && P.xabar), reply: mine || (u.role === 'jamoa' && P.xabar) }; }
   if (t.kind === 'ota') { const ok = t.user_id === u.id || (u.role === 'rahbar' && u.class_id === t.class_id); return { see: ok, reply: ok }; }
+  // direktor yozishmalari: drh — direktor ↔ bitta sinf rahbari, drhs — direktor va maktabdagi hamma sinf rahbarlari guruhi,
+  // dota — direktor ↔ bitta ota-ona, dotalar — direktordan ota-onalarga e'lon (ota-onalar faqat o'qiydi)
+  if (t.kind === 'drh') { const ok = (u.role === 'direktor' && u.id === t.user_id) || (u.role === 'rahbar' && u.class_id === t.class_id); return { see: ok, reply: ok }; }
+  if (t.kind === 'drhs') { const ok = (u.role === 'direktor' && u.school_id === t.school_id) || (u.role === 'rahbar' && one('SELECT school_id FROM classes WHERE id=?', u.class_id)?.school_id === t.school_id); return { see: ok, reply: ok }; }
+  if (t.kind === 'dota') { const ok = u.id === t.user_id || (u.role === 'direktor' && u.school_id === t.school_id); return { see: ok, reply: ok }; }
+  if (t.kind === 'dotalar') { if (u.role === 'direktor' && u.school_id === t.school_id) return { see: true, reply: true }; if (u.role === 'ota') return { see: kidInSchool(u, t.school_id, t.class_id), reply: false }; if (u.role === 'rahbar' && (!t.class_id || u.class_id === t.class_id) && one('SELECT school_id FROM classes WHERE id=?', u.class_id)?.school_id === t.school_id) return { see: true, reply: false }; return { see: false, reply: false }; }
   if (t.kind === 'sinf') {
     if (u.role === 'rahbar' && u.class_id === t.class_id) return { see: true, reply: true };
     if (u.role === 'ota') { const k = kidsOfPhone(phone9(u.phone)); const ok = k.some(id => one('SELECT class_id FROM students WHERE id=?', id)?.class_id === t.class_id); return { see: ok, reply: false }; }
@@ -826,6 +897,10 @@ function threadTitle(t, u) {
   const s = t.student_id ? studentInfo(t.student_id) : null;
   const who = one('SELECT name,role FROM users WHERE id=?', t.user_id);
   if (t.kind === 'chat') return 'Jamoa chati';
+  if (t.kind === 'drh') { const c = one('SELECT name,teacher_name FROM classes WHERE id=?', t.class_id); return u?.role === 'rahbar' ? `Direktor · ${who?.name || ''}` : `${c?.teacher_name || 'Sinf rahbari'} · ${c?.name || ''} sinf`; }
+  if (t.kind === 'drhs') return 'Sinf rahbarlari guruhi (direktor bilan)';
+  if (t.kind === 'dota') { if (u?.role === 'ota') return `Maktab direktori${s ? ' · ' + (s.name.split(' ')[1] || s.name) : ''}`; return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${s.cls}` : 'Ota-ona'; }
+  if (t.kind === 'dotalar') { const c = t.class_id ? one('SELECT name FROM classes WHERE id=?', t.class_id) : null; return `Direktordan e’lon · ${c ? c.name + ' sinf ota-onalari' : 'butun maktab ota-onalari'}`; }
   if (t.kind === 'sinf') { const c = one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', t.class_id); return `${c?.num}-maktab ${c?.name} — butun sinfga`; }
   if (t.kind === 'ota' && u?.role === 'ota') { const c = one('SELECT teacher_name FROM classes WHERE id=?', t.class_id); return `${c?.teacher_name || 'Sinf rahbari'} · ${s ? s.name.split(' ')[1] || s.name : ''}`; }
   if (t.kind === 'ota') return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${s.num}-maktab ${s.cls}` : 'Ota-ona';
@@ -838,6 +913,10 @@ function recipients(t, fromId) {
   if (t.kind === 'ota') ids = [t.user_id, ...rahbarsOf(t.class_id).map(r => r.id)];
   if (t.kind === 'sinf') ids = all("SELECT id,phone FROM users WHERE role='ota' AND active=1").filter(x => kidsOfPhone(phone9(x.phone)).some(k => one('SELECT class_id FROM students WHERE id=?', k)?.class_id === t.class_id)).map(x => x.id);
   if (t.kind === 'chat') ids = all("SELECT id FROM users WHERE role IN ('ceo','jamoa') AND active=1").map(x => x.id);
+  if (t.kind === 'drh') ids = [t.user_id, ...rahbarsOf(t.class_id).map(r => r.id)];
+  if (t.kind === 'drhs') ids = [...directorsOf(t.school_id).map(r => r.id), ...rahbarsOfSchool(t.school_id).map(r => r.id)];
+  if (t.kind === 'dota') ids = [t.user_id, ...directorsOf(t.school_id).map(r => r.id)];
+  if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
 function cleanImage(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:image\/(png|jpeg|webp);base64,/.test(s) || s.length > 1.5e6) bad('Rasm juda katta yoki noto‘g‘ri'); return s; }
@@ -883,6 +962,29 @@ A['thread.new'] = (u, b) => {
   } else if (b.kind === 'sinf') {
     need(u.role === 'rahbar');
     const r = run('INSERT INTO threads(kind,user_id,class_id,created_at,updated_at) VALUES(?,?,?,?,?)', 'sinf', u.id, u.class_id, now(), now());
+    t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid));
+  } else if (b.kind === 'drh') { // direktor ↔ sinf rahbari
+    let dirId, cid;
+    if (u.role === 'direktor') { cid = +b.class_id; need(one('SELECT school_id FROM classes WHERE id=?', cid)?.school_id === u.school_id, 'Faqat o‘z maktabingiz sinflari'); if (!rahbarsOf(cid).length) bad('Bu sinf rahbari hali saytga kirmagan (PIN yo‘q)'); dirId = u.id; }
+    else if (u.role === 'rahbar') { cid = u.class_id; const sc = one('SELECT school_id FROM classes WHERE id=?', cid)?.school_id; const d = directorsOf(sc)[0]; if (!d) bad('Maktab direktori hali saytga kirmagan (PIN yo‘q)'); dirId = d.id; }
+    else need(false);
+    t = one("SELECT * FROM threads WHERE kind='drh' AND user_id=? AND class_id=?", dirId, cid);
+    if (!t) { const r = run('INSERT INTO threads(kind,user_id,class_id,school_id,created_at,updated_at) VALUES(?,?,?,?,?,?)', 'drh', dirId, cid, one('SELECT school_id FROM classes WHERE id=?', cid).school_id, now(), now()); t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid)); }
+  } else if (b.kind === 'drhs') { // direktor + hamma sinf rahbarlari guruhi
+    need(u.role === 'direktor');
+    t = one("SELECT * FROM threads WHERE kind='drhs' AND school_id=?", u.school_id);
+    if (!t) { const r = run('INSERT INTO threads(kind,user_id,school_id,created_at,updated_at) VALUES(?,?,?,?,?)', 'drhs', u.id, u.school_id, now(), now()); t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid)); }
+  } else if (b.kind === 'dota') { // direktor ↔ bitta ota-ona
+    need(u.role === 'direktor');
+    const s = studentInfo(+b.student_id); if (!s) bad('O‘quvchini tanlang');
+    const sc = one('SELECT school_id FROM classes WHERE id=?', s.class_id)?.school_id; need(sc === u.school_id, 'Faqat o‘z maktabingiz o‘quvchilari');
+    const ps = parentsOf(s.id); if (!ps.length) bad('Bu bolaning ota-onasi hali saytga kirmagan (PIN yo‘q)');
+    t = one("SELECT * FROM threads WHERE kind='dota' AND user_id=? AND student_id=?", ps[0].id, s.id);
+    if (!t) { const r = run('INSERT INTO threads(kind,user_id,class_id,student_id,school_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)', 'dota', ps[0].id, s.class_id, s.id, sc, now(), now()); t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid)); }
+  } else if (b.kind === 'dotalar') { // direktordan ota-onalarga e'lon
+    need(u.role === 'direktor');
+    const cid = +b.class_id || null; if (cid) need(one('SELECT school_id FROM classes WHERE id=?', cid)?.school_id === u.school_id);
+    const r = run('INSERT INTO threads(kind,user_id,class_id,school_id,created_at,updated_at) VALUES(?,?,?,?,?,?)', 'dotalar', u.id, cid, u.school_id, now(), now());
     t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid));
   } else if (b.kind === 'chat') {
     need(isTeam(u));
