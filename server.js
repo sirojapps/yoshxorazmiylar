@@ -1113,6 +1113,9 @@ function userOf(req) {
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
   return one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
 }
+// sayt versiyasi: index.html o'zgarsa, ochiq sahifalarga "Sayt yangilandi" chiqadi
+let VER = { m: 0, v: '' };
+function siteVersion() { try { const f = path.join(PUBLIC, 'index.html'); const m = fs.statSync(f).mtimeMs; if (m !== VER.m) VER = { m, v: crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex').slice(0, 12) }; } catch (e) { } return VER.v; }
 const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY' };
 
 // ---- Telefonga ilova sifatida o'rnatish (PWA) ----
@@ -1177,6 +1180,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/logout') { run('DELETE FROM sessions WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }, { 'Set-Cookie': 'yx=; Path=/; Max-Age=0' }); }
     if (url.pathname === '/api/verify') return send(res, 200, verifyCert(url.searchParams.get('c')));
+    if (url.pathname === '/api/ver') return send(res, 200, { v: siteVersion() }); // sahifa yangilanganini bilish uchun
     const phm = url.pathname.match(/^\/ph\/s\/(\d+)$/);
     if (phm) { // o'quvchi surati: faqat uni ko'rishga haqli bo'lganlarga
       const u = userOf(req); const s = u && one('SELECT s.id,s.class_id,s.avatar,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', +phm[1]);

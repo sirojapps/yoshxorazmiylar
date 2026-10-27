@@ -288,6 +288,7 @@ body{background:var(--bg)}
 .lrow>span{text-align:left;flex:1;min-width:0}.lrow>small{flex:none}
 }
 @media (max-width:1199px){.dash{display:flex;flex-direction:column;gap:14px}.dmain{display:flex;flex-direction:column;gap:14px}.dpair{display:flex;flex-direction:column;gap:14px}}
+@media (min-width:900px){#verBar{bottom:24px!important}}
 </style>
 </head>
 <body>
@@ -383,6 +384,14 @@ const isTeam=()=>S&&(S.me.role==='ceo'||S.me.role==='jamoa');
 
 let netTry=0,netTimer=null,SJ='';
 // auto=true — har daqiqadagi fon yangilanishi: ma'lumot o'zgarmagan bo'lsa sahifa qayta chizilmaydi (qotib qolmasligi uchun)
+
+// ---------------- yangilash: ↻ tugmasi va "Sayt yangilandi" eslatmasi
+let SITE_VER='';
+async function verCheck(){try{const r=await fetch('/api/ver',{cache:'no-store'});const v=(await r.json()).v;if(!v)return;if(!SITE_VER){SITE_VER=v;return}
+  if(v!==SITE_VER&&!document.getElementById('verBar')){const d=document.createElement('div');d.id='verBar';d.setAttribute('role','status');
+    d.style.cssText='position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--navy,#1f3564);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:600;max-width:calc(100% - 32px);white-space:nowrap';
+    d.innerHTML='<span>Sayt yangilandi</span><button data-act="reload" style="background:#fff;color:var(--navy,#1f3564);border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">Yangilash</button>';document.body.appendChild(d)}}catch(e){}}
+verCheck();setInterval(verCheck,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)verCheck()});
 async function load(auto){
   try{const n=await api('state');const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
   catch(e){
@@ -1569,6 +1578,7 @@ function render(){
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button data-act="avPick" aria-label="Profil rasmi" style="border:0;background:none;padding:0;cursor:pointer;flex:none">${avHtml(S.me.avatar,36,S.me.name)}</button>
+   <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button>
    ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
@@ -1742,6 +1752,7 @@ document.addEventListener('click',async e=>{
    case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render()}catch(e){toast(e.message,true)}},kid?200:240);break}
    case 'avNudgeOff':ls.set('avn',1);render();break;
    case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();break}
+   case 'reload':location.reload();break;
    case 'absRest':{const n=+d.n,where=d.k==='class'?`${X.cl[+d.id]?.name} sinfida`:`${X.sc[+d.id]?.num}-maktabda`;
      if(!confirm(`${where} natijasi kiritilmagan ${n} ta bola “Kelmadi” deb belgilanadi.\n\nBarcha kelgan bolalar natijasi kiritib bo’lindimi?`))break;
      const r=await api('results.absentRest',{test_id:testId,[d.k==='class'?'class_id':'school_id']:+d.id});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();break}
