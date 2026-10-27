@@ -1072,9 +1072,10 @@ function scrMessages(){
     const chat=TH.find(t=>t.kind==='chat');
     top+=`<button class="row card" data-act="openChat"><div class="m"><div class="n">Jamoa chati</div><div class="s">${chat?.last?esc(chat.last.text.slice(0,60)):'CEO, sardor va jamoa a’zolari uchun'}</div></div>${badge(chat?.unread)}${I.chev}</button>`;
     const jam=TH.filter(t=>t.kind==='jamoa');
-    const segs=[['ochiq',`Ochiq (${jam.filter(t=>t.status==='ochiq').length})`],['hal','Hal qilingan'],...(lead?[['ota','Ota-onalar']]:[])];
+    if(thf!=='ochiq'&&thf!=='hal')thf='ochiq';
+    const segs=[['ochiq',`Ochiq (${jam.filter(t=>t.status==='ochiq').length})`],['hal','Hal qilingan']];
     top+=`<div class="seg">${segs.map(([k,l])=>`<button data-thf="${k}" aria-pressed="${thf===k}">${l}</button>`).join('')}</div>`;
-    list=thf==='ota'?TH.filter(t=>t.kind==='ota'||t.kind==='sinf'):jam.filter(t=>t.status===thf);
+    list=jam.filter(t=>t.status===thf);
     if(r==='jamoa')top+=`<button class="btn pri" data-act="compose" data-kind="jamoa">+ Yangi murojaat</button>`;
     if(P('pinlar')&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Telegram so’rovlari</div><div class="s">Raqami ro’yxatda yo’q ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`+top;
   }else if(r==='direktor'){
@@ -1085,12 +1086,39 @@ function scrMessages(){
   }else if(r==='rahbar'){
     top=`${S.tgPending?`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn pri" data-act="compose" data-kind="ota">Ota-onaga yozish</button><button class="btn sec" data-act="compose" data-kind="sinf">Butun sinfga</button></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="compose" data-kind="drh">Direktorga yozish</button><button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga</button></div>
-    <p class="note">Yozishmalarni CEO va jamoa sardori kerak bo’lsa o’qiy oladi.</p>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="compose" data-kind="drh">Direktorga yozish</button><button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga</button></div>`;
   }else if(r==='ota'){
     top=`<button class="btn pri" data-act="compose" data-kind="ota">Ustozga yozish</button><p class="note">Xabaringiz farzandingizning sinf rahbariga boradi.</p>`;
   }
   return ['Xabarlar','',`${top}<div class="card list">${list.map(thRow).join('')||'<div class="empty">Hali xabar yo’q</div>'}</div>`]}
+
+// ---------------- ovozli xabar: yozish, tinglab ko'rish, o'chirish (eng ko'pi 3 daqiqa)
+const REC={on:false,to:'',data:'',mr:null,ch:[],t0:0,tm:0,stream:null,drop:false};
+const AUD={};
+const recFmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function recBox(to){let h='';
+  if(REC.to===to&&REC.on)h=`<div class="card pad" style="flex-direction:row;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:var(--wrong);animation:pulse 1s infinite;flex:none"></span><b id="recT" style="font-variant-numeric:tabular-nums">${recFmt(Math.floor((Date.now()-REC.t0)/1000))}</b><span class="note">Ovoz yozilmoqda… eng ko’pi 3 daqiqa</span></div>`;
+  else if(REC.to===to&&REC.data)h=`<div class="card pad" style="flex-direction:row;align-items:center;gap:10px"><audio controls src="${REC.data}" style="flex:1;min-width:0;height:40px"></audio><button class="btn dan sm" data-act="recDel">O’chirish</button></div>`;
+  return `<div id="recbox-${to}">${h}</div>`}
+function recBtn(to){const on=REC.on&&REC.to===to;return `<span id="recbtn-${to}" style="display:contents"><button class="btn ${on?'dan':'sec'}" data-act="${on?'recStop':'recStart'}" data-to="${to}">${on?'■ To’xtatish':'🎤 Ovoz'}</button></span>`}
+function recRedraw(){['cm','rp'].forEach(to=>{const b=$('#recbox-'+to);if(b)b.outerHTML=recBox(to);const t=$('#recbtn-'+to);if(t)t.outerHTML=recBtn(to)})}
+async function recStart(to){
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('Bu brauzerda ovoz yozib bo’lmaydi. Chrome orqali oching.',true);return}
+  if(REC.on)return; recClear();
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){toast('Mikrofonga ruxsat berilmadi. Brauzer sozlamasidan ruxsat bering.',true);return}
+  const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(m=>MediaRecorder.isTypeSupported?.(m))||'';
+  const mr=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:32000}:{});
+  Object.assign(REC,{on:true,to,data:'',mr,ch:[],t0:Date.now(),stream,drop:false});
+  mr.ondataavailable=e=>{if(e.data&&e.data.size)REC.ch.push(e.data)};
+  mr.onstop=()=>{stream.getTracks().forEach(t=>t.stop());clearInterval(REC.tm);const keep=!REC.drop;REC.on=false;
+    if(!keep||!REC.ch.length){recRedraw();return}
+    const blob=new Blob(REC.ch,{type:mr.mimeType||mime||'audio/webm'});
+    const fr=new FileReader();fr.onload=()=>{const v=String(fr.result);if(v.length>4.4e6){toast('Ovozli xabar juda uzun. Qisqaroq yozing.',true);REC.data=''}else REC.data=v;recRedraw()};fr.readAsDataURL(blob)};
+  mr.start(1000);
+  REC.tm=setInterval(()=>{const s=Math.floor((Date.now()-REC.t0)/1000);const t=$('#recT');if(t)t.textContent=recFmt(s);if(s>=180)recStop()},500);
+  recRedraw()}
+function recStop(){if(REC.on&&REC.mr&&REC.mr.state!=='inactive')REC.mr.stop()}
+function recClear(){if(REC.on&&REC.mr){REC.drop=true;try{REC.mr.stop()}catch(e){}}clearInterval(REC.tm);REC.on=false;REC.data='';REC.to='';REC.ch=[]}
 
 // ---------------- thread view
 let THV=null, draftImg='', msgMenu=0, editMsg=0;

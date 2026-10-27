@@ -992,9 +992,12 @@ function verifyCert(code) {
 }
 
 // ---------------------------------------------------------------- messages
+// maktab ichidagi yozishmalar (sinf rahbari ↔ ota-ona, direktor ↔ sinf rahbari/ota-ona) shaxsiy:
+// ularni faqat qatnashchilar ko'radi — CEO va jamoa ham o'qiy olmaydi
+const PRIVATE_KINDS = ['ota', 'sinf', 'drh', 'drhs', 'dota', 'dotalar'];
 function threadAccess(u, t) {
   const P = perms(u);
-  if (u.role === 'ceo' || P.sardor) return { see: true, reply: true };
+  if ((u.role === 'ceo' || P.sardor) && !PRIVATE_KINDS.includes(t.kind)) return { see: true, reply: true };
   if (t.kind === 'chat') return { see: isTeam(u), reply: isTeam(u) };
   if (t.kind === 'jamoa') { const mine = t.user_id === u.id; return { see: mine || (u.role === 'jamoa' && P.xabar), reply: mine || (u.role === 'jamoa' && P.xabar) }; }
   if (t.kind === 'ota') { const ok = t.user_id === u.id || (u.role === 'rahbar' && u.class_id === t.class_id); return { see: ok, reply: ok }; }
@@ -1142,7 +1145,7 @@ A['msg.edit'] = (u, b) => { // faqat o'z xabarini tahrirlaydi
 };
 A['msg.delete'] = (u, b) => { // o'z xabarini o'chiradi; CEO istalgan xabarni o'chira oladi
   const m = one('SELECT * FROM messages WHERE id=?', b.id); if (!m) return {};
-  need(m.user_id === u.id || u.role === 'ceo', 'Faqat o‘z xabaringizni o‘chira olasiz');
+  need(m.user_id === u.id || (u.role === 'ceo' && threadAccess(u, one('SELECT * FROM threads WHERE id=?', m.thread_id) || {}).see), 'Faqat o‘z xabaringizni o‘chira olasiz');
   run('DELETE FROM messages WHERE id=?', m.id);
   log(u.id, 'xabar.ochirish', { id: m.id, thread_id: m.thread_id, by: m.user_id, text: m.text, image: !!m.image }); return {};
 };
