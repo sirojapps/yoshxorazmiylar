@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS iresults(itest_id INTEGER NOT NULL, student_id INTEGE
 try { db.exec("ALTER TABLE messages ADD COLUMN edited TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) { }
 try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
+try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -151,11 +154,11 @@ const finished = testId => announced(testId, 0);
 function state(u) {
   const P = perms(u);
   const tests = all('SELECT * FROM tests ORDER BY id DESC');
-  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at }, tests, perms: PERMS };
+  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '' }, tests, perms: PERMS };
   if (isTeam(u)) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
-    out.students = all('SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 ORDER BY name');
+    out.students = all('SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 ORDER BY name');
     out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at FROM results');
     out.keys = {};
     for (const t of tests) {
@@ -165,7 +168,7 @@ function state(u) {
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
-    out.team = all("SELECT id,role,name,phone,perms,active,last_login FROM users WHERE role IN ('ceo','jamoa')").map(x => ({ ...x, perms: perms(x) }));
+    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar FROM users WHERE role IN ('ceo','jamoa')").map(x => ({ ...x, perms: perms(x) }));
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
     out.hints = hintsMap();
     Object.assign(out, extras(u, out));
@@ -184,12 +187,12 @@ function state(u) {
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
-  let studs = all(`SELECT id,class_id,name,phone,birth_year,address FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  let studs = all(`SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address,
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address, avatar: s.avatar || '',
     ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
@@ -244,6 +247,19 @@ function giftedIds(t, schoolId) {
 
 // ---------------------------------------------------------------- actions
 const A = {};
+// ---------------------------------------------------------------- avatarlar: tayyor rasm ('p:kalit') yoki o'z rasmi (kichik JPEG/PNG)
+function cleanAvatar(v, allowPhoto) {
+  const s = String(v || ''); if (!s) return '';
+  if (/^p:[a-z0-9_]{2,12}$/.test(s)) return s;
+  if (allowPhoto && /^data:image\/(png|jpeg|webp);base64,/.test(s) && s.length <= 160000) return s;
+  bad(allowPhoto ? 'Rasm juda katta yoki noto‘g‘ri' : 'Bolalar uchun faqat tayyor rasmlardan tanlanadi');
+}
+A['me.avatar'] = (u, b) => { run('UPDATE users SET avatar=? WHERE id=?', cleanAvatar(b.avatar, true), u.id); return {}; };
+A['student.avatar'] = (u, b) => {
+  const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
+  need(ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id)));
+  run('UPDATE students SET avatar=? WHERE id=?', cleanAvatar(b.avatar, false), s.id); return {};
+};
 A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.id); log(u.id, 'rozilik', {}); return {}; };
 
 A['school.save'] = (u, b) => {
@@ -893,7 +909,7 @@ function visibleThreads(u) {
   const rows = all('SELECT * FROM threads ORDER BY updated_at DESC LIMIT 1000').filter(t => threadAccess(u, t).see);
   return rows.map(t => {
     const r = one('SELECT at FROM reads WHERE thread_id=? AND user_id=?', t.id, u.id)?.at || '';
-    const last = one('SELECT user_id,text,image,at FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 1', t.id);
+    const last = one("SELECT user_id,text,image,audio<>'' AS audio,at FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 1", t.id);
     const unread = one('SELECT count(*) n FROM messages WHERE thread_id=? AND user_id!=? AND at>?', t.id, u.id, r).n;
     return { ...t, last, unread };
   });
@@ -925,31 +941,32 @@ function recipients(t, fromId) {
   return [...new Set(ids)].filter(id => id !== fromId);
 }
 function cleanImage(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:image\/(png|jpeg|webp);base64,/.test(s) || s.length > 1.5e6) bad('Rasm juda katta yoki noto‘g‘ri'); return s; }
-function addMessage(u, t, txt, image) {
+function cleanAudio(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:audio\/[a-z0-9.+-]+(;[a-z0-9=.,+ -]+)*;base64,/i.test(s) || s.length > 4.5e6) bad('Ovozli xabar juda uzun yoki noto‘g‘ri (eng ko‘pi 3 daqiqa)'); return s; }
+function addMessage(u, t, txt, image, audio = '') {
   const at = now();
-  run('INSERT INTO messages(thread_id,user_id,text,image,at) VALUES(?,?,?,?,?)', t.id, u.id, txt, image, at);
+  run('INSERT INTO messages(thread_id,user_id,text,image,audio,at) VALUES(?,?,?,?,?,?)', t.id, u.id, txt, image, audio, at);
   run('UPDATE threads SET updated_at=? WHERE id=?', at, t.id);
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, at);
   if (t.status === 'hal' && t.user_id === u.id) run("UPDATE threads SET status='ochiq' WHERE id=?", t.id);
   const who = u.role === 'ceo' ? 'CEO' : u.name;
-  notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}\n\nJavob berish: ${siteUrl()}`);
+  notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
 const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
 A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
 A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
   const acc = threadAccess(u, t); need(acc.see);
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, now());
-  const msgs = all('SELECT * FROM messages WHERE thread_id=? ORDER BY id', t.id);
-  const names = {}; for (const m of msgs) if (!(m.user_id in names)) { const x = one('SELECT name,role FROM users WHERE id=?', m.user_id); names[m.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'ota' ? 'Ota-ona' : x.name) : '—'; }
+  const msgs = all('SELECT * FROM messages WHERE thread_id=? ORDER BY id', t.id).map(m => ({ ...m, audio: m.audio ? 1 : 0 }));
+  const names = {}, avs = {}; for (const m of msgs) if (!(m.user_id in names)) { const x = one('SELECT name,role,avatar FROM users WHERE id=?', m.user_id); names[m.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'ota' ? 'Ota-ona' : x.name) : '—'; avs[m.user_id] = x?.avatar || ''; }
   const reads = all('SELECT user_id,at FROM reads WHERE thread_id=?', t.id).filter(r => r.user_id !== u.id);
   const s = t.student_id ? studentInfo(t.student_id) : null;
   let result = null;
   if (s && (isTeam(u) || u.role === 'rahbar')) { const r = one('SELECT r.score,r.qn,r.absent,t.name FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY r.test_id DESC LIMIT 1', s.id); if (r) result = r; }
-  return { thread: { ...t, title: threadTitle(t, u) }, reply: acc.reply, msgs, names, readBy: reads, student: s, result };
+  return { thread: { ...t, title: threadTitle(t, u) }, reply: acc.reply, msgs, names, avs, readBy: reads, student: s, result };
 };
 A['thread.new'] = (u, b) => {
-  const txt = str(b.text, 3000); const image = cleanImage(b.image);
-  if (!txt && !image) bad('Xabar bo‘sh');
+  const txt = str(b.text, 3000); const image = cleanImage(b.image); const audio = cleanAudio(b.audio);
+  if (!txt && !image && !audio) bad('Xabar bo‘sh');
   let t;
   if (b.kind === 'jamoa') {
     need(['direktor', 'rahbar', 'jamoa'].includes(u.role), 'Bu xabar turi sizga mo‘ljallanmagan');
@@ -996,14 +1013,19 @@ A['thread.new'] = (u, b) => {
     t = one("SELECT * FROM threads WHERE kind='chat'");
     if (!t) { const r = run("INSERT INTO threads(kind,user_id,created_at,updated_at) VALUES('chat',?,?,?)", u.id, now(), now()); t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid)); }
   } else bad('Noma‘lum xabar turi');
-  addMessage(u, t, txt, image);
+  addMessage(u, t, txt, image, audio);
   return { id: t.id };
 };
 A['thread.reply'] = (u, b) => {
   const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
   need(threadAccess(u, t).reply, 'Bu yozishmaga javob yoza olmaysiz');
-  const txt = str(b.text, 3000); const image = cleanImage(b.image); if (!txt && !image) bad('Xabar bo‘sh');
-  addMessage(u, t, txt, image); return {};
+  const txt = str(b.text, 3000); const image = cleanImage(b.image); const audio = cleanAudio(b.audio); if (!txt && !image && !audio) bad('Xabar bo‘sh');
+  addMessage(u, t, txt, image, audio); return {};
+};
+// ovozli xabar alohida yuklanadi (yozishma tez ochilishi uchun)
+A['msg.audio'] = (u, b) => {
+  const m = one('SELECT id,thread_id,audio FROM messages WHERE id=?', +b.id); if (!m || !m.audio) bad('Topilmadi');
+  need(threadAccess(u, one('SELECT * FROM threads WHERE id=?', m.thread_id)).see); return { audio: m.audio };
 };
 A['msg.edit'] = (u, b) => { // faqat o'z xabarini tahrirlaydi
   const m = one('SELECT * FROM messages WHERE id=?', b.id); if (!m) bad('Xabar topilmadi');
