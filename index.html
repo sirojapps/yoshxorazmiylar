@@ -444,7 +444,7 @@ const kpis=items=>`<div class="kpis">${items.map(([v,l])=>`<div class="card kpi"
 function stuRow(s,i,o={}){
   const r=R(s.id); const g=o.gifted&&o.gifted.has(s.id);
   const right=!r?`<span class="pill gray">kiritilmagan</span>`:r.absent?`<span class="pill gray">kelmadi</span>`:r.score==null?`<span class="pill gray">kalit yo’q</span>`:`<div class="num">${r.score}/${r.qn}<small>${pct(r)}%</small></div>`;
-  return `<button class="row" data-go="stu:${s.id}">${o.rank?`<span class="rank">${r&&!r.absent&&r.score!=null?i+1:''}</span>`:''}${s.avatar?avHtml(s.avatar,30):''}<div class="m"><div class="n">${esc(s.name)}</div>${o.sub||g?`<div class="s">${o.sub?esc(o.sub(s)):''}${g?` <span class="pill gold">★ iqtidorli</span>`:''}</div>`:''}</div>${right}</button>`}
+  return `<button class="row" data-go="stu:${s.id}">${o.rank?`<span class="rank">${r&&!r.absent&&r.score!=null?i+1:''}</span>`:''}${s.avatar?avHtml(s.avatar,30,s.name,s.id):''}<div class="m"><div class="n">${esc(s.name)}</div>${o.sub||g?`<div class="s">${o.sub?esc(o.sub(s)):''}${g?` <span class="pill gold">★ iqtidorli</span>`:''}</div>`:''}</div>${right}</button>`}
 function sortStu(list){const a=[...list];
   if(sortBy==='ism')a.sort((x,y)=>x.name.localeCompare(y.name,'uz'));
   else{const k=id=>{const r=R(id);return !r?-3:r.absent?-2:r.score??-1}; // avval qatnashganlar (0 ball ham), keyin kelmaganlar, oxirida kiritilmaganlar
@@ -584,7 +584,7 @@ function scrStudent(id){
   const team_=Object.fromEntries((S.team||[]).map(u=>[u.id,u.name]));
   const canAv=ED()||(S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id);
   return [s.name,`${s.num}-maktab · ${s.cls}`,`
-  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div>${canAv?`<button class="btn sec sm" data-act="kidAv" data-id="${s.id}">Rasm</button>`:''}</div>
+  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div>${canAv?`<button class="btn sec sm" data-act="kidAv" data-id="${s.id}">${s.avatar?'Surat':'Surat qo’yish'}</button>`:''}</div>
   ${tests.length?tests.map(t=>{const r=R(id,t.id);const cAvg=avgPct(X.st.filter(x=>x.class_id===s.class_id),t.id);
    return `<section class="sec"><p class="label">${esc(t.name)}</p><div class="card hero">${r.absent?`<span class="pill gray" style="align-self:flex-start">sinovga kelmadi</span>`:r.score==null?`<span class="pill gray" style="align-self:flex-start">kalit kiritilmagan</span>`:
     `<div class="big">${r.score}<small>/${r.qn} · ${pct(r)}%</small></div>${gifted.has(id)&&t.id===testId?`<span class="pill gold" style="align-self:flex-start">★ iqtidorli</span>`:''}`}
@@ -931,7 +931,7 @@ function scrParent(){
       ${cAvg!=null?`<section class="sec"><p class="label">Sinf bilan solishtirma</p><div class="card cmp"><div class="r"><span>Farzandingiz</span><div class="track"><i style="width:${p}%;background:var(--accent)"></i></div><b class="num">${p}%</b></div><div class="r"><span>Sinf o’rtachasi</span><div class="track"><i style="width:${cAvg}%;background:var(--low)"></i></div><b class="num">${cAvg}%</b></div></div>
       <p class="note">${rank?(rank[0]<=Math.ceil(rank[1]/2)?`Tumandagi ${s.grade}-sinflar orasida ${rank[0]}-o’rin (${rank[1]} ta bola).`:''):'Tumandagi o’rni sinov yakunlangach chiqadi.'} Boshqa bolalarning ismi va bali ko’rinmaydi.</p></section>`:''}
       <section class="sec"><p class="label">Savollar bo’yicha</p>${qGrid(r)}</section>`}}
-  return [s.name,`${s.num}-maktab · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div><button class="btn sec sm" data-act="kidAv" data-id="${s.id}">${s.avatar?'Rasmni almashtirish':'Rasm tanlash'}</button></div>${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${hasInfo(s)?'':infoCard(s)}${body}${parentItests(s)}${hasInfo(s)?infoCard(s):''}`]}
+  return [s.name,`${s.num}-maktab · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div><button class="btn sec sm" data-act="kidAv" data-id="${s.id}">${s.avatar?'Suratni almashtirish':'Surat qo’yish'}</button></div>${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${hasInfo(s)?'':infoCard(s)}${body}${parentItests(s)}${hasInfo(s)?infoCard(s):''}`]}
 // ota-ona: farzandining maktab ichki sinov natijalari
 function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!its.length)return'';
   return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${p}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
@@ -944,86 +944,23 @@ const ago=iso=>{if(!iso)return'';const d=(Date.now()-new Date(iso))/6e4;if(d<1)r
 async function loadLib(src,test){if(test())return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('Kutubxona yuklanmadi. Internetni tekshiring.'));document.head.appendChild(s)})}
 function pickImage(cb,max=1280){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>{const f=i.files[0];if(!f)return;const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);cb(c.toDataURL(f.type==='image/png'?'image/png':'image/jpeg',.85))};img.src=URL.createObjectURL(f)};i.click()}
 
-// ---------------- avatarlar: tayyor rasmlar (SVG) va o'z rasmi
-const AV_SET={
-  dir_m:{l:'Direktor (erkak)',bg:'#dbe7f7',skin:'#f1c7a1',hair:'short',hc:'#2b2320',cl:'#1f3564',tie:'#b8862e',beard:1},
-  dir_f:{l:'Direktor (ayol)',bg:'#f6e2e7',skin:'#f3cdb0',hair:'bun',hc:'#3a2a22',cl:'#5b2a4e',brooch:1},
-  dir_fs:{l:'Direktor (ayol, ro’mol)',bg:'#e7e1f6',skin:'#f3cdb0',hair:'scarf',hc:'#3d4f86',cl:'#2b3a6b'},
-  tch_m:{l:'Ustoz (erkak)',bg:'#dff3ec',skin:'#e9bb94',hair:'side',hc:'#1f1a17',cl:'#2f7a6b',glasses:1},
-  tch_f:{l:'Ustoz (ayol)',bg:'#fff1d9',skin:'#f5d2b5',hair:'long',hc:'#4a3226',cl:'#c2603d',glasses:1},
-  tch_fs:{l:'Ustoz (ayol, ro’mol)',bg:'#e2f1fa',skin:'#f1c9a8',hair:'scarf',hc:'#3a9aa8',cl:'#2a6f7d'},
-  man:{l:'Erkak',bg:'#e9eef3',skin:'#dfae86',hair:'short',hc:'#3b2b20',cl:'#4b5d73'},
-  wom:{l:'Ayol',bg:'#fbe8de',skin:'#f3cdb0',hair:'long',hc:'#2a1e19',cl:'#a8456a'},
-  boy:{l:'O’g’il bola',bg:'#d9f0ff',skin:'#f3cba8',hair:'kid',hc:'#2b211c',cl:'#2f80c8',kid:1},
-  boy2:{l:'O’g’il bola 2',bg:'#e3f6d8',skin:'#e2b08a',hair:'kid2',hc:'#4a2f1f',cl:'#3f9a4a',kid:1},
-  girl:{l:'Qiz bola',bg:'#ffe4ef',skin:'#f6d3b8',hair:'pig',hc:'#3b261c',cl:'#e0588f',kid:1},
-  girl2:{l:'Qiz bola 2',bg:'#efe6ff',skin:'#ecbf9c',hair:'pony',hc:'#2d1d17',cl:'#7d5bd6',kid:1},
-  owl:{l:'Boyo’g’li',bg:'#fff3cf',sym:'owl'},rocket:{l:'Raketa',bg:'#dfe8ff',sym:'rocket'},
-  star:{l:'Yulduz',bg:'#1f3564',sym:'star'},book:{l:'Kitob',bg:'#e7f5ef',sym:'book'}};
-const AV_ROLE={direktor:['dir_m','dir_f','dir_fs'],rahbar:['tch_m','tch_f','tch_fs'],jamoa:['man','wom','tch_m','tch_f','tch_fs'],ceo:['dir_m','man','tch_m'],ota:['man','wom','tch_fs'],kid:['boy','boy2','girl','girl2']};
-function avSvg(k){const a=AV_SET[k];if(!a)return'';
-  const sym={owl:`<ellipse cx="50" cy="58" rx="24" ry="27" fill="#8a5a3b"/><ellipse cx="50" cy="64" rx="15" ry="17" fill="#e9c79c"/><circle cx="40" cy="47" r="10" fill="#fff"/><circle cx="60" cy="47" r="10" fill="#fff"/><circle cx="40" cy="48" r="5" fill="#1f2a44"/><circle cx="60" cy="48" r="5" fill="#1f2a44"/><path d="M47 55l3 5 3-5z" fill="#f2a32b"/><path d="M28 34l8 8M72 34l-8 8" stroke="#8a5a3b" stroke-width="6" stroke-linecap="round"/><rect x="30" y="24" width="40" height="7" rx="2" fill="#1f3564"/><path d="M50 18l22 8-22 8-22-8z" fill="#1f3564"/>`,
-    rocket:`<path d="M50 16c12 10 16 26 13 44H37c-3-18 1-34 13-44z" fill="#fff"/><circle cx="50" cy="40" r="7" fill="#4c7be0"/><path d="M37 52l-9 12 10-2zM63 52l9 12-10-2z" fill="#e24d4d"/><path d="M42 62h16l-3 10h-10z" fill="#f2a32b"/><path d="M46 72h8l-4 12z" fill="#f6d24a"/>`,
-    star:`<path d="M50 14l9 18 18 3-9 9 9 9-18 3-9 18-9-18-18-3 9-9-9-9 18-3z" fill="#e2c27a"/><circle cx="50" cy="50" r="12" fill="#1f3564"/><text x="50" y="56" font-size="15" font-weight="700" text-anchor="middle" fill="#f3d98c" font-family="sans-serif">x²</text>`,
-    book:`<path d="M18 34c12-4 22-2 32 6v40c-10-8-20-10-32-6z" fill="#2f9e7e"/><path d="M82 34c-12-4-22-2-32 6v40c10-8 20-10 32-6z" fill="#3fb48f"/><path d="M26 44h16M26 52h16M58 44h16M58 52h16" stroke="#e7f5ef" stroke-width="3" stroke-linecap="round"/><text x="50" y="30" font-size="16" font-weight="700" text-anchor="middle" fill="#1f3564" font-family="sans-serif">π √ ∑</text>`};
-  let body='';
-  if(a.sym)body=sym[a.sym];
-  else{const sc=a.kid?.92:1,cy=a.kid?44:42;
-    const hair={short:`<path d="M31 ${cy-2}c0-15 9-22 19-22s19 7 19 22c-3-7-9-11-19-11s-16 4-19 11z" fill="${a.hc}"/>`,
-      side:`<path d="M30 ${cy}c-1-16 9-24 21-23 11 1 19 8 19 22-5-9-14-12-25-10-6 1-11 5-15 11z" fill="${a.hc}"/>`,
-      bun:`<circle cx="50" cy="${cy-21}" r="8" fill="${a.hc}"/><path d="M31 ${cy+2}c-2-16 8-24 19-24s21 8 19 24c-3-9-10-13-19-13s-16 4-19 13z" fill="${a.hc}"/>`,
-      long:`<path d="M29 ${cy+22}c-4-12-3-26 2-33 4-7 11-11 19-11s15 4 19 11c5 7 6 21 2 33-2-8-3-16-6-22-5-4-10-6-15-6s-10 2-15 6c-3 6-4 14-6 22z" fill="${a.hc}"/>`,
-      scarf:`<path d="M26 ${cy+30}C22 ${cy-4} 32 ${cy-25} 50 ${cy-25}S78 ${cy-4} 74 ${cy+30}C66 ${cy+40} 34 ${cy+40} 26 ${cy+30}z" fill="${a.hc}"/>`,
-      kid:`<path d="M32 ${cy}c-1-14 8-21 18-21s19 7 18 21c-2-4-5-7-8-8l-2 4-3-5-4 4-2-5-4 4-2-4c-5 2-9 6-11 10z" fill="${a.hc}"/>`,
-      kid2:`<path d="M31 ${cy+1}c0-15 8-22 19-22 12 0 20 8 19 22-4-6-9-9-13-9-2-3-5-4-6-4 1 2 0 3-2 4-6 1-12 4-17 9z" fill="${a.hc}"/>`,
-      pig:`<circle cx="27" cy="${cy+4}" r="8" fill="${a.hc}"/><circle cx="73" cy="${cy+4}" r="8" fill="${a.hc}"/><circle cx="30" cy="${cy-2}" r="3" fill="#e0588f"/><circle cx="70" cy="${cy-2}" r="3" fill="#e0588f"/><path d="M31 ${cy+2}c-2-15 8-23 19-23s21 8 19 23c-4-8-11-11-19-11s-15 3-19 11z" fill="${a.hc}"/>`,
-      pony:`<path d="M66 ${cy-12}c10 4 12 18 6 28-2-10-6-16-10-20z" fill="${a.hc}"/><path d="M31 ${cy+2}c-2-15 8-23 19-23s21 8 19 23c-5-6-12-10-21-10-7 0-13 4-17 10z" fill="${a.hc}"/><circle cx="66" cy="${cy-13}" r="3" fill="#f6c84a"/>`}[a.hair]||'';
-    const behind=a.hair==='long'||a.hair==='scarf'?hair:'',front=behind?'':hair;
-    body=`<g transform="translate(50 50) scale(${sc}) translate(-50 -50)">${behind}
-    <path d="M18 100c2-20 15-29 32-29s30 9 32 29z" fill="${a.cl}"/>${a.tie?`<path d="M44 72h12l-3 6 4 14-7 6-7-6 4-14z" fill="${a.tie}"/><path d="M41 71l9 9 9-9" stroke="#fff" stroke-width="3" fill="none"/>`:''}${a.brooch?`<circle cx="62" cy="83" r="3.5" fill="#e2c27a"/>`:''}
-    <rect x="44" y="${cy+16}" width="12" height="12" rx="5" fill="${a.skin}"/>
-    <ellipse cx="50" cy="${cy+2}" rx="17" ry="19" fill="${a.skin}"/>
-    ${a.hair==='scarf'?`<path d="M32 ${cy+4}C32 ${cy-12} 40 ${cy-18} 50 ${cy-18}S68 ${cy-12} 68 ${cy+4}C66 ${cy-6} 60 ${cy-12} 50 ${cy-12}S34 ${cy-6} 32 ${cy+4}z" fill="${a.hc}"/><path d="M34 ${cy+14}Q50 ${cy+32} 66 ${cy+14}L68 ${cy+22}Q50 ${cy+42} 32 ${cy+22}z" fill="${a.hc}"/><path d="M36 ${cy-8}Q50 ${cy-16} 64 ${cy-8}" stroke="rgba(255,255,255,.35)" stroke-width="2" fill="none"/>`:''}
-    ${front}
-    <circle cx="43.5" cy="${cy+3}" r="2.2" fill="#2a2321"/><circle cx="56.5" cy="${cy+3}" r="2.2" fill="#2a2321"/>
-    ${a.glasses?`<circle cx="43.5" cy="${cy+3}" r="5.5" fill="none" stroke="#2a2a2a" stroke-width="1.6"/><circle cx="56.5" cy="${cy+3}" r="5.5" fill="none" stroke="#2a2a2a" stroke-width="1.6"/><path d="M49 ${cy+3}h2" stroke="#2a2a2a" stroke-width="1.6"/>`:''}
-    ${a.beard?`<path d="M34 ${cy+4}c1 14 8 20 16 20s15-6 16-20c-3 4-6 6-9 6-2-2-4-3-7-3s-5 1-7 3c-3 0-6-2-9-6z" fill="${a.hc}"/>`:''}
-    <path d="M45 ${cy+11}q5 4 10 0" stroke="${a.beard?'#f1c7a1':'#a5523f'}" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="39" cy="${cy+9}" r="3" fill="#f19a8e" opacity=".35"/><circle cx="61" cy="${cy+9}" r="3" fill="#f19a8e" opacity=".35"/>
-</g>`}
-  return `<svg viewBox="0 0 100 100" width="100%" height="100%" style="display:block" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="avc"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#avc)"><rect width="100" height="100" fill="${a.bg}"/>${body}</g></svg>`}
-function avHtml(v,size=36,name=''){const st=`width:${size}px;height:${size}px;border-radius:50%;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center`;
-  if(v&&v.startsWith('p:')&&AV_SET[v.slice(2)])return `<span class="av" style="${st}">${avSvg(v.slice(2))}</span>`;
+// ---------------- profil suratlari: har kim o'z suratini qo'yadi; surat bo'lmasa — bosh harflar
+const AVC=['#0f766e','#1d4ed8','#7c3aed','#be185d','#b45309','#0e7490','#15803d','#9333ea'];
+function avHtml(v,size=36,name='',sid=0){const st=`width:${size}px;height:${size}px;border-radius:50%;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center`;
+  if(v&&v.startsWith('ph:')&&sid)return `<img class="av" src="/ph/s/${sid}?v=${v.slice(3)}" alt="" loading="lazy" style="${st};object-fit:cover;background:#e5e7eb">`;
   if(v&&v.startsWith('data:'))return `<img class="av" src="${v}" alt="" style="${st};object-fit:cover">`;
-  const ini=String(name||'').split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-  return `<span class="av" style="${st};background:var(--accent-soft);color:var(--accent-strong);font-weight:700;font-size:${Math.round(size*.38)}px">${esc(ini||'?')}</span>`}
-// rasm tanlash oynasi: o'zi uchun (rasm yuklash ham mumkin) yoki bola uchun (faqat tayyor rasmlar)
-function openAvPick(kidId){const kid=kidId?X.st.find(s=>s.id===kidId):null;const cur=kid?kid.avatar:S.me.avatar;
-  const keys=kid?[...AV_ROLE.kid,'owl','rocket','star','book']:[...(AV_ROLE[S.me.role]||AV_ROLE.jamoa),'owl','rocket','star','book'];
-  openSheet(`<div class="sh-top"><div class="m"><h2>${kid?esc(kid.name.split(' ')[1]||kid.name)+' uchun rasm':'Profil rasmi'}</h2><div class="s">${kid?'Tayyor rasmlardan birini tanlang':'O’z rasmingizni yuklang yoki tayyor rasmni tanlang'}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   <div style="display:flex;justify-content:center">${avHtml(cur,96,kid?kid.name:S.me.name)}</div>
-   ${kid?'':`<button class="btn sec" data-act="avUpload">📷 O’z rasmimni yuklash</button>`}
-   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">${keys.map(k=>`<button data-act="avSet" data-v="p:${k}" data-kid="${kidId||''}" title="${esc(AV_SET[k].l)}" aria-label="${esc(AV_SET[k].l)}" style="border:${cur==='p:'+k?'3px solid var(--accent)':'1px solid var(--line,#dde)'};border-radius:50%;padding:3px;background:none;aspect-ratio:1;width:100%;min-width:0;box-sizing:border-box;cursor:pointer">${avSvg(k)}</button>`).join('')}</div>
-   ${cur?`<button class="btn sec" data-act="avSet" data-v="" data-kid="${kidId||''}">Rasmni olib tashlash</button>`:''}`)}
-// ---------------- ovozli xabar: yozish (MediaRecorder), ko'rish va yuborish
-let AUD={}; const REC={on:false,sec:0,data:'',to:'',mr:null,timer:0};
-const recBtn=to=>REC.on&&REC.to===to?`<button class="btn dan" data-act="recStop">⏹ ${REC.sec}s</button>`:`<button class="btn sec" data-act="recStart" data-to="${to}" aria-label="Ovozli xabar yozish">🎤</button>`;
-const recBox=to=>REC.on&&REC.to===to?`<div class="card pad" style="flex-direction:row;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:var(--wrong);animation:pulse 1s infinite"></span><span>Yozilmoqda… ${REC.sec} s (eng ko’pi 3 daqiqa)</span></div>`
-  :REC.data&&REC.to===to?`<div class="card pad" style="gap:8px"><audio controls src="${REC.data}" style="width:100%"></audio><button class="lnk" data-act="recDel" style="align-self:flex-start">Ovozli xabarni o’chirish</button></div>`:'';
-function recRedraw(){if(REC.to==='rp'&&THV){const t=val('rpText');drawThread();const e=$('#rpText');if(e)e.value=t}else if(REC.to==='cm'){const b=$('#cmRec');if(b)b.innerHTML=recBox('cm');const k=$('#cmRecBtn');if(k)k.innerHTML=recBtn('cm')}}
-function recClear(){if(REC.mr&&REC.on){try{REC.mr.onstop=null;REC.mr.stop();REC.mr.stream.getTracks().forEach(t=>t.stop())}catch(e){}}clearInterval(REC.timer);Object.assign(REC,{on:false,sec:0,data:'',mr:null})}
-async function recStart(to){
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('Bu brauzer ovoz yozishni qo’llamaydi',true);return}
-  let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){toast('Mikrofonga ruxsat berilmadi. Brauzer sozlamalarida ruxsat bering.',true);return}
-  recClear();const types=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'];const mt=types.find(t=>MediaRecorder.isTypeSupported?.(t))||'';
-  const mr=new MediaRecorder(st,{...(mt?{mimeType:mt}:{}),audioBitsPerSecond:32000});const parts=[];
-  mr.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
-  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());clearInterval(REC.timer);REC.on=false;const blob=new Blob(parts,{type:mr.mimeType||mt||'audio/webm'});
-    if(blob.size<800){REC.data='';recRedraw();return}const fr=new FileReader();fr.onload=()=>{REC.data=fr.result;recRedraw()};fr.readAsDataURL(blob)};
-  Object.assign(REC,{on:true,sec:0,data:'',to,mr});mr.start(1000);
-  REC.timer=setInterval(()=>{REC.sec++;if(REC.sec>=180)recStop();else{const b=document.querySelector('[data-act=recStop]');if(b)b.textContent='⏹ '+REC.sec+'s';const box=REC.to==='cm'?$('#cmRec'):null;if(box)box.innerHTML=recBox('cm');else{const sp=document.querySelector('#sheet .card.pad span:nth-child(2)');if(sp&&sp.textContent.startsWith('Yozilmoqda'))sp.textContent=`Yozilmoqda… ${REC.sec} s (eng ko’pi 3 daqiqa)`}}},1000);
-  recRedraw()}
-function recStop(){if(REC.mr&&REC.on){try{REC.mr.stop()}catch(e){}}}
+  const n=String(name||'').trim();const ini=n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+  let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))>>>0;const c=AVC[h%AVC.length];
+  return `<span class="av" style="${st};background:linear-gradient(135deg,${c},${c}cc);color:#fff;font-weight:700;font-size:${Math.round(size*.38)}px;letter-spacing:.02em">${esc(ini||'?')}</span>`}
+// surat qo'yish oynasi: o'zi uchun yoki farzandi/o'quvchi uchun
+function openAvPick(kidId){const kid=kidId?X.st.find(s=>s.id===kidId):null;const cur=kid?kid.avatar:S.me.avatar;const real=cur&&(cur.startsWith('data:')||cur.startsWith('ph:'));
+  openSheet(`<div class="sh-top"><div class="m"><h2>${kid?esc(kid.name.split(' ')[1]||kid.name)+'ning surati':'Profil surati'}</h2><div class="s">${kid?'Bolaning yuzi aniq ko’ringan surat':'Yuzingiz aniq ko’ringan surat qo’ying'}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+   <div style="display:flex;justify-content:center">${avHtml(real?cur:'',120,kid?kid.name:S.me.name,kid?.id)}</div>
+   <button class="btn pri" data-act="avUpload" data-kid="${kidId||''}">📷 ${real?'Suratni almashtirish':'Surat yuklash'}</button>
+   <p class="note" style="margin:0">Telefon galereyasidan tanlang yoki shu yerning o’zida rasmga oling. Surat kichraytirib saqlanadi.${kid?' Bolaning suratini faqat ota-onasi, sinf rahbari, direktor va loyiha jamoasi ko’radi.':''}</p>
+   ${real?`<button class="btn sec" data-act="avSet" data-v="" data-kid="${kidId||''}">Suratni olib tashlash</button>`:''}`)}
+// surat qo'yishga eslatma (bir marta yopilsa, boshqa chiqmaydi)
+const avNudge=()=>!String(S.me.avatar||'').startsWith('data:')&&!ls.get('avn',0)?`<div class="card pad" style="flex-direction:row;align-items:center;gap:12px">${avHtml('',44,S.me.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:600">Profilingizga suratingizni qo’ying</div><div class="note">Xabarlarda sizni tanib olishadi</div></div><button class="btn pri sm" data-act="avPick">Qo’yish</button><button class="ib" data-act="avNudgeOff" aria-label="Yopish">${I.x}</button></div>`:'';
 // ---------------- messages list
 let TH=null, thf='ochiq', TREQ=null;
 async function loadThreads(){try{TH=(await api('threads')).rows}catch(e){TH=[]}render()}
@@ -1573,7 +1510,7 @@ function render(){
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button data-act="avPick" aria-label="Profil rasmi" style="border:0;background:none;padding:0;cursor:pointer;flex:none">${avHtml(S.me.avatar,36,S.me.name)}</button>
    ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
-   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
+   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
@@ -1742,8 +1679,9 @@ document.addEventListener('click',async e=>{
    case 'irAbs':{const tid=+(stack[stack.length-1]||'').split(':')[1];const r=IR(tid,+d.sid);await api('iresult.save',r?.absent?{itest_id:tid,student_id:+d.sid,clear:1}:{itest_id:tid,student_id:+d.sid,absent:1});await load();break}
    case 'avPick':openAvPick(0);break;
    case 'kidAv':openAvPick(+d.id);break;
-   case 'avUpload':pickImage(async u=>{try{await api('me.avatar',{avatar:u});S.me.avatar=u;closeSheet();toast('Rasm saqlandi');render()}catch(e){toast(e.message,true)}},240);break;
-   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=d.v}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();break}
+   case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render()}catch(e){toast(e.message,true)}},kid?200:240);break}
+   case 'avNudgeOff':ls.set('avn',1);render();break;
+   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();break}
    case 'absRest':{const n=+d.n,where=d.k==='class'?`${X.cl[+d.id]?.name} sinfida`:`${X.sc[+d.id]?.num}-maktabda`;
      if(!confirm(`${where} natijasi kiritilmagan ${n} ta bola “Kelmadi” deb belgilanadi.\n\nBarcha kelgan bolalar natijasi kiritib bo’lindimi?`))break;
      const r=await api('results.absentRest',{test_id:testId,[d.k==='class'?'class_id':'school_id']:+d.id});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();break}

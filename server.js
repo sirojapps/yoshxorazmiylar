@@ -158,7 +158,7 @@ function state(u) {
   if (isTeam(u)) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
-    out.students = all('SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 ORDER BY name');
+    out.students = all('SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
     out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at FROM results');
     out.keys = {};
     for (const t of tests) {
@@ -192,7 +192,7 @@ function state(u) {
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address, avatar: s.avatar || '',
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address, avatar: kidPh(s.avatar),
     ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
@@ -248,17 +248,19 @@ function giftedIds(t, schoolId) {
 // ---------------------------------------------------------------- actions
 const A = {};
 // ---------------------------------------------------------------- avatarlar: tayyor rasm ('p:kalit') yoki o'z rasmi (kichik JPEG/PNG)
+const kidPh = v => v && v.startsWith('data:') ? 'ph:' + v.length : ''; // bola surati alohida yuklanadi
 function cleanAvatar(v, allowPhoto) {
   const s = String(v || ''); if (!s) return '';
   if (/^p:[a-z0-9_]{2,12}$/.test(s)) return s;
   if (allowPhoto && /^data:image\/(png|jpeg|webp);base64,/.test(s) && s.length <= 160000) return s;
-  bad(allowPhoto ? 'Rasm juda katta yoki noto‘g‘ri' : 'Bolalar uchun faqat tayyor rasmlardan tanlanadi');
+  bad('Rasm juda katta yoki noto‘g‘ri');
 }
 A['me.avatar'] = (u, b) => { run('UPDATE users SET avatar=? WHERE id=?', cleanAvatar(b.avatar, true), u.id); return {}; };
 A['student.avatar'] = (u, b) => {
   const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
   need(ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id)));
-  run('UPDATE students SET avatar=? WHERE id=?', cleanAvatar(b.avatar, false), s.id); return {};
+  const v = cleanAvatar(b.avatar, true); if (v.startsWith('p:')) bad('Faqat surat yuklanadi');
+  run('UPDATE students SET avatar=? WHERE id=?', v, s.id); return { v: v ? v.length : 0 };
 };
 A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.id); log(u.id, 'rozilik', {}); return {}; };
 
@@ -1174,6 +1176,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/logout') { run('DELETE FROM sessions WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }, { 'Set-Cookie': 'yx=; Path=/; Max-Age=0' }); }
     if (url.pathname === '/api/verify') return send(res, 200, verifyCert(url.searchParams.get('c')));
+    const phm = url.pathname.match(/^\/ph\/s\/(\d+)$/);
+    if (phm) { // o'quvchi surati: faqat uni ko'rishga haqli bo'lganlarga
+      const u = userOf(req); const s = u && one('SELECT s.id,s.class_id,s.avatar,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', +phm[1]);
+      const ok = s && s.avatar && s.avatar.startsWith('data:') && (isTeam(u) || (u.role === 'direktor' && u.school_id === s.school_id) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id)));
+      if (!ok) { res.writeHead(404, SEC); return res.end(); }
+      const m = s.avatar.match(/^data:([^;]+);base64,(.*)$/); res.writeHead(200, { 'Content-Type': m[1], 'Cache-Control': 'private, max-age=86400', ...SEC }); return res.end(Buffer.from(m[2], 'base64'));
+    }
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
       if (url.pathname === '/api/state') return send(res, 200, state(u));
