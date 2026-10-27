@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1424" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light only">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -23,7 +23,7 @@
   --display:"Golos Text",system-ui,sans-serif; --body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root{
+@media not all{:root{
   --bg:#0e1424; --surface:#161e33; --surface2:#1e2842; --fg:#e7ecf6; --muted:#9aa6bf; --line:#2a3552;
   --navy:#8fb0ff; --stage:linear-gradient(135deg,#1a2540 0%,#16303a 100%); --stage-fg:#e7ecf6; --stage-lb:#7fdcd7; --stage-line:rgba(255,255,255,.18); --stage-on:#5fe0d9; --accent:#2fb8b3; --accent-strong:#3cc7c2; --accent-soft:#163b3d; --gold:#e3b54a; --gold-soft:#3b3218;
   --good:#4cc47f; --low:#8d99b3; --wrong:#ee6b74; --wrong-soft:#41222a; --blank:#3a4562; --on-accent:#06201f; color-scheme:dark}}
@@ -217,7 +217,7 @@ body[data-theme=lilac]{--c1:#dccfff;--c2:#c9e0ff;--c3:#fbd5e6}
 body[data-theme=rose]{--c1:#ffd1dc;--c2:#ffe3bb;--c3:#ddd6ff}
 body[data-theme=dusk]{--c1:#ccd2ff;--c2:#b8e9e3;--c3:#ecdcff}
 body[data-theme=sun]{--c1:#ffe89c;--c2:#c4eed3;--c3:#ffd4c2}
-@media (prefers-color-scheme: dark){
+@media not all{
  body{--c1:#123a3d;--c2:#1a2a52;--c3:#3a3320;--gop:.11}
  body[data-theme=mint]{--c1:#14402c;--c2:#2c3d18;--c3:#123a40}
  body[data-theme=sand]{--c1:#46301c;--c2:#3d3518;--c3:#14373a;--gop:.08}
@@ -237,7 +237,7 @@ body[data-theme=sun]{--c1:#ffe89c;--c2:#c4eed3;--c3:#ffd4c2}
 #atmo .pat{position:absolute;inset:0;opacity:.5;color:var(--navy);
  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%232f4f8f' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M48 20l8 20 20 8-20 8-8 20-8-20-20-8 20-8z'/%3E%3Crect x='30' y='30' width='36' height='36' transform='rotate(45 48 48)'/%3E%3Crect x='30' y='30' width='36' height='36'/%3E%3Ccircle cx='48' cy='48' r='6'/%3E%3Cpath d='M0 0l12 12M96 0L84 12M0 96l12-12M96 96L84 84'/%3E%3C/g%3E%3C/svg%3E");
  -webkit-mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.35) 45%,#000 100%);mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.35) 45%,#000 100%)}
-@media (prefers-color-scheme: dark){#atmo .pat{filter:invert(1) hue-rotate(180deg);opacity:.6}#atmo .b{opacity:.85}}
+@media not all{#atmo .pat{filter:invert(1) hue-rotate(180deg);opacity:.6}#atmo .b{opacity:.85}}
 #atmo .g{position:absolute;bottom:-12vh;left:var(--x);font-family:"Unbounded",var(--display);font-weight:500;font-size:var(--s);color:var(--navy);opacity:0;animation:rise var(--d) linear var(--w) infinite}
 @keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}12%{opacity:var(--gop)}85%{opacity:var(--gop)}100%{transform:translateY(-125vh) rotate(var(--r));opacity:0}}
 #atmo .astro{display:none}
@@ -417,6 +417,7 @@ function stageBox(t,sid=0){
   return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">${sid?`${X.sc[sid]?.num}-maktab · bosqich`:'Joriy sinov'}</div><div class="t">${esc(t.name)}</div></div>
    ${isTeam()&&S.tests.length>1?`<button class="pill gray" data-act="pickTest" style="color:var(--fg)">almashtirish</button>`:''}</div>
    <div class="steps">${steps.map((s,k)=>`<span class="${k<i?'done':k===i?'on':''}">${s}</span>`).join('')}</div>${note?`<div style="font-size:13px;opacity:.85">${note}</div>`:''}</div>`}
+const dlBtn=(k,id=0)=>`<button class="btn sec" data-act="dl" data-k="${k}" data-id="${id}">⬇ Natijalarni yuklab olish</button>`;
 const kpis=items=>`<div class="kpis">${items.map(([v,l])=>`<div class="card kpi"><b>${v??'—'}</b><small>${l}</small></div>`).join('')}</div>`;
 function stuRow(s,i,o={}){
   const r=R(s.id); const g=o.gifted&&o.gifted.has(s.id);
@@ -478,6 +479,7 @@ function scrTeamHome(){
   ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
   ${stageBox(t,homeSchool)}
   ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
+  ${p.length?dlBtn(homeSchool?'school':'district',homeSchool):''}
   ${t?annBox(t):''}
   ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}
   ${gifted.size?`<section class="sec"><div class="sec-h"><p class="label">Iqtidorli bolalar</p><span class="pill gold">★ ${gifted.size} ta</span></div>
@@ -516,6 +518,7 @@ function scrSchool(id){
   <div class="card list"><div class="row"><div class="m"><div class="s">Direktor</div><div class="n">${esc(sc.director_name)||'—'}</div><div class="s">${ph(sc.director_phone)}</div></div>${P('maktab')?`<button class="btn sec sm" data-act="schoolEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>
   ${curTest()?stageBox(curTest(),id):''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%','o’rtacha']])}
+  ${present(l).length?dlBtn('school',id):''}
   ${[...new Set(cls.map(c=>c.grade))].sort().map(g=>`<section class="sec"><p class="label">${g}-sinflar</p><div class="card list">
    ${cls.filter(c=>c.grade===g).map(c=>{const cl=X.st.filter(s=>s.class_id===c.id);const v=avgPct(cl);const n=cl.filter(s=>R(s.id)).length;
     return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${cl.length} o’quvchi · ${n} kiritildi${c.teacher_name?' · '+esc(c.teacher_name):''}</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>${v!=null?`<div class="num">${v}%</div>`:''}${I.chev}</button>`}).join('')}</div></section>`).join('')}
@@ -537,6 +540,7 @@ function scrClass(id,mode){
   return [...top,`
   ${isTeam()?`<div class="card list"><div class="row"><div class="m"><div class="s">Sinf rahbari</div><div class="n">${esc(c.teacher_name)||'—'}</div><div class="s">${ph(c.teacher_phone)}</div></div>${P('maktab')?`<button class="btn sec sm" data-act="classEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>`:''}
   ${p.length?`<div class="card hero"><p class="label">Sinf o’rtachasi</p><div class="big">${avgPct(l)}<small>%</small></div><p class="note">${p.length} ta bola qatnashdi${abs.length?`, ${abs.length} ta kelmadi`:''}.</p></div>`:(curTest()||mode?`<div class="card empty">${isTeam()?'Bu sinf natijalari hali kiritilmagan.':'Natijalar hali e’lon qilinmagan.'}</div>`:'')}
+  ${p.length?dlBtn('class',id):''}
   ${sortSeg()}
   <div class="card list">${sortStu(l.filter(s=>R(s.id)&&!R(s.id).absent)).map((s,i)=>stuRow(s,i,{rank:sortBy==='ball',gifted})).join('')||''}
    ${sortStu(l.filter(s=>!R(s.id)||R(s.id).absent)).map(s=>stuRow(s,0)).join('')}</div>
@@ -576,6 +580,7 @@ function scrRanking(){
   return ['Tuman reytingi',curTest()?.name||'',`
   <div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>
   <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
+  ${present(X.st).length?dlBtn('district'):''}
   ${body}<p class="note">★ iqtidorli: o’z sinfi testida eng yaxshi ${curTest()?.gifted_top??10}% ichida va kamida ${curTest()?.gifted_min??70}%.</p>`]}
 
 // ---------------- entry (kiritish)
@@ -748,6 +753,7 @@ function scrDirHome(){
   return [`${sc.num}-maktab`,t.name,`${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
   ${S.classes.length>1?`<div class="seg"><button data-hc="0" aria-pressed="${!homeClass}">Hammasi</button>${[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<button data-hc="${c.id}" aria-pressed="${homeClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%',hc?`${esc(hc.name)} o’rtacha`:'maktab o’rtacha']])}
+  ${present(X.st).length?dlBtn('school',sc.id):''}
   ${gradeBars(l)}
   ${dist.length?`<section class="sec"><p class="label">Tuman o’rtachasi bilan</p><div class="card cmp">${dist.map(([g,v])=>{const m=avgPct(l.filter(s=>s.grade===g));return `<div class="r"><span>${hc?esc(hc.name):g+'-sinf · maktab'}</span><div class="track"><i style="width:${m}%;background:var(--accent)"></i></div><b class="num">${m}%</b></div><div class="r"><span>${g}-sinf · tuman</span><div class="track"><i style="width:${v}%;background:var(--low)"></i></div><b class="num">${v}%</b></div>`}).join('')}</div></section>`:`<p class="note">Tuman o’rtachasi bilan solishtirma sinov yakunlangach ochiladi.</p>`}
   <section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.filter(c=>!homeClass||c.id===homeClass).map(c=>{const cl=l.filter(s=>s.class_id===c.id);const v=avgPct(cl);return `<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${present(cl).length} / ${cl.length} qatnashdi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div><div class="num">${v??'—'}%</div>${I.chev}</button>`}).join('')}</div></section>`]}
@@ -955,6 +961,87 @@ async function certPdf(list){
   for(let i=0;i<list.length;i++){const cv=await drawCert(list[i]);if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',.9),'JPEG',0,0,297,210)}
   pdf.save('Sertifikatlar.pdf');
 }
+// ================================================================ natijalarni yuklab olish (PDF / Excel)
+// Qamrov: 'C:<sinf>' — bitta sinf; 'G:<maktab>:<sinf darajasi>' — maktabdagi barcha N-sinflar; 'S:<maktab>' — butun maktab;
+// 'DG:<daraja>' — tumandagi barcha N-sinflar; 'D' — butun tuman. Faqat qatnashgan (balli bor) bolalar kiradi.
+let DL=null;
+const plain=s=>String(s??'').replace(/[’‘ʻʼ`´]/g,"'");
+function dlRows(list,withSchool){
+  const p=present(list).filter(s=>R(s.id).score!=null).sort((a,b)=>R(b.id).score-R(a.id).score||a.name.localeCompare(b.name,'uz'));
+  let place=0,prev=null;
+  return p.map((s,i)=>{const r=R(s.id);if(r.score!==prev){place=i+1;prev=r.score}
+    return{o:place,name:s.name,sch:withSchool?s.num+'-maktab':'',cls:s.cls||'',score:r.score,qn:r.qn,pct:pct(r)}})}
+function dlBuild(scope){
+  const [k,a,b]=scope.split(':');const t=curTest();const out={test:t?.name||'',sections:[],title:'',file:''};
+  const grades=list=>[...new Set(list.map(s=>s.grade))].filter(Boolean).sort((x,y)=>x-y);
+  if(k==='C'){const c=X.cl[+a];const sc=X.sc[c.school_id];out.title=`${sc.num}-maktab · ${c.name} sinf`;out.file=`${sc.num}-maktab_${c.name}`;
+    out.sections.push({h:`${c.name} sinf`,rows:dlRows(X.st.filter(s=>s.class_id===c.id))})}
+  else if(k==='G'){const sc=X.sc[+a];out.title=`${sc.num}-maktab · ${b}-sinflar`;out.file=`${sc.num}-maktab_${b}-sinflar`;
+    out.sections.push({h:`${b}-sinflar (umumiy)`,rows:dlRows(X.st.filter(s=>s.school_id===sc.id&&s.grade===+b))})}
+  else if(k==='S'){const sc=X.sc[+a];const l=X.st.filter(s=>s.school_id===sc.id);out.title=`${sc.num}-maktab`;out.file=`${sc.num}-maktab`;
+    grades(l).forEach(g=>out.sections.push({h:`${g}-sinflar (umumiy)`,rows:dlRows(l.filter(s=>s.grade===g))}))}
+  else if(k==='DG'){out.title=`Tuman · ${a}-sinflar`;out.file=`Tuman_${a}-sinflar`;out.school=1;
+    out.sections.push({h:`${a}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===+a),true)})}
+  else{out.title='Butun tuman';out.file='Tuman';out.school=1;
+    grades(X.st).forEach(g=>out.sections.push({h:`${g}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===g),true)}))}
+  out.sections=out.sections.filter(x=>x.rows.length);out.file=plain(out.file).replace(/[^\w.-]+/g,'_')+'_natijalar';
+  return out}
+function dlOpen(kind,id){
+  const opts=[];
+  if(kind==='class'){opts.push(['C:'+id,'Shu sinf'])}
+  else if(kind==='school'){const l=X.st.filter(s=>s.school_id===id);
+    opts.push(['S:'+id,'Butun maktab','Har bir sinf bosqichi alohida varaqda']);
+    [...new Set(l.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b).forEach(g=>{
+      opts.push([`G:${id}:${g}`,`${g}-sinflar (umumiy)`]);
+      S.classes.filter(c=>c.school_id===id&&c.grade===g).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).forEach(c=>opts.push(['C:'+c.id,`${c.name} sinf`]))})}
+  else{opts.push(['D','Butun tuman','Har bir sinf bosqichi alohida varaqda']);
+    [...new Set(X.st.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b).forEach(g=>opts.push(['DG:'+g,`${g}-sinflar (barcha maktablar)`]))}
+  const ok=opts.filter(o=>dlBuild(o[0]).sections.length);
+  if(!ok.length){toast('Hali yuklab olinadigan natija yo’q',true);return}
+  DL={scope:ok[0][0]};
+  openSheet(`<div class="sh-top"><div class="m"><h2>Natijalarni yuklab olish</h2><div class="s">${esc(curTest()?.name||'')}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+   ${ok.length>1?`<p class="label">Nimani yuklab olasiz?</p><div class="card list">${ok.map((o,i)=>`<label class="row" style="cursor:pointer"><input type="radio" name="dlScope" value="${o[0]}" ${i?'':'checked'} style="width:20px;height:20px;accent-color:var(--accent)"><div class="m"><div class="n">${esc(o[1])}</div>${o[2]?`<div class="s">${o[2]}</div>`:''}</div></label>`).join('')}</div>`:''}
+   <p class="note">Faqat sinovda qatnashgan bolalar, ball bo’yicha tartiblangan. Bir xil ball olganlar bir xil o’rinda.</p>
+   <button class="btn pri" data-act="dlGo" data-f="pdf">PDF yuklab olish</button>
+   <button class="btn sec" data-act="dlGo" data-f="xlsx">Excel yuklab olish</button>`)}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+async function dlGo(f){
+  const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
+  const d=dlBuild(scope);if(!d.sections.length){toast('Natija yo’q',true);return}
+  toast('Tayyorlanmoqda…');
+  const head=['O\'rin','O\'quvchi','Sinf',...(d.school?['Maktab']:[]),'Ball','Foiz'];
+  const row=r=>[r.o,plain(r.name),r.cls,...(d.school?[r.sch]:[]),`${r.score} / ${r.qn}`,r.pct+'%'];
+  if(f==='xlsx'){
+    await loadXLSX();const wb=XLSX.utils.book_new();const used=new Set();
+    d.sections.forEach(s=>{const ws=XLSX.utils.aoa_to_sheet([['YOSH XORAZMIYLAR — '+plain(d.title)],[plain(d.test)],[plain(s.h)+' · qatnashdi: '+s.rows.length+' nafar'],[],head,
+      ...s.rows.map(r=>[r.o,plain(r.name),r.cls,...(d.school?[r.sch]:[]),r.score,r.qn?Math.round(r.score/r.qn*100)/100:''])]);
+      ws['!cols']=[{wch:6},{wch:32},{wch:7},...(d.school?[{wch:11}]:[]),{wch:7},{wch:7}];
+      const pc=head.length-1;for(let i=0;i<s.rows.length;i++){const c=ws[XLSX.utils.encode_cell({r:5+i,c:pc})];if(c)c.z='0%'}
+      ws[XLSX.utils.encode_cell({r:4,c:head.length-2})].v=`Ball (${s.rows[0].qn} tadan)`;
+      let n=plain(s.h).replace(/[\\\/?*\[\]:]/g,'').slice(0,31);while(used.has(n))n=n.slice(0,28)+used.size;used.add(n);
+      XLSX.utils.book_append_sheet(wb,ws,n)});
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    saveBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),d.file+'.xlsx');closeSheet();return}
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>window.jspdf);
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>window.jspdf?.jsPDF?.API?.autoTable);
+  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});const W=210;
+  const logo=await loadImg('/icon-512.png');let lg=null;
+  if(logo){const cv=document.createElement('canvas');cv.width=cv.height=240;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,240,240);g.drawImage(logo,0,0,240,240);lg=cv.toDataURL('image/jpeg',.92)}
+  const NAVY=[31,53,100];
+  d.sections.forEach((s,si)=>{if(si)pdf.addPage();let y=14;
+    if(lg){pdf.addImage(lg,'JPEG',W/2-12,y,24,24);y+=29}
+    pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.setTextColor(...NAVY);pdf.text('YOSH XORAZMIYLAR',W/2,y,{align:'center'});y+=7;
+    pdf.setFont('helvetica','normal');pdf.setFontSize(11);pdf.setTextColor(90);pdf.text(plain(d.test),W/2,y,{align:'center'});y+=7;
+    pdf.setFont('helvetica','bold');pdf.setFontSize(14);pdf.setTextColor(...NAVY);pdf.text(plain(d.title),W/2,y,{align:'center'});y+=9;
+    pdf.setFontSize(12);pdf.text(plain(s.h),15,y);pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(90);pdf.text(`Qatnashdi: ${s.rows.length} nafar`,W-15,y,{align:'right'});y+=3;
+    pdf.autoTable({startY:y,head:[head],body:s.rows.map(row),theme:'grid',margin:{left:15,right:15},
+      styles:{font:'helvetica',fontSize:10,cellPadding:1.8,textColor:30,lineColor:200,lineWidth:.2},
+      headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},
+      columnStyles:{0:{halign:'center',cellWidth:16},2:{halign:'center',cellWidth:16},...(d.school?{3:{halign:'center',cellWidth:24}}:{}),[head.length-2]:{halign:'center',cellWidth:20},[head.length-1]:{halign:'center',cellWidth:16}},
+      didParseCell:c=>{if(c.section==='body'&&s.rows[c.row.index]?.o<=3)c.cell.styles.fillColor=[252,239,199]}});
+  });
+  const n=pdf.getNumberOfPages();for(let i=1;i<=n;i++){pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(140);pdf.text(`KARAKUL INTERNATIONAL SCHOOL · yoshxorazmiylar.uz · ${i}/${n}`,W/2,290,{align:'center'})}
+  saveBlob(pdf.output('blob'),d.file+'.pdf');closeSheet()}
 function scrCerts(){
   const certs=(S.certs||[]).map(c=>({...c,s:X.st.find(x=>x.id===c.student_id)})).filter(c=>c.s).sort((a,b)=>a.code.localeCompare(b.code));
   return ['Sertifikatlar',`${certs.length} ta`,`
@@ -1066,6 +1153,8 @@ document.addEventListener('click',async e=>{
    case 'trYes':{const sid=+$('#tr'+d.id).value;if(!sid){toast('Ro’yxatdan bolani tanlang',true);break}const r=await api('tg.approve',{id:+d.id,student_id:sid});toast(r.sent?'Tasdiqlandi, PIN Telegram’ga yuborildi':'Tasdiqlandi');await load();openTgReq();break}
    case 'trNo':await api('tg.approve',{id:+d.id,reject:true});toast('Rad etildi');await load();openTgReq();break;
    case 'certPng':await certPng(d.c);break;
+   case 'dl':dlOpen(d.k,+d.id);break;
+   case 'dlGo':await dlGo(d.f);break;
    case 'certPdf':await certPdf((S.certs||[]).filter(c=>X.st.some(s=>s.id===c.student_id)));break;
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
