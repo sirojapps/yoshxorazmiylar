@@ -648,7 +648,6 @@ function scrClass(id,mode){
 const moveOpts=s=>ED()?S.classes.filter(c=>c.id!==s.class_id).map(c=>[c.id,isDir()?`${c.name} sinf`:`${X.sc[c.school_id]?.num}-maktab · ${c.name}`]):S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id?(S.moveTo||[]).map(c=>[c.id,`${c.name} sinf`]):[];
 const moveBtn=s=>moveOpts(s).length?`<button class="btn sec" data-act="moveOpen" data-id="${s.id}">↔ Boshqa sinfga ko’chirish</button>`:'';
 function scrStudent(id){
-  if(S.me.role==='rahbar')return scrRStudent(id);
   const s=X.st.find(x=>x.id===id); if(!s)return ['Topilmadi','',''];
   const gifted=giftedSet(); const team=isTeam();
   const tests=S.tests.filter(t=>R(id,t.id));
@@ -928,7 +927,7 @@ const IR=(tid,sid)=>(S.iresults||[]).find(r=>r.itest_id===tid&&r.student_id===si
 const itPct=(t,r)=>r&&!r.absent&&r.score!=null?Math.round(r.score/t.qn*100):null;
 const itStudents=t=>X.st.filter(s=>s.school_id===t.school_id&&(t.class_id?s.class_id===t.class_id:(!t.grade||s.grade===t.grade)));
 const itScope=t=>t.class_id?`${X.cl[t.class_id]?.name||''} sinf`:t.grade?`${t.grade}-sinflar`:'';
-const itCanEdit=t=>(ED()&&(isTeam()||S.schools.some(x=>x.id===t.school_id)))||(S.me.role==='rahbar'&&t.class_id===S.classes[0]?.id&&t.by===S.me.id);
+const itCanEdit=t=>ED()&&(isTeam()||S.schools.some(x=>x.id===t.school_id));
 const itCanEnter=(t,s)=>itCanEdit(t)||(S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id);
 const itDate=d=>d?d.split('-').reverse().join('.'):'';
 function itAvg(t,l){const v=l.map(s=>itPct(t,IR(t.id,s.id))).filter(x=>x!=null);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null}
@@ -955,7 +954,7 @@ function scrItest(id){
     const right=itCanEnter(t,s)?`<div style="display:flex;gap:6px;align-items:center"><input data-ir="${s.id}" type="number" inputmode="numeric" min="0" max="${t.qn}" value="${ok?r.score:''}" placeholder="—" aria-label="${esc(s.name)} bali" style="width:62px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center">
       <button class="pill ${r?.absent?'warn':'gray'}" data-act="irAbs" data-sid="${s.id}" title="Kelmadi">${r?.absent?'kelmadi':'K'}</button></div>`
       :r?.absent?`<span class="pill gray">kelmadi</span>`:ok?`<div class="num">${r.score}/${t.qn}<small>${p}%</small></div>`:`<span class="pill gray">—</span>`;
-    return `<div class="row" style="${hl}">${ok?`<span class="rank">${place}</span>`:'<span class="rank"></span>'}<div class="m"><div class="n">${esc(s.name)}</div><div class="s">${S.me.role==='rahbar'?'№ '+(jNum()[s.id]||''):esc(s.cls||'')}${ok&&itCanEnter(t,s)?` · ${p}%`:''}</div></div>${right}</div>`}).join('');
+    return `<div class="row" style="${hl}">${ok?`<span class="rank">${place}</span>`:'<span class="rank"></span>'}<div class="m"><div class="n">${esc(s.name)}</div><div class="s">${esc(s.cls||'')}${ok&&itCanEnter(t,s)?` · ${p}%`:''}</div></div>${right}</div>`}).join('');
   return [t.name,`${itDate(t.day)} · ${t.qn} ball${itScope(t)?' · '+itScope(t):''}${t.subject?' · '+esc(t.subject):''}`,`
   ${kpis([[ll.length,'o’quvchi'],[done.length,'qatnashdi'],[itAvg(t,ll)==null?'—':itAvg(t,ll)+'%','o’rtacha']])}
   ${cls.length>1?`<div class="seg"><button data-itc="0" aria-pressed="${!itClass}">Hammasi</button>${cls.map(c=>`<button data-itc="${c.id}" aria-pressed="${itClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
@@ -965,10 +964,10 @@ function scrItest(id){
 function openItEdit(id,schoolId){
   const t=id?(S.itests||[]).find(x=>x.id===id):{name:'',day:new Date().toISOString().slice(0,10),qn:20,grade:0,subject:'',school_id:schoolId};
   const gs=[...new Set(X.st.filter(s=>s.school_id===t.school_id).map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b);
-  const opts=S.me.role==='rahbar'?[]:[['0','Hamma sinflar']];if(S.me.role==='rahbar'){const c=S.classes[0];opts.push(['c'+c.id,`${c.name} sinf`]);gs.length=0}gs.forEach(g=>{opts.push(['g'+g,`${g}-sinflar (hammasi)`]);S.classes.filter(c=>c.school_id===t.school_id&&c.grade===g).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).forEach(c=>opts.push(['c'+c.id,`    ${c.name} sinf`]))});
+  const opts=[['0','Hamma sinflar']];gs.forEach(g=>{opts.push(['g'+g,`${g}-sinflar (hammasi)`]);S.classes.filter(c=>c.school_id===t.school_id&&c.grade===g).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).forEach(c=>opts.push(['c'+c.id,`    ${c.name} sinf`]))});
   formSheet(id?'Ichki sinovni tahrirlash':'Yangi ichki sinov',[{id:'itN',label:'Sinov nomi',value:t.name,ph:'Masalan: 1-chorak nazorat ishi'},{id:'itS',label:'Fan (ixtiyoriy)',value:t.subject,ph:'Matematika'},
     {id:'itD',label:'Sana',value:t.day,type:'date'},{id:'itQ',label:'Eng yuqori ball (savollar soni)',value:t.qn,mode:'numeric'},
-    {id:'itG',label:'Qaysi sinf yoki sinflar?',type:'select',options:opts,value:S.me.role==='rahbar'?'c'+S.classes[0].id:t.class_id?'c'+t.class_id:t.grade?'g'+t.grade:'0'}],'itSave');
+    {id:'itG',label:'Qaysi sinf yoki sinflar?',type:'select',options:opts,value:t.class_id?'c'+t.class_id:t.grade?'g'+t.grade:'0'}],'itSave');
   Object.assign($('#sheet').dataset,{id:id||'',school:t.school_id||''})}
 document.addEventListener('change',async e=>{const el=e.target;if(!el.dataset||el.dataset.ir==null)return;const tid=+(stack[stack.length-1]||'').split(':')[1];const v=el.value.trim();
   try{await api('iresult.save',v===''?{itest_id:tid,student_id:+el.dataset.ir,clear:1}:{itest_id:tid,student_id:+el.dataset.ir,score:v});el.style.borderColor='var(--accent)';
@@ -1034,7 +1033,7 @@ function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!i
   return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${p}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
 
 // ================================================================ v2: messages, bot requests, certificates, exercises, settings
-const TOPIC_L={xato:'Natijada xato',pin:'PIN',savol:'Savol',taklif:'Taklif',sinov:'Sinov so‘rovi'};
+const TOPIC_L={xato:'Natijada xato',pin:'PIN',savol:'Savol',taklif:'Taklif'};
 const badge=n=>n?`<span class="badge">${n>99?'99+':n}</span>`:'';
 const fill=(t,o)=>String(t||'').replace(/\{(\w+)\}/g,(m,k)=>o[k]??m);
 const ago=iso=>{if(!iso)return'';const d=(Date.now()-new Date(iso))/6e4;if(d<1)return'hozir';if(d<60)return Math.floor(d)+' daq';if(d<1440)return Math.floor(d/60)+' soat';return new Date(iso).toLocaleDateString('uz-UZ',{day:'2-digit',month:'2-digit'})};
@@ -1085,11 +1084,13 @@ function scrMessages(){
      <button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga yozish</button>
      <p class="note">Sinf rahbarlari va ota-onalar sizga javob yoza oladi. E’lonni ota-onalar faqat o’qiydi.</p>`;
   }else if(r==='rahbar'){
-    top=rahbarMsgTop();list=rahbarMsgFilter(TH);
+    top=`${S.tgPending?`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn pri" data-act="compose" data-kind="ota">Ota-onaga yozish</button><button class="btn sec" data-act="compose" data-kind="sinf">Butun sinfga</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="compose" data-kind="drh">Direktorga yozish</button><button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga</button></div>`;
   }else if(r==='ota'){
     top=`<button class="btn pri" data-act="compose" data-kind="ota">Ustozga yozish</button><p class="note">Xabaringiz farzandingizning sinf rahbariga boradi.</p>`;
   }
-  return ['Xabarlar','',`${top}<div class="card list" id="msgList">${list.map(thRow).join('')||'<div class="empty">Hali xabar yo’q</div>'}</div>`]}
+  return ['Xabarlar','',`${top}<div class="card list">${list.map(thRow).join('')||'<div class="empty">Hali xabar yo’q</div>'}</div>`]}
 
 // ---------------- ovozli xabar: yozish, tinglab ko'rish, o'chirish (eng ko'pi 3 daqiqa)
 const REC={on:false,to:'',data:'',mr:null,ch:[],t0:0,tm:0,stream:null,drop:false};
@@ -1159,20 +1160,17 @@ function openCompose(kind){
     fields=`<label class="field"><span class="label">Mavzu</span><select id="cmTopic">${Object.entries(TOPIC_L).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>`;
     if(r!=='jamoa'&&X.st.length)fields+=`<label class="field"><span class="label">Qaysi bola haqida (ixtiyoriy)</span><select id="cmStu"><option value="">— hech kim —</option>${[...X.st].sort((a,b)=>a.name.localeCompare(b.name,'uz')).map(s=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.cls)}</option>`).join('')}</select></label>`;
   }
-  if(kind==='ota'&&r==='rahbar'){const num=jNum();fields=`<label class="field"><span class="label">Qaysi bolaning ota-onasiga</span><select id="cmStu">${myKids().map(s=>`<option value="${s.id}" ${hasPin(s.id)?'':'disabled'}>${num[s.id]}. ${esc(s.name)}${hasPin(s.id)?'':' — ota-onasi saytda yo’q'}</option>`).join('')}</select></label>`;
-    const f=myKids().find(s=>hasPin(s.id));if(!f)fields+=`<p class="note">Hali birorta ota-ona saytga kirmagan. Avval PIN olishlari kerak.</p>`}
-  else if(kind==='ota')fields=X.st.length>1?`<label class="field"><span class="label">${r==='ota'?'Farzandingiz':'Qaysi bolaning ota-onasiga'}</span><select id="cmStu">${[...X.st].sort((a,b)=>a.name.localeCompare(b.name,'uz')).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>`:`<input type="hidden" id="cmStu" value="${X.st[0]?.id||''}">`;
+  if(kind==='ota')fields=X.st.length>1||r==='rahbar'?`<label class="field"><span class="label">${r==='ota'?'Farzandingiz':'Qaysi bolaning ota-onasiga'}</span><select id="cmStu">${[...X.st].sort((a,b)=>a.name.localeCompare(b.name,'uz')).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>`:`<input type="hidden" id="cmStu" value="${X.st[0]?.id||''}">`;
   const clsOpts=[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true}));
   if(kind==='drh'&&r==='direktor')fields=`<label class="field"><span class="label">Qaysi sinf rahbariga</span><select id="cmCls">${clsOpts.map(c=>`<option value="${c.id}">${esc(c.name)}${c.teacher_name?' · '+esc(c.teacher_name):''}</option>`).join('')}</select></label>`;
   if(kind==='dota')fields=`<label class="field"><span class="label">Qaysi bolaning ota-onasiga</span><select id="cmStu">${[...X.st].sort((a,b)=>a.name.localeCompare(b.name,'uz')).map(s=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.cls)}</option>`).join('')}</select></label>`;
   if(kind==='dotalar')fields=`<label class="field"><span class="label">Kimga</span><select id="cmCls"><option value="">Butun maktab ota-onalari</option>${clsOpts.map(c=>`<option value="${c.id}">${esc(c.name)} sinf ota-onalari</option>`).join('')}</select></label>`;
   const title={jamoa:'Loyiha jamoasiga',ota:r==='ota'?'Ustozga yozish':'Ota-onaga yozish',sinf:'Butun sinfga xabar',drh:r==='rahbar'?'Direktorga yozish':'Sinf rahbariga yozish',drhs:'Barcha sinf rahbarlariga',dota:'Ota-onaga yozish',dotalar:'Ota-onalarga e’lon'}[kind];
   openSheet(`<div class="sh-top"><div class="m"><h2>${title}</h2>${kind==='sinf'?`<div class="s">Sinfdagi hamma ota-onaga boradi</div>`:kind==='drhs'?`<div class="s">Maktabdagi hamma sinf rahbarlari ko’radi va javob yoza oladi</div>`:kind==='dotalar'?`<div class="s">Ota-onalar o’qiydi, javob yoza olmaydi</div>`:''}</div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   ${fields}<label class="field"><span class="label">Xabar</span><textarea id="cmText"></textarea></label>${r==='rahbar'&&MSG_TPL[kind]?`<div class="chips">${MSG_TPL[kind].map(t=>`<button class="chip" data-ra="tpl" data-rv="${esc(t)}" style="text-align:left;font-weight:500">${esc(t.length>46?t.slice(0,44)+'…':t)}</button>`).join('')}</div>`:''}<div id="cmImg"></div>
+   ${fields}<label class="field"><span class="label">Xabar</span><textarea id="cmText"></textarea></label><div id="cmImg"></div>
    ${kind==='sinf'&&S.pinless?`<p class="note">${S.pinless} ta ota-onada hali PIN yo’q, ular bu xabarni ko’rmaydi.</p>`:''}
    <div id="cmRec">${recBox('cm')}</div>
    <div style="display:grid;grid-template-columns:auto auto 1fr;gap:10px"><button class="btn sec" data-act="cmImgPick">Rasm</button><span id="cmRecBtn">${recBtn('cm')}</span><button class="btn pri" data-act="cmSend">Yuborish</button></div>`);
-  if(kind==='ota'&&r==='rahbar'){const f=myKids().find(s=>hasPin(s.id));const sel=$('#cmStu');if(sel&&f)sel.value=f.id}
 }
 // ---------------- telegram requests
 async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;drawTgReq()}catch(e){toast(e.message,true)}}
@@ -1497,8 +1495,7 @@ function scrExParent(){
   const kids=X.st; if(!kids.some(k=>k.id===exKid))exKid=kids[0]?.id; const kid=kids.find(k=>k.id===exKid);
   const rows=kid?EXL.rows.filter(e=>e.grade===kid.grade):[];
   return ['Mashq',kid?esc(kid.name):'',`${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
-  ${kid?parentAsgSection(kid):''}
-  <p class="label" style="margin-top:4px">Kunlik mashq</p><p class="note">Har kuni yangi mashq. Farzandingiz bilan birga yeching, javobni u o’zi tanlasin.</p>
+  <p class="note">Har kuni yangi mashq. Farzandingiz bilan birga yeching, javobni u o’zi tanlasin.</p>
   ${rows.map(e=>{const a=e.answers?.[kid.id];return `<div class="card pad"><div class="sec-h"><span class="label">${e.day===EXL.today?'Bugungi mashq':e.day.split('-').reverse().join('.')}</span>${a?`<span class="pill ${a.correct?'ok':'warn'}">${a.correct?'to’g’ri':'xato'}</span>`:''}</div>
    <div style="font-size:17px;white-space:pre-wrap">${esc(e.text)}</div>${e.image?`<img src="${e.image}" alt="Mashq rasmi" style="border-radius:10px;cursor:zoom-in" data-zoom>`:''}
    <div style="display:flex;flex-direction:column;gap:8px">${e.options.map((o,i)=>{const L='ABCDE'[i];const cls=a?(L===e.answer?'pri':L===a.choice?'dan':'sec'):'sec';
@@ -1589,807 +1586,17 @@ document.addEventListener('click',async e=>{
 setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load()}else load(true)}},60000);
 
 
-// ================================================================ MAVZULAR: darslik mavzulari, tushuntirish va avtomatik misollar
-// Har bir generator {q, a, w, s} qaytaradi: savol, to'g'ri javob, chalg'ituvchi javoblar, yechim.
-const fN=n=>typeof n==='number'?String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' '):String(n);
-const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
-const pick=a=>a[Math.floor(Math.random()*a.length)];
-const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const NAMES=['Ali','Madina','Sardor','Zarina','Bekzod','Dilnoza','Aziz','Sevara','Islom','Malika','Jasur','Nodira','Otabek','Shahzoda'];
-const THINGS=[['olma','ta'],['daftar','ta'],['qalam','ta'],['kitob','ta'],['nok','ta'],['shar','ta'],['konfet','ta']];
-const nm=()=>pick(NAMES);
-// raqamli javob uchun yaqin xato javoblar
-function near(a,extra=[]){const s=new Set();const add=v=>{if(typeof v==='number'&&v>=0&&v!==a&&Number.isFinite(v))s.add(v)};
-  extra.forEach(add);[1,-1,10,-10,2,-2,100,-100,5,-5].forEach(d=>add(a+d));return [...s]}
-const gcd=(a,b)=>b?gcd(b,a%b):a;
-const frS=(n,d)=>`${n}/${d}`;
-const G={
- // ---------- 2-sinf
- as20:()=>{const p=Math.random()<.5;const a=ri(6,15),b=ri(3,9);return p?{q:`${a} + ${b} = ?`,a:a+b,w:near(a+b),s:`${a} + ${b} = ${a+b}`}:{q:`${a+b} − ${b} = ?`,a,w:near(a),s:`${a+b} − ${b} = ${a}`}},
- sameval:()=>{const v=ri(9,18);const a=ri(2,v-2),c=ri(2,v-2);const b=v-a;const d=v-c;const x=ri(1,4);return {q:`Qaysi ifodaning qiymati ${a} + ${b} ning qiymatiga teng?`,a:`${c} + ${d}`,w:[`${c} + ${d+x}`,`${c+x} + ${d+1}`,`${v} − ${x}`],s:`${a} + ${b} = ${v}, ${c} + ${d} = ${v}`}},
- chkadd:()=>{const a=ri(12,58),b=ri(11,39);return {q:`${a} + ${b} = ${a+b}. Qo‘shishni qaysi amal bilan tekshirish mumkin?`,a:`${a+b} − ${b} = ${a}`,w:[`${a+b} + ${b} = ${a+2*b}`,`${a} − ${b} = ${a-b}`,`${a+b} − ${a} = ${a}`],s:`Yig‘indidan bir qo‘shiluvchini ayirsak, ikkinchisi chiqadi: ${a+b} − ${b} = ${a}`}},
- chksub:()=>{const a=ri(40,95),b=ri(11,a-10);return {q:`${a} − ${b} = ${a-b}. Ayirishni qaysi amal bilan tekshirish mumkin?`,a:`${a-b} + ${b} = ${a}`,w:[`${a} + ${b} = ${a+b}`,`${a-b} − ${b} = ${a-2*b}`,`${b} − ${a-b} = ${Math.abs(2*b-a)}`],s:`Ayirmaga ayriluvchini qo‘shsak, kamayuvchi chiqadi: ${a-b} + ${b} = ${a}`}},
- perim:()=>{const n=ri(3,5);const s=Array.from({length:n},()=>ri(2,9));const p=s.reduce((x,y)=>x+y,0);const nmS=['uchburchak','to‘rtburchak','beshburchak'][n-3];return {q:`${nmS[0].toUpperCase()+nmS.slice(1)}ning tomonlari ${s.join(' sm, ')} sm. Uning perimetri necha sm?`,a:p,w:near(p,[p-s[0]]),s:`P = ${s.join(' + ')} = ${p} sm`}},
- numline:()=>{const st=pick([2,5,10]);const a=ri(1,6)*st;const seq=[a,a+st,a+2*st,a+3*st];const k=ri(1,3);const ans=seq[k];seq[k]='?';return {q:`Sonlar o‘qida bo‘linmalar ${st} dan: ${seq.join(', ')}. “?” o‘rnida qaysi son?`,a:ans,w:near(ans,[ans+st,ans-st]),s:`Har qadamda ${st} qo‘shiladi`}},
- add100:()=>{let a,b;do{a=ri(15,78);b=ri(12,89-a)}while((a%10)+(b%10)<10||a+b>100);return {q:`${a} + ${b} = ?`,a:a+b,w:near(a+b,[a+b-10]),s:`${a} + ${b}: birliklar ${a%10} + ${b%10} = ${a%10+b%10}, bu ${Math.floor((a%10+b%10)/10)} o‘nlik va ${(a%10+b%10)%10} birlik. Javob: ${a+b}`}},
- sub100:()=>{let a,b;do{a=ri(31,95);b=ri(12,a-8)}while((a%10)>=(b%10));return {q:`${a} − ${b} = ?`,a:a-b,w:near(a-b,[a-b+10]),s:`${a} − ${b}: ${a%10} dan ${b%10} ni ayirib bo‘lmaydi, 1 o‘nlik olamiz: ${a%10+10} − ${b%10} = ${a%10+10-b%10}. Javob: ${a-b}`}},
- tens:()=>{const t=ri(2,9),u=ri(0,9);const n=t*10+u;return Math.random()<.5?{q:`${t} o‘nlik va ${u} birlikdan iborat son qaysi?`,a:n,w:near(n,[u*10+t,t+u])}:{q:`${n} sonida nechta o‘nlik bor?`,a:t,w:near(t,[u,n])}},
- wp2:()=>{const [th]=pick(THINGS);const n1=nm();const a=ri(25,60),b=ri(8,20),c=ri(5,15);const p=Math.random()<.5;return p?{q:`${n1}da ${a} ta ${th} bor edi. U ${b} ta ${th}ni do‘stiga berdi, keyin yana ${c} ta oldi. Endi ${n1}da nechta ${th} bor?`,a:a-b+c,w:near(a-b+c,[a+b+c,a-b-c]),s:`1) ${a} − ${b} = ${a-b}; 2) ${a-b} + ${c} = ${a-b+c}`}:{q:`Savatda ${a} ta ${th} bor. Ikkinchi savatda ${b} ta ko‘p. Ikkala savatda jami nechta ${th}?`,a:2*a+b,w:near(2*a+b,[a+b,2*a]),s:`1) ${a} + ${b} = ${a+b}; 2) ${a} + ${a+b} = ${2*a+b}`}},
- wpdiff:()=>{const a=ri(30,70),b=ri(10,a-10);const n1=nm(),n2=nm();return {q:`${n1}da ${a} ta marka, ${n2}da ${b} ta marka bor. ${n1}ning markasi ${n2}nikidan nechta ko‘p?`,a:a-b,w:near(a-b,[a+b]),s:`${a} − ${b} = ${a-b}`}},
- seq:()=>{const st=ri(2,9),a=ri(1,20);const s=[a,a+st,a+2*st,a+3*st];return {q:`Qonuniyatni toping va davom ettiring: ${s.join(', ')}, …`,a:a+4*st,w:near(a+4*st,[a+3*st+1,a+5*st]),s:`Har bir son oldingisidan ${st} ga katta: ${a+3*st} + ${st} = ${a+4*st}`}},
- time2:()=>{const h=ri(1,3),m=pick([5,10,15,20,25,30,40,45,50]);return Math.random()<.5?{q:`${h} soat ${m} minut necha minutga teng?`,a:h*60+m,w:near(h*60+m,[h*100+m,h*10+m,h*60]),s:`1 soat = 60 minut. ${h} · 60 + ${m} = ${h*60+m} minut`}:{q:`${h*60+m} minut necha soat necha minut?`,a:`${h} soat ${m} minut`,w:[`${h+1} soat ${m} minut`,`${h} soat ${(m+10)%60} minut`,`${Math.floor((h*60+m)/100)} soat ${(h*60+m)%100} minut`],s:`${h*60+m} = ${h} · 60 + ${m}`}},
- motion2:()=>{const v=ri(3,9),t=ri(2,5);const p=Math.random()<.5;return p?{q:`Piyoda soatiga ${v} km yuradi. ${t} soatda necha km yuradi?`,a:v*t,w:near(v*t,[v+t]),s:`${v} · ${t} = ${v*t} km`}:{q:`Velosipedchi ${t} soatda ${v*t} km yo‘l bosdi. U soatiga necha km yurgan?`,a:v,w:near(v,[v*t-t]),s:`${v*t} : ${t} = ${v} km`}},
- rectper:()=>{const a=ri(3,12),b=ri(2,a);return {q:`To‘g‘ri to‘rtburchakning bo‘yi ${a} sm, eni ${b} sm. Perimetri necha sm?`,a:2*(a+b),w:near(2*(a+b),[a+b,a*b]),s:`P = (${a} + ${b}) · 2 = ${2*(a+b)} sm`}},
- sqper:()=>{const a=ri(2,15);return Math.random()<.5?{q:`Kvadratning tomoni ${a} sm. Perimetri necha sm?`,a:4*a,w:near(4*a,[2*a,a*a])
-  ,s:`P = ${a} · 4 = ${4*a} sm`}:{q:`Kvadratning perimetri ${4*a} sm. Tomoni necha sm?`,a,w:near(a,[2*a]),s:`${4*a} : 4 = ${a} sm`}},
- unkadd:()=>{const t=ri(0,2);const a=ri(12,45),x=ri(8,40);if(t===0)return {q:`x + ${a} = ${a+x}. x = ?`,a:x,w:near(x,[a+x+a]),s:`Noma’lum qo‘shiluvchi = yig‘indi − ma’lum qo‘shiluvchi: ${a+x} − ${a} = ${x}`};
-  if(t===1)return {q:`x − ${a} = ${x}. x = ?`,a:a+x,w:near(a+x,[x-a<0?a:x-a]),s:`Noma’lum kamayuvchi = ayirma + ayriluvchi: ${x} + ${a} = ${a+x}`};return {q:`${a+x} − x = ${a}. x = ?`,a:x,w:near(x,[a+x+a]),s:`Noma’lum ayriluvchi = kamayuvchi − ayirma: ${a+x} − ${a} = ${x}`}},
- repadd:()=>{const a=ri(2,9),n=ri(3,6);return {q:`${Array(n).fill(a).join(' + ')} yig‘indini ko‘paytma shaklida yozing.`,a:`${a} · ${n}`,w:[`${a} + ${n}`,`${a} · ${n+1}`,`${n} · ${n}`],s:`${a} soni ${n} marta qo‘shilgan: ${a} · ${n} = ${a*n}`}},
- letter2:()=>{const a=ri(5,40),b=ri(5,40);const p=Math.random()<.5;return p?{q:`a = ${a} bo‘lsa, a + ${b} ifodaning qiymati nechaga teng?`,a:a+b,w:near(a+b)}:{q:`b = ${b} bo‘lsa, ${a+b} − b ifodaning qiymati nechaga teng?`,a,w:near(a)}},
- mulnames:()=>{const a=ri(2,9),b=ri(2,9);const t=ri(0,2);return {q:`${a} · ${b} = ${a*b} da ${[a,b,a*b][t]} soni qanday ataladi?`,a:t===2?'ko‘paytma':'ko‘paytuvchi',w:t===2?['ko‘paytuvchi','yig‘indi','bo‘linma']:['ko‘paytma','qo‘shiluvchi','bo‘luvchi']}},
- unkall:()=>{const a=ri(2,9),b=ri(2,9);const t=ri(0,3);const X=[[`x · ${b} = ${a*b}`,a],[`${a} · x = ${a*b}`,b],[`x : ${b} = ${a}`,a*b],[`${a*b} : x = ${b}`,a]][t];return {q:`${X[0]}. x = ?`,a:X[1],w:near(X[1],[a*b*b>99?a+b:a*b*b]),s:t<2?`Noma’lum ko‘paytuvchi = ko‘paytma : ma’lum ko‘paytuvchi`:t===2?`Noma’lum bo‘linuvchi = bo‘linma · bo‘luvchi`:`Noma’lum bo‘luvchi = bo‘linuvchi : bo‘linma`}},
- divmean:()=>{const n=ri(2,6),k=ri(2,8);const [th]=pick(THINGS);return {q:`${n*k} ta ${th}ni ${n} ta bolaga teng bo‘lishdi. Har biriga nechta ${th} tegdi?`,a:k,w:near(k,[n*k-n,n]),s:`${n*k} : ${n} = ${k}`}},
- wpmul:()=>{const n=ri(3,8),k=ri(2,9);const [th]=pick(THINGS);return Math.random()<.5?{q:`Har bir qutida ${k} tadan ${th} bor. ${n} ta qutida nechta ${th}?`,a:n*k,w:near(n*k,[n+k]),s:`${k} · ${n} = ${n*k}`}:{q:`${n*k} ta ${th}ni qutilarga ${k} tadan joyladilar. Nechta quti kerak bo‘ldi?`,a:n,w:near(n,[k]),s:`${n*k} : ${k} = ${n}`}},
- muldivrel:()=>{const a=ri(2,9),b=ri(2,9);return {q:`${a} · ${b} = ${a*b}. Shunga ko‘ra ${a*b} : ${a} = ?`,a:b,w:near(b,[a,a*b-a])}},
- unkfac:()=>{const a=ri(2,9),x=ri(2,9);return {q:`x · ${a} = ${a*x}. x = ?`,a:x,w:near(x,[a*x-a,a]),s:`x = ${a*x} : ${a} = ${x}`}},
- unkdvd:()=>{const a=ri(2,9),x=ri(2,9);return {q:`x : ${a} = ${x}. x = ?`,a:a*x,w:near(a*x,[a+x]),s:`x = ${x} · ${a} = ${a*x}`}},
- mm:()=>{const c=ri(1,9),m=ri(1,9);return Math.random()<.5?{q:`${c} sm ${m} mm necha millimetr?`,a:c*10+m,w:near(c*10+m,[c*100+m,c+m])
-  ,s:`1 sm = 10 mm: ${c} · 10 + ${m} = ${c*10+m} mm`}:{q:`${c*10} mm necha santimetr?`,a:c,w:near(c,[c*10,c*100])}},
- m0110:()=>{const a=ri(2,99);const t=ri(0,4);const X=[[`${a} · 0`,0],[`${a} · 1`,a],[`${a%10||7} · 10`,(a%10||7)*10],[`0 : ${a}`,0],[`${a} : 1`,a]][t];return {q:`${X[0]} = ?`,a:X[1],w:near(X[1],[a,1,a*10].filter(v=>v!==X[1]))}},
- order2:()=>{const a=ri(2,9),b=ri(2,9),c=ri(10,40);const t=ri(0,2);const X=[[`${c} + ${a} · ${b}`,c+a*b,(c+a)*b],[`(${c} − ${a}) + ${b}`,c-a+b,c-a-b],[`${a} · (${b} + 1)`,a*(b+1),a*b+1]][t];return {q:`${X[0]} = ?`,a:X[1],w:near(X[1],[X[2]]),s:t===0?`Avval ko‘paytirish: ${a} · ${b} = ${a*b}, keyin ${c} + ${a*b} = ${c+a*b}`:'Avval qavs ichidagi amal bajariladi'}},
- mtall:()=>{const a=ri(2,9),b=ri(2,9);return Math.random()<.5?{q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*(b+1),a+b])}:{q:`${a*b} : ${a} = ?`,a:b,w:near(b,[a])}},
- mtmul:()=>{const a=ri(2,9),b=ri(2,9);return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*(b+1),a*(b-1),a+b])}},
- mtdiv:()=>{const a=ri(2,9),b=ri(2,9);return {q:`${a*b} : ${a} = ?`,a:b,w:near(b,[a,b+2])}},
- wpmul2:()=>{const a=ri(3,9),b=ri(2,6),c=ri(3,15);const [th]=pick(THINGS);return {q:`${b} ta qutining har birida ${a} tadan ${th} bor. Yana ${c} ta ${th} keltirildi. Hammasi nechta ${th}?`,a:a*b+c,w:near(a*b+c,[a*(b+c),a+b+c]),s:`1) ${a} · ${b} = ${a*b}; 2) ${a*b} + ${c} = ${a*b+c}`}},
- unitfr:()=>{const d=pick([2,3,4,5]),k=ri(2,9);const W={2:'yarmi (ikkidan biri)',3:'uchdan biri',4:'to‘rtdan biri',5:'beshdan biri'}[d];return {q:`${d*k} ning ${W} nechaga teng?`,a:k,w:near(k,[d*k-d,d*k*d>100?k+d:d*k*d]),s:`${d*k} : ${d} = ${k}`}},
- frword:()=>{const d=pick([2,3,4,5,6,8]);const W={2:'ikkidan bir',3:'uchdan bir',4:'to‘rtdan bir',5:'beshdan bir',6:'oltidan bir',8:'sakkizdan bir'}[d];return {q:`“${W}” ulush qanday yoziladi?`,a:`1/${d}`,w:[`${d}/1`,`1/${d+1}`,`${d}/${d}`]}},
- logic2:()=>{const a=ri(2,5);return pick([()=>({q:`Bir tayoqni ${a} joydan kesishdi. Nechta bo‘lak hosil bo‘ldi?`,a:a+1,w:[a,a+2,a*2],s:`Har kesish bitta bo‘lak qo‘shadi: ${a} + 1 = ${a+1}`}),()=>({q:`Qatorda ${a+3} ta bola turibdi. ${nm()} chapdan ${a}-chi. U o‘ngdan nechanchi?`,a:4,w:[3,5,a],s:`${a+3} − ${a} + 1 = 4`})])()},
- rem:()=>{const d=ri(2,9),q=ri(2,9),r=ri(1,d-1);const n=d*q+r;return {q:`${n} : ${d} = ? (qoldiqli bo‘lish)`,a:`${q} (qoldiq ${r})`,w:[`${q+1} (qoldiq ${Math.max(0,r-1)})`,`${q} (qoldiq ${(r+1)%d||d-1})`,`${q-1} (qoldiq ${r+d>9?r:r+d})`],s:`${d} · ${q} = ${d*q}, ${n} − ${d*q} = ${r}. Qoldiq bo‘luvchidan kichik: ${r} < ${d}`}},
- area:()=>{const a=ri(2,12),b=ri(2,9);return Math.random()<.6?{q:`To‘g‘ri to‘rtburchakning bo‘yi ${a} sm, eni ${b} sm. Yuzi necha sm²?`,a:a*b,w:near(a*b,[2*(a+b),a+b]),s:`S = ${a} · ${b} = ${a*b} sm²`}:{q:`Kvadratning tomoni ${b} sm. Yuzi necha sm²?`,a:b*b,w:near(b*b,[4*b,2*b]),s:`S = ${b} · ${b} = ${b*b} sm²`}},
- place3:()=>{const h=ri(1,9),t=ri(0,9),u=ri(0,9);const n=h*100+t*10+u;return Math.random()<.5?{q:`${h} yuzlik, ${t} o‘nlik va ${u} birlikdan iborat son qaysi?`,a:n,w:near(n,[u*100+t*10+h,h*100+u*10+t,h+t+u])}:{q:`${n} sonida nechta yuzlik bor?`,a:h,w:near(h,[t,u,n%100])}},
- expand3:()=>{const h=ri(1,9),t=ri(1,9),u=ri(1,9);const n=h*100+t*10+u;return {q:`${n} sonini xona birliklari yig‘indisi shaklida yozing.`,a:`${h*100} + ${t*10} + ${u}`,w:[`${h} + ${t} + ${u}`,`${h*100} + ${t} + ${u}`,`${h*10} + ${t*10} + ${u}`]}},
- cmp3:()=>{let a=ri(100,999),b=Math.random()<.2?a:ri(100,999);if(Math.random()<.4)b=Math.floor(a/100)*100+(a%10)*10+Math.floor(a%100/10);return {q:`${a} ☐ ${b}. Qaysi belgi qo‘yiladi?`,a:a>b?'>':a<b?'<':'=',w:['>','<','='].filter(x=>x!==(a>b?'>':a<b?'<':'=')),s:`Avval yuzliklar, keyin o‘nliklar, keyin birliklar solishtiriladi`}},
- km:()=>{const k=ri(1,9),m=ri(1,9)*100;return Math.random()<.5?{q:`${k} km ${m} m necha metr?`,a:k*1000+m,w:near(k*1000+m,[k*100+m,k*10000+m])
-  ,s:`1 km = 1000 m: ${k} · 1000 + ${m} = ${fN(k*1000+m)} m`}:{q:`${fN(k*1000)} m necha kilometr?`,a:k,w:near(k,[k*10,k*100])}},
- units1000:()=>{const t=ri(0,2);return [{q:'1 minglikda nechta yuzlik bor?',a:10,w:[100,1000,1]},{q:'1 minglikda nechta o‘nlik bor?',a:100,w:[10,1000,50]},{q:'1 yuzlikda nechta birlik bor?',a:100,w:[10,1000,1]}][t]},
- as1000:()=>{const p=Math.random()<.5;const a=ri(120,780),b=ri(105,999-a);return p?{q:`${a} + ${b} = ?`,a:a+b,w:near(a+b,[a+b-10,a+b+100])}:{q:`${a+b} − ${b} = ?`,a,w:near(a,[a+10,a-100])}},
- circle:()=>{const r=ri(2,9);return Math.random()<.5?{q:`Aylananing radiusi ${r} sm. Diametri necha sm?`,a:2*r,w:near(2*r,[r,r*r]),s:`d = 2 · r = ${2*r} sm`}:{q:`Doiraning diametri ${2*r} sm. Radiusi necha sm?`,a:r,w:near(r,[4*r]),s:`r = d : 2 = ${r} sm`}},
- partwhole:()=>{const d=pick([2,3,4,5]),k=ri(2,9);return Math.random()<.5?{q:`Sonning 1/${d} qismi ${k} ga teng. Son nechaga teng?`,a:d*k,w:near(d*k,[k+d]),s:`${k} · ${d} = ${d*k}`}:{q:`${d*k} ning 1/${d} qismini toping.`,a:k,w:near(k,[d*k-d]),s:`${d*k} : ${d} = ${k}`}},
- // ---------- 3-sinf
- group:()=>{let a=ri(11,49),b,c;do{b=ri(11,49)}while((a+b)%10===0);c=(10-(a+b)%10)+ri(1,4)*10;return {q:`${a} + ${b} + ${c} = ?  (qulay usulda hisoblang)`,a:a+b+c,w:near(a+b+c),s:`${b} + ${c} = ${b+c}, keyin ${a} + ${b+c} = ${a+b+c}`}},
- subsum:()=>{const a=ri(60,99),b=ri(5,20),c=ri(5,20);return {q:`${a} − (${b} + ${c}) = ?`,a:a-b-c,w:near(a-b-c,[a-b+c]),s:`${a} − ${b} − ${c} = ${a-b-c} yoki ${a} − ${b+c} = ${a-b-c}`}},
- commute:()=>{const a=ri(2,9),b=ri(11,30);return {q:`${a} · ${b} = ${a*b}. Unda ${b} · ${a} = ?`,a:a*b,w:near(a*b,[a+b]),s:'Ko‘paytuvchilarning o‘rni almashganda ko‘paytma o‘zgarmaydi'}},
- fracof3:()=>{const d=pick([3,4,5,6,8]),n=ri(2,d-1),k=ri(2,9);const N=d*k;return Math.random()<.6?{q:`${N} ning ${frS(n,d)} qismini toping.`,a:n*k,w:near(n*k,[k,N-n*k]),s:`${N} : ${d} = ${k}, ${k} · ${n} = ${n*k}`}:{q:`Sonning ${frS(n,d)} qismi ${n*k} ga teng. Son nechaga teng?`,a:N,w:near(N,[n*k*n,k*d+n]),s:`${n*k} : ${n} = ${k}, ${k} · ${d} = ${N}`}},
- logic3:()=>{const a=ri(3,5),b=ri(2,4);return pick([()=>({q:`${a} xil ko‘ylak va ${b} xil shim bor. Nechta har xil kiyim to‘plami (ko‘ylak + shim) tuzish mumkin?`,a:a*b,w:[a+b,a*b+1,a*b-1],s:`${a} · ${b} = ${a*b}`}),()=>({q:`${a+1} ta bola bir-biri bilan bir martadan qo‘l berib ko‘rishdi. Jami nechta qo‘l berish bo‘ldi?`,a:(a+1)*a/2,w:[(a+1)*a,a*a,(a+1)*a/2+1],s:`${a+1} · ${a} : 2 = ${(a+1)*a/2}`})])()},
- rmul:()=>{const a=ri(2,9)*10,b=ri(2,9);return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b/10,a*b*10]),s:`${a/10} o‘nlik · ${b} = ${a*b/10} o‘nlik = ${a*b}`}},
- rdiv:()=>{const b=ri(2,5),k=ri(2,9)*10;const a=b*k;if(a>100)return G.rdiv();return {q:`${a} : ${b} = ?`,a:k,w:near(k,[k/10,k*10])}},
- rdiv2:()=>{const b=ri(2,9)*10,k=ri(2,9);if(b*k>100)return G.rdiv2();return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k*10,b])}},
- distr:()=>{const a=ri(10,30),b=ri(2,9),c=ri(2,6);return {q:`(${a} + ${b}) · ${c} = ?`,a:(a+b)*c,w:near((a+b)*c,[a*c+b,a+b*c]),s:`${a} · ${c} + ${b} · ${c} = ${a*c} + ${b*c} = ${(a+b)*c}`}},
- m2x1:()=>{const a=ri(12,49),b=ri(2,4);if(a*b>100)return G.m2x1();return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[(a%10)*b+Math.floor(a/10)*10]),s:`${Math.floor(a/10)*10} · ${b} + ${a%10} · ${b} = ${Math.floor(a/10)*10*b} + ${(a%10)*b} = ${a*b}`}},
- sumdiv:()=>{const c=ri(2,9),x=ri(2,6),y=ri(2,6);return {q:`(${c*x*10} + ${c*y}) : ${c} = ?`,a:x*10+y,w:near(x*10+y,[x+y]),s:`${c*x*10} : ${c} + ${c*y} : ${c} = ${x*10} + ${y} = ${x*10+y}`}},
- d2by1:()=>{const b=ri(2,6),k=ri(11,30);if(b*k>99)return G.d2by1();return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k+10,k-1])}},
- chkdiv:()=>{const b=ri(2,9),k=ri(11,40);return {q:`${b*k} : ${b} = ${k}. Bo‘lishni qanday tekshiramiz?`,a:`${k} · ${b} = ${b*k}`,w:[`${k} + ${b} = ${k+b}`,`${b*k} · ${b} = ${b*b*k}`,`${b*k} − ${k} = ${b*k-k}`],s:'Bo‘linmani bo‘luvchiga ko‘paytirsak, bo‘linuvchi chiqadi'}},
- d2by2:()=>{const b=ri(12,32),k=ri(2,4);if(b*k>99)return G.d2by2();return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k+2]),s:`Tanlash usuli: ${b} · ${k} = ${b*k}`}},
- mul3f:()=>{const a=pick([2,4,5,25]),b=ri(3,9),c=a===25?4:a===5?2:5;return {q:`${a} · ${b} · ${c} = ?  (qulay usulda)`,a:a*b*c,w:near(a*b*c,[a*b+c]),s:`${a} · ${c} = ${a*c}, ${a*c} · ${b} = ${a*b*c}`}},
- m100:()=>{const a=ri(2,9);return Math.random()<.5?{q:`${a} · 100 = ?`,a:a*100,w:near(a*100,[a*10,a*1000])}:{q:`${a*100} : 100 = ?`,a,w:near(a,[a*10])}},
- rmul3:()=>{const a=ri(1,4)*100,b=ri(2,4);return Math.random()<.5?{q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b/10])}:{q:`${a*b} : ${b} = ?`,a,w:near(a,[a/10])}},
- rmul3b:()=>{const a=ri(11,32)*10,b=ri(2,3);if(a*b>999)return G.rmul3b();return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b/10]),s:`${a/10} · ${b} = ${a*b/10}, demak ${a} · ${b} = ${a*b}`}},
- rdiv3:()=>{const b=ri(2,9),k=ri(2,9)*10;return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k/10,k+b])}},
- rdiv4:()=>{const b=pick([20,30,40,200,300]),k=ri(2,4);return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k*10]).filter(v=>v<50)}},
- rdiv5:()=>{const b=ri(2,9)*10,k=ri(2,9);return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k*10])}},
- m3x1:()=>{const a=ri(105,325),b=ri(2,3);return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b-10,a*b+100]),s:`Ustun usulida birliklardan boshlab ko‘paytiramiz: ${a*b}`}},
- d3by1:()=>{const b=ri(2,4),k=ri(101,240);return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k+10,k-1])}},
- d3by1b:()=>{const b=ri(3,9),k=ri(21,99);if(b*k>999||Math.floor(b*k/100)>=b)return G.d3by1b();return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[k*10,k+1]),s:`Birinchi to‘liqsiz bo‘linuvchi ${Math.floor(b*k/10)}, bo‘linmada ikki raqam bo‘ladi: ${k}`}},
- d3by1z:()=>{const b=ri(2,9),h=ri(1,9),u=ri(1,9);const k=h*100+u;if(b*k>999)return G.d3by1z();return {q:`${b*k} : ${b} = ?`,a:k,w:near(k,[h*10+u,k+10]),s:`Bo‘linmaning o‘nliklar xonasida 0 bor: ${k}`}},
- divisors:()=>{const n=pick([12,18,20,24,30,36]);const ds=[];for(let i=1;i<=n;i++)if(n%i===0)ds.push(i);const non=[5,7,8,9,10,11,14,16].filter(v=>n%v);const x=pick(non);return {q:`Qaysi son ${n} ning bo‘luvchisi EMAS?`,a:x,w:shuf(ds.filter(d=>d>1&&d<n)).slice(0,3)}},
- m2x2:()=>{const a=ri(12,35),b=ri(11,25);return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*(b%10)+a,a*b-a]),s:`${a} · ${b%10} + ${a} · ${Math.floor(b/10)*10} = ${a*(b%10)} + ${a*Math.floor(b/10)*10} = ${a*b}`}},
- tri:()=>pick([{q:'Uchala tomoni teng bo‘lgan uchburchak qanday ataladi?',a:'teng tomonli',w:['teng yonli','to‘g‘ri burchakli','turli tomonli']},{q:'Ikki tomoni teng bo‘lgan uchburchak qanday ataladi?',a:'teng yonli',w:['teng tomonli','o‘tmas burchakli','turli tomonli']},{q:'Bir burchagi to‘g‘ri burchak bo‘lgan uchburchak qanday ataladi?',a:'to‘g‘ri burchakli',w:['o‘tkir burchakli','teng tomonli','o‘tmas burchakli']}]),
- order3:()=>{const a=ri(2,9),b=ri(2,9),c=ri(20,90),d=ri(2,5);const t=ri(0,2);const X=[[`${c} − ${a} · ${b} + ${d}`,c-a*b+d,(c-a)*b+d],[`(${c} + ${a*d}) : ${d}`,null,0],[`${a} · ${b} + ${c} : ${d}`,null,0]][t];
-  if(t===1){const cc=d*ri(5,20);return {q:`(${cc} + ${a*d}) : ${d} = ?`,a:cc/d+a,w:near(cc/d+a,[cc+a]),s:`Avval qavs: ${cc+a*d}, keyin ${cc+a*d} : ${d} = ${cc/d+a}`}}
-  if(t===2){const cc=d*ri(5,20);return {q:`${a} · ${b} + ${cc} : ${d} = ?`,a:a*b+cc/d,w:near(a*b+cc/d,[(a*b+cc)/d|0]),s:`${a*b} + ${cc/d} = ${a*b+cc/d}`}}
-  if(X[1]<0)return G.order3();return {q:`${X[0]} = ?`,a:X[1],w:near(X[1],[X[2]]),s:'Avval ko‘paytirish va bo‘lish, keyin qo‘shish va ayirish chapdan o‘ngga'}},
- wp3:()=>{const n=ri(3,6),k=ri(12,25),c=ri(10,Math.min(40,n*k-5));return pick([()=>({q:`Bog‘dan ${n} ta savat olma terildi, har savatda ${k} kg. Shundan ${c} kg sotildi. Necha kg olma qoldi?`,a:n*k-c,w:near(n*k-c,[n*k+c,k-c<0?c:k*c]),s:`1) ${k} · ${n} = ${n*k}; 2) ${n*k} − ${c} = ${n*k-c}`}),()=>({q:`Do‘konga ${n} ta quti keldi, har birida ${k} ta daftar. Daftarlar ${n+1} ta sinfga teng bo‘lindi. Har sinfga nechta? (qoldiq bo‘lsa, butun qismini yozing)`,a:Math.floor(n*k/(n+1)),w:near(Math.floor(n*k/(n+1))),s:`1) ${k} · ${n} = ${n*k}; 2) ${n*k} : ${n+1}`})])()},
- place4:()=>{const t=ri(1,9),h=ri(0,9),d=ri(0,9),u=ri(0,9);const n=t*1000+h*100+d*10+u;return Math.random()<.5?{q:`${t} ming ${h} yuz ${d} o‘n ${u} soni qanday yoziladi?`,a:n,w:near(n,[t*100+h*10+d+u,t*1000+h*10+d,t*1000+d*100+h*10+u])}:{q:`${fN(n)} sonida nechta yuzlik bor (jami)?`,a:Math.floor(n/100),w:near(Math.floor(n/100),[h,t])}},
- expand4:()=>{const t=ri(1,9),h=ri(1,9),d=ri(1,9),u=ri(1,9);const n=t*1000+h*100+d*10+u;return {q:`${fN(n)} sonini xona birliklari yig‘indisi shaklida yozing.`,a:`${fN(t*1000)} + ${h*100} + ${d*10} + ${u}`,w:[`${t} + ${h} + ${d} + ${u}`,`${t*100} + ${h*100} + ${d*10} + ${u}`,`${fN(t*1000)} + ${h*10} + ${d*10} + ${u}`]}},
- cmp4:()=>{let a=ri(1000,9999),b=Math.random()<.5?a+pick([-100,100,-10,10,-1,1,0]):ri(1000,9999);return {q:`${fN(a)} ☐ ${fN(b)}. Qaysi belgi qo‘yiladi?`,a:a>b?'>':a<b?'<':'=',w:['>','<','='].filter(x=>x!==(a>b?'>':a<b?'<':'='))}},
- as10000:()=>{const p=Math.random()<.5;const a=ri(1200,6800),b=ri(1050,9999-a);return p?{q:`${fN(a)} + ${fN(b)} = ?`,a:a+b,w:near(a+b,[a+b-1000,a+b+10])}:{q:`${fN(a+b)} − ${fN(b)} = ?`,a,w:near(a,[a+1000,a-10])}},
- roman:()=>{const R=n=>{const v=[[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let s='';for(const [k,c] of v)while(n>=k){s+=c;n-=k}return s};const n=ri(4,39);return Math.random()<.5?{q:`${R(n)} rim raqami qaysi songa teng?`,a:n,w:near(n,[n+10,n-2]).filter(x=>x>0)}:{q:`${n} soni rim raqamida qanday yoziladi?`,a:R(n),w:[...new Set([R(n+1),R(n-1),R(n+10),R(Math.max(1,n-5))])].filter(x=>x!==R(n))}},
- m4x1:()=>{const a=ri(1023,2999),b=ri(2,3);return {q:`${fN(a)} · ${b} = ?`,a:a*b,w:near(a*b,[a*b-100,a*b+10])}},
- d4by1:()=>{const b=ri(2,9),k=ri(150,1100);return {q:`${fN(b*k)} : ${b} = ?`,a:k,w:near(k,[k+10,k-100])}},
- len:()=>{const t=ri(0,3);const a=ri(2,9),b=ri(1,9);return [{q:`${a} m ${b*10} sm necha santimetr?`,a:a*100+b*10,w:near(a*100+b*10,[a*10+b*10,a*1000+b*10])},{q:`${a} dm necha santimetr?`,a:a*10,w:near(a*10,[a*100,a])},{q:`${a} km ${b*100} m necha metr?`,a:a*1000+b*100,w:near(a*1000+b*100,[a*100+b*100])},{q:`${a*100} sm necha metr?`,a,w:near(a,[a*10])}][t]},
- mass:()=>{const t=ri(0,2);const a=ri(1,9),b=ri(1,9)*100;return [{q:`${a} kg ${b} g necha grammga teng?`,a:a*1000+b,w:near(a*1000+b,[a*100+b])},{q:`${a} t necha kilogramm?`,a:a*1000,w:near(a*1000,[a*100])},{q:`${a} s (sentner) necha kilogramm?`,a:a*100,w:near(a*100,[a*1000,a*10])}][t]},
- exprab:()=>{const a=ri(100,600),b=ri(50,300);return Math.random()<.5?{q:`a = ${a}, b = ${b} bo‘lsa, a + b = ?`,a:a+b,w:near(a+b)}:{q:`a = ${a+b}, b = ${b} bo‘lsa, a − b = ?`,a,w:near(a)}},
- exprmul:()=>{const a=ri(12,99),b=ri(2,9);return {q:`a = ${a}, b = ${b} bo‘lsa, a · b = ?`,a:a*b,w:near(a*b,[a+b])}},
- exprdiv:()=>{const b=ri(2,9),k=ri(12,99);return {q:`a = ${b*k}, b = ${b} bo‘lsa, a : b = ?`,a:k,w:near(k,[k+b])}},
- truefalse:()=>{const a=ri(2,9),b=ri(2,9);const t=Math.random()<.5;return {q:`“${a} · ${b} = ${t?a*b:a*b+pick([1,-1,a])}” — bu mulohaza rostmi?`,a:t?'Rost':'Yolg‘on',w:[t?'Yolg‘on':'Rost']}},
- ineq:()=>{const k=ri(5,15);const ans=ri(0,k-1);return {q:`Qaysi son x < ${k} tengsizlikning yechimi bo‘ladi?`,a:ans,w:[k,k+ri(1,5),k+ri(6,10)],s:`${ans} < ${k} — rost`}},
- frread:()=>{const d=pick([2,3,4,6,8,12]),n=ri(1,d-1);return {q:`Shakl ${d} ta teng bo‘lakka bo‘lingan, shundan ${n} tasi bo‘yalgan. Bo‘yalgan qism qaysi kasr bilan ifodalanadi?`,a:frS(n,d),w:[frS(d,n),frS(n,d+1),frS(d-n,d)].filter(x=>x!==frS(n,d)),s:'Maxraj — nechta teng bo‘lakka bo‘linganini, surat — nechta bo‘lak olinganini ko‘rsatadi'}},
- properfr:()=>{const d=ri(3,9);const prop=frS(ri(1,d-1),d);return {q:'Qaysi kasr to‘g‘ri kasr?',a:prop,w:[frS(d+ri(1,3),d),frS(d,d),frS(d+1,d)],s:'To‘g‘ri kasrda surat maxrajdan kichik'}},
- mixed:()=>{const d=ri(2,6),w=ri(1,4),n=ri(1,d-1);return {q:`${frS(w*d+n,d)} kasrni aralash son ko‘rinishida yozing.`,a:`${w} ${frS(n,d)}`,w:[`${w+1} ${frS(n,d)}`,`${w} ${frS(n+1>d-1?1:n+1,d)}`,`${n} ${frS(w,d)}`],s:`${w*d+n} : ${d} = ${w} (qoldiq ${n})`}},
- frcmpden:()=>{const d=ri(4,12);let a=ri(1,d-1),b=ri(1,d-1);return {q:`${frS(a,d)} ☐ ${frS(b,d)}`,a:a>b?'>':a<b?'<':'=',w:['>','<','='].filter(x=>x!==(a>b?'>':a<b?'<':'=')),s:'Maxrajlari bir xil bo‘lsa, surati katta kasr katta'}},
- frcmpnum:()=>{const n=ri(1,4);let a=ri(n+1,12),b=ri(n+1,12);return {q:`${frS(n,a)} ☐ ${frS(n,b)}`,a:a<b?'>':a>b?'<':'=',w:['>','<','='].filter(x=>x!==(a<b?'>':a>b?'<':'=')),s:'Suratlari bir xil bo‘lsa, maxraji kichik kasr katta'}},
- frhalf:()=>{const d=pick([4,6,8,10,12]);const n=ri(1,d-1);const r=2*n>d?'yarmidan katta':2*n<d?'yarmidan kichik':'yarmiga teng';return {q:`${frS(n,d)} kasr qanday?`,a:r,w:['yarmidan katta','yarmidan kichik','yarmiga teng'].filter(x=>x!==r),s:`Yarim = ${frS(d/2,d)}`}},
- fradd:()=>{const d=ri(5,12),a=ri(1,d-2),b=ri(1,d-1-a);return Math.random()<.5?{q:`${frS(a,d)} + ${frS(b,d)} = ?`,a:frS(a+b,d),w:[frS(a+b,2*d),frS(a+b+1,d),frS(a*b,d)],s:'Maxrajlari bir xil kasrlarni qo‘shishda suratlar qo‘shiladi, maxraj o‘zgarmaydi'}:{q:`${frS(a+b,d)} − ${frS(b,d)} = ?`,a:frS(a,d),w:[frS(a,0+d*2),frS(a+1,d),frS(Math.abs(a-1)||2,d)],s:'Suratlar ayiriladi, maxraj o‘zgarmaydi'}},
- areaunits:()=>{const a=ri(2,9);return pick([{q:`${a} dm² necha sm²?`,a:a*100,w:near(a*100,[a*10,a*1000])},{q:`${a} m² necha dm²?`,a:a*100,w:near(a*100,[a*10])},{q:`${a*100} sm² necha dm²?`,a,w:near(a,[a*10])}])},
- timeunits:()=>{const a=ri(2,5);return pick([{q:`${a} sutka necha soat?`,a:a*24,w:near(a*24,[a*12,a*60])},{q:`${a} yil necha oy?`,a:a*12,w:near(a*12,[a*10])},{q:`${a} minut necha sekund?`,a:a*60,w:near(a*60,[a*100])},{q:`${a} hafta necha kun?`,a:a*7,w:near(a*7,[a*5])}])},
- calendar:()=>{const M=[['yanvar',31],['fevral',28],['mart',31],['aprel',30],['may',31],['iyun',30],['iyul',31],['avgust',31],['sentabr',30],['oktabr',31],['noyabr',30],['dekabr',31]];const [m,d]=pick(M);return {q:`Kabisa bo‘lmagan yilda ${m} oyi necha kundan iborat?`,a:d,w:[28,29,30,31].filter(x=>x!==d).slice(0,3)}},
- angle:()=>pick([{q:'To‘g‘ri burchak necha gradus?',a:90,w:[180,45,100]},{q:'Yoyiq burchak necha gradus?',a:180,w:[90,360,100]},{q:'To‘g‘ri burchakning yarmi necha gradus?',a:45,w:[90,30,60]},{q:'Uchburchak burchaklari yig‘indisi necha gradus?',a:180,w:[90,360,270]}]),
- dec:()=>{const n=ri(1,9);return Math.random()<.5?{q:`${frS(n,10)} kasr o‘nli kasr ko‘rinishida qanday yoziladi?`,a:`0,${n}`,w:[`${n},0`,`0,0${n}`,`1,${n}`]}:{q:`0,${n} oddiy kasr ko‘rinishida qanday yoziladi?`,a:frS(n,10),w:[frS(n,100),frS(10,n),frS(1,n)]}},
- deccmp:()=>{const a=ri(1,9),b=ri(10,99);const A=a/10,B=b/100;return {q:`0,${a} ☐ 0,${b}`,a:A>B?'>':A<B?'<':'=',w:['>','<','='].filter(x=>x!==(A>B?'>':A<B?'<':'=')),s:`0,${a} = 0,${a}0. Endi 0,${a}0 va 0,${b} ni solishtiramiz`}},
- wpeq:()=>{const x=ri(5,40),a=ri(5,30);return {q:`${nm()} o‘ylagan songa ${a} ni qo‘shsa, ${x+a} chiqdi. U qaysi sonni o‘ylagan?`,a:x,w:near(x,[x+2*a]),s:`x + ${a} = ${x+a}, x = ${x+a} − ${a} = ${x}`}},
- // ---------- 4-sinf
- classes:()=>{const v=ri(100000,999999);return pick([{q:`${fN(v)} sonida mingliklar sinfida qaysi son turibdi?`,a:Math.floor(v/1000),w:near(Math.floor(v/1000),[v%1000])},{q:`${fN(v)} sonida birlar sinfida qaysi son turibdi?`,a:v%1000,w:near(v%1000,[Math.floor(v/1000)])}])},
- place6:()=>{const t=ri(100,999),u=ri(0,999);const n=t*1000+u;return {q:`${t} ming ${u} soni raqamlar bilan qanday yoziladi?`,a:n,w:near(n,[t*100+u,t*10000+u])}},
- cmp6:()=>{let a=ri(100000,999999),b=Math.random()<.5?a+pick([-1000,1000,-100,100,-10,10]):ri(100000,999999);return {q:`${fN(a)} ☐ ${fN(b)}`,a:a>b?'>':a<b?'<':'=',w:['>','<','='].filter(x=>x!==(a>b?'>':a<b?'<':'='))}},
- as6:()=>{const p=Math.random()<.5;const a=ri(120000,600000),b=ri(100000,399000);return p?{q:`${fN(a)} + ${fN(b)} = ?`,a:a+b,w:near(a+b,[a+b-10000,a+b+1000])}:{q:`${fN(a+b)} − ${fN(b)} = ?`,a,w:near(a,[a+10000,a-1000])}},
- group4:()=>{const a=ri(100,900),b=ri(100,900);const c=1000-b;return {q:`${a} + ${b} + ${c} = ?  (qulay usulda)`,a:a+1000,w:near(a+1000,[a+b,a+c]),s:`${b} + ${c} = 1 000, ${a} + 1 000 = ${fN(a+1000)}`}},
- chk4:()=>G.chkdiv(),
- eq4:()=>{const t=ri(0,3);const a=ri(12,60),x=ri(15,90);const X=[[`x · ${a} = ${fN(a*x)}`,x,`x = ${fN(a*x)} : ${a} = ${x}`],[`x : ${a} = ${x}`,a*x,`x = ${x} · ${a} = ${fN(a*x)}`],[`x − ${a*10} = ${x*10}`,a*10+x*10,`x = ${x*10} + ${a*10}`],[`${fN(a*x)} : x = ${a}`,x,`x = ${fN(a*x)} : ${a} = ${x}`]][t];return {q:`${X[0]}. x = ?`,a:X[1],w:near(X[1]),s:X[2]}},
- ineq4:()=>{const a=ri(20,80),k=ri(100,200);return {q:`x + ${a} < ${k} tengsizlikni qanoatlantiradigan eng katta natural son qaysi?`,a:k-a-1,w:[k-a,k-a+1,k-1],s:`x < ${k} − ${a} = ${k-a}, demak eng kattasi ${k-a-1}`}},
- qtyadd:()=>{const a=ri(2,8),b=ri(100,900),c=ri(1,5),d=ri(100,900);return {q:`${a} kg ${b} g + ${c} kg ${d} g = ? (grammda)`,a:(a+c)*1000+b+d,w:near((a+c)*1000+b+d,[(a+c)*1000+b+d-1000])}},
- avg:()=>{const n=ri(3,5);const avg=ri(10,60);const xs=Array.from({length:n-1},()=>avg+ri(-9,9));xs.push(avg*n-xs.reduce((x,y)=>x+y,0));if(xs.some(v=>v<=0))return G.avg();return {q:`${xs.join(', ')} sonlarining o‘rta arifmetigini toping.`,a:avg,w:near(avg,[avg*n,avg+n]),s:`(${xs.join(' + ')}) : ${n} = ${avg*n} : ${n} = ${avg}`}},
- mass4:()=>G.mass(),
- rectform:()=>{const a=ri(4,20),b=ri(3,12);return pick([{q:`To‘g‘ri to‘rtburchakning yuzi ${a*b} sm², bo‘yi ${a} sm. Eni necha sm?`,a:b,w:near(b,[a*b-a])
-  ,s:`b = S : a = ${a*b} : ${a} = ${b}`},{q:`a = ${a} sm, b = ${b} sm bo‘lgan to‘g‘ri to‘rtburchakning perimetri P = 2 · (a + b) = ?`,a:2*(a+b),w:near(2*(a+b),[a*b,a+b])},{q:`a = ${a} sm, b = ${b} sm bo‘lsa, yuzi S = a · b = ?`,a:a*b,w:near(a*b,[2*(a+b)])}])},
- m6x1:()=>{const a=ri(10234,99000),b=ri(2,9);return {q:`${fN(a)} · ${b} = ?`,a:a*b,w:near(a*b,[a*b-1000,a*b+100])}},
- m2big:()=>{const a=ri(123,989),b=ri(12,89);return Math.random()<.6?{q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*(b%10)+a*Math.floor(b/10),a*b-a])}:{q:`${fN(a*b)} : ${b} = ?`,a,w:near(a,[a+10])}},
- m3big:()=>{const a=ri(123,689),b=ri(102,345);return {q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b-a,a*b+1000,a*b-100])}},
- d3big:()=>{const b=ri(105,456),k=ri(12,98);return {q:`${fN(b*k)} : ${b} = ?`,a:k,w:near(k,[k+10])}},
- zeros:()=>{const a=ri(2,9)*100,b=ri(2,9)*10;return Math.random()<.5?{q:`${a} · ${b} = ?`,a:a*b,w:near(a*b,[a*b/10,a*b*10])}:{q:`${fN(a*b)} : ${b} = ?`,a,w:near(a,[a/10,a*10])}},
- scale:()=>{const m=pick([100,1000,10000]),s=ri(2,9);const real=s*m;return {q:`Masshtab 1 : ${fN(m)}. Xaritada masofa ${s} sm. Haqiqiy masofa necha santimetr?`,a:real,w:near(real,[real/10,real*10,s+m]),s:`${s} · ${fN(m)} = ${fN(real)} sm`}},
- order4:()=>{const a=ri(100,500),b=ri(12,40),c=ri(2,9),d=ri(2,9);return {q:`${a} + ${b} · ${c} − ${c*d} : ${c} = ?`,a:a+b*c-d,w:near(a+b*c-d,[(a+b)*c-d]),s:`${b} · ${c} = ${b*c}; ${c*d} : ${c} = ${d}; ${a} + ${b*c} − ${d} = ${a+b*c-d}`}},
- qtymul:()=>{const a=ri(1,5),b=ri(100,900),c=ri(2,4);return {q:`${a} kg ${b} g · ${c} = ? (grammda)`,a:(a*1000+b)*c,w:near((a*1000+b)*c,[a*1000*c+b])}},
- motion:()=>{const v=ri(4,90),t=ri(2,6);const s=v*t;return pick([{q:`Avtomobil soatiga ${v} km tezlik bilan ${t} soat yurdi. U qancha masofa bosdi?`,a:s,w:near(s,[v+t]),s:`s = v · t = ${v} · ${t} = ${s} km`},{q:`Poyezd ${t} soatda ${s} km yo‘l yurdi. Uning tezligi qancha?`,a:v,w:near(v,[s-t]),s:`v = s : t = ${s} : ${t} = ${v} km/soat`},{q:`Velosipedchi soatiga ${v} km tezlik bilan ${s} km yo‘lni necha soatda bosadi?`,a:t,w:near(t,[t+2]),s:`t = s : v = ${s} : ${v} = ${t} soat`}])},
- fracof4:()=>{const d=pick([4,5,6,8,10]),n=ri(2,d-1),k=ri(5,60);const N=d*k;return {q:`${fN(N)} ning ${frS(n,d)} qismini toping.`,a:n*k,w:near(n*k,[k,N-n*k]),s:`${N} : ${d} · ${n} = ${n*k}`}},
- numbyfr:()=>{const d=pick([3,4,5,6,8]),n=ri(2,d-1),k=ri(5,40);return {q:`Sonning ${frS(n,d)} qismi ${n*k} ga teng. Butun son nechaga teng?`,a:d*k,w:near(d*k,[d*k+k,n*k+d,n*k]),s:`${n*k} : ${n} · ${d} = ${d*k}`}},
- frcmp4:()=>{const a=ri(1,7),b=ri(2,8),c=ri(1,7),d=ri(2,8);if(a>=b||c>=d)return G.frcmp4();const L=a*d,R=c*b;return {q:`${frS(a,b)} ☐ ${frS(c,d)}`,a:L>R?'>':L<R?'<':'=',w:['>','<','='].filter(x=>x!==(L>R?'>':L<R?'<':'=')),s:`Umumiy maxrajga keltiring: ${frS(a*d,b*d)} va ${frS(c*b,b*d)}`}},
- dec4:()=>{const a=ri(1,9),b=ri(1,9);return pick([(()=>{const c=ri(1,9-Math.min(b,8));const bb=Math.min(b,8);return {q:`${a},${bb} + 0,${c} = ?`,a:`${a},${bb+c}`,w:[`${a+1},${bb+c}`,`${a},${bb+c+1}`,`${a},${bb}${c}`],s:`O‘ndan birlar qo‘shiladi: ${bb} + ${c} = ${bb+c}`}})(),{q:`${frS(a*10+b,100)} o‘nli kasr ko‘rinishida qanday yoziladi?`,a:`0,${a}${b}`,w:[`${a},${b}`,`0,0${a}${b}`,`${a}${b},0`]}])},
- venn:()=>{const a=ri(8,15),b=ri(6,12),c=ri(2,5);return {q:`Sinfda ${a} bola shaxmat, ${b} bola shashka o‘ynaydi. ${c} bola ikkalasini ham o‘ynaydi. Hech bo‘lmaganda bittasini o‘ynaydiganlar nechta?`,a:a+b-c,w:[a+b,a+b+c,a+b-2*c],s:`${a} + ${b} − ${c} = ${a+b-c} (ikkalasini o‘ynaydiganlar ikki marta sanalmasin)`}},
- coord:()=>{const x=ri(1,9),y=ri(1,9);return Math.random()<.5?{q:`A(${x}; ${y}) nuqtaning abssissasi (birinchi koordinatasi) nechaga teng?`,a:x,w:[y,x+y,0].filter(v=>v!==x)}:{q:`B(${x}; ${y}) nuqtaning ordinatasi (ikkinchi koordinatasi) nechaga teng?`,a:y,w:[x,x+y,0].filter(v=>v!==y)}},
- poly:()=>pick([{q:'Kubning nechta qirrasi bor?',a:12,w:[6,8,4]},{q:'Kubning nechta yog‘i (yuzi) bor?',a:6,w:[4,8,12]},{q:'Kubning nechta uchi bor?',a:8,w:[6,12,4]},{q:'To‘g‘ri burchakli parallelepipedning nechta yog‘i bor?',a:6,w:[4,8,12]}]),
- box:()=>{const a=ri(2,9),b=ri(2,8),c=ri(2,6);return {q:`To‘g‘ri burchakli parallelepipedning o‘lchamlari ${a} sm, ${b} sm va ${c} sm. Hajmi necha sm³?`,a:a*b*c,w:near(a*b*c,[a+b+c,2*(a*b+b*c+a*c)]),s:`V = ${a} · ${b} · ${c} = ${a*b*c} sm³`}},
- cube:()=>{const a=ri(2,9);return Math.random()<.5?{q:`Kubning qirrasi ${a} sm. Hajmi necha sm³?`,a:a*a*a,w:near(a*a*a,[a*a,6*a*a,a*3])
-  ,s:`V = ${a} · ${a} · ${a} = ${a*a*a} sm³`}:{q:`Kubning qirrasi ${a} sm. Barcha qirralari uzunligi yig‘indisi necha sm?`,a:12*a,w:near(12*a,[6*a,8*a])}},
- areaunits4:()=>G.areaunits(),
- volunits:()=>{const a=ri(2,9);return pick([{q:`${a} dm³ necha sm³?`,a:a*1000,w:near(a*1000,[a*100,a*10])},{q:`${a} m³ necha dm³?`,a:a*1000,w:near(a*1000,[a*100])},{q:`${a} litr necha dm³?`,a,w:[a*10,a*1000,a*100]}])},
-};
-// ko'paytirish jadvali: 2..9
-for(let n=2;n<=9;n++)G['mt'+n]=()=>{const k=ri(2,10);return Math.random()<.55?{q:`${n} · ${k} = ?`,a:n*k,w:near(n*k,[n*(k+1),n*(k-1),n+k])}:{q:`${n*k} : ${n} = ?`,a:k,w:near(k,[n,k+1])}};
-G.mix2=()=>G[pick(['add100','sub100','mtall','unkfac','order2','perim','time2','place3','cmp3','as1000','unitfr'])]();
-G.mix3=()=>G[pick(['m2x1','d2by1','rem','m3x1','d3by1','as10000','len','mass','fracof3','fradd','order3','frcmpden'])]();
-G.mix4=()=>G[pick(['as6','m2big','d3big','zeros','eq4','motion','avg','fracof4','box','rectform','order4'])]();
-
-// Darslik mavzulari (2026–2027): [bo'lim, [[mavzu, generator]]]
-const MV={
-2:[['1-sinfda o‘tilganlarni takrorlash',[['Yig‘indi va ayirmani topishga doir sodda misollar','as20'],['Qiymati bir xil bo‘lgan misollar','sameval'],['Qo‘shishni tekshirish','chkadd'],['Ayirishni tekshirish','chksub'],['To‘g‘ri burchak va to‘g‘rimas burchak',''],['Ko‘pburchak perimetri','perim']]],
- ['100 ichida o‘nlikdan o‘tib qo‘shish va ayirish',[['Sonlar o‘qi va uning modellari','numline'],['100 ichida xonadan o‘tib qo‘shish usullari','add100'],['Ikki xonali sonlarning o‘nli tarkibi','tens'],['Sonlarni qo‘shishning ustun usuli','add100'],['100 ichida xonadan o‘tib ayirishning yozma usuli','sub100'],['Sonlarni ayirishning ustun usuli','sub100'],['Sodda va tarkibli masalalar','wp2'],['Ayirmani topishga doir tarkibli masalalar','wpdiff'],['Namuna bo‘yicha ketma-ketlikni davom ettirish','seq'],['Kundalik hayotdagi koordinatalar sistemasi modellari',''],['Vaqt birliklari: soat, minut','time2'],['Vaqt, masofa va tezlikka oid sodda masalalar','motion2'],['Oddiy shakllarni murakkab shakllarga aylantirish va aksincha',''],['To‘g‘ri to‘rtburchak qarama-qarshi tomonlarining xossalari','rectper'],['Kvadrat','sqper'],['Qo‘shish va ayirish komponentlari va natijalari orasidagi bog‘lanish','unkadd']]],
- ['Sonli ifodalar, tenglamalar',[['Bir xil qo‘shiluvchilar yig‘indisi','repadd'],['Sodda va tarkibli masalalar','wp2'],['Harfli ifodalar','letter2'],['Geometrik shakllarni belgilash',''],['Tenglama; tenglamani tanlash usuli bilan yechish','unkadd']]],
- ['Ko‘paytirish va bo‘lish',[['Ko‘paytirishning ma’nosi','repadd'],['Ko‘paytirish komponentlarining nomlari','mulnames'],['Har bir amal komponentlari va natijalari orasidagi bog‘lanish','unkall'],['Bo‘lishning ma’nosi','divmean'],['Teng qismlarga bo‘lish; to‘plamning qismi','divmean'],['Ko‘paytirish va bo‘lish bilan yechiladigan masalalar','wpmul'],['Ko‘paytirish va bo‘lish orasidagi munosabat','muldivrel'],['Masalalarni jadval usulida yechish','wpmul'],['Noma’lum ko‘paytuvchini topish','unkfac'],['Noma’lum bo‘linuvchini topish','unkdvd'],['Millimetr','mm'],['0, 1 va 10 sonlari ishtirokida ko‘paytirish va bo‘lish','m0110'],['Qavsli va qavssiz ifodalar; amallar tartibi','order2']]],
- ['Jadval ichida ko‘paytirish va bo‘lish',[['2 ga ko‘paytirish va 2 ga bo‘lish','mt2'],['3 ga ko‘paytirish va 3 ga bo‘lish','mt3'],['4 ga ko‘paytirish va 4 ga bo‘lish','mt4'],['5 ga ko‘paytirish va 5 ga bo‘lish','mt5'],['6 ga ko‘paytirish va 6 ga bo‘lish','mt6'],['7 ga ko‘paytirish va 7 ga bo‘lish','mt7'],['8 ga ko‘paytirish va 8 ga bo‘lish','mt8'],['9 ga ko‘paytirish va 9 ga bo‘lish','mt9'],['Tarkibli masalalar','wpmul2'],['100 ichida ko‘paytirish va bo‘lish','mtall'],['Bir xonali sonlarni ko‘paytirish jadvali','mtmul'],['Bir xonali sonlarni bo‘lish jadvali','mtdiv']]],
- ['Ulushlar, geometrik shakllar va kattaliklar',[['Sonning ulushi','unitfr'],['Ulushni so‘zlar yoki sonlar bilan ifodalash','frword'],['Shart bo‘yicha masala tuzish va yechish','wpmul2'],['Muammoli masalalar','logic2'],['Kvadrat, to‘g‘ri to‘rtburchak, uchburchak, doira va ularning kattaliklari','rectper'],['Shakllarni taqqoslash; bo‘laklardan shakl yasash',''],['Bo‘linuvchi, bo‘luvchi, bo‘linma va qoldiqni chizmada ifodalash','rem'],['To‘g‘ri to‘rtburchak va kvadratning yuzi','area'],['Yuz birligi: kvadrat santimetr (sm²)','area'],['Katakli qog‘ozdagi shakllar yuzi','']]],
- ['1000 ichida raqamlash',[['Uch xonali sonlarni raqamlash; minglik','place3'],['Yuzlik, o‘nlik va birliklardan son hosil qilish','place3'],['Uch xonali sonni xona birliklari yig‘indisi ko‘rinishida yozish','expand3'],['Uch xonali sonlarni taqqoslash','cmp3'],['Ming ichida og‘zaki va yozma raqamlash','place3'],['Uzunlik o‘lchovi: kilometr','km'],['Minglik, yuzlik, o‘nlik va birliklar orasidagi munosabat','units1000'],['1000 soni; 1000 ichida qo‘shish va ayirish usullari','as1000'],['Doira va aylana: markaz, radius, diametr, sirkul','circle'],['Ikki aylananing tekislikda joylashuvi',''],['Tarkibli masalalar','wp2'],['Sonning qismini va qismiga ko‘ra sonni topish','partwhole'],['O‘tilganlarni mustahkamlash','mix2']]]],
-3:[['2-sinfda o‘tilganlarni takrorlash',[['Ikki va uch xonali sonlarni xonadan o‘tib qo‘shish va ayirish','as1000'],['Qavsli ifodalar','order2'],['Qo‘shishning guruhlash xossasi','group'],['Sondan yig‘indi yoki ayirmani ayirish','subsum'],['0 va 1 ishtirokida ko‘paytirish va bo‘lish','m0110'],['Ko‘paytuvchilarning o‘rin almashtirish xossasi','commute'],['Sonning bir necha ulushini va ulushiga ko‘ra sonni topish','fracof3'],['Ko‘paytirish va bo‘lish','mtall'],['Kombinatorik va mantiqiy masalalar','logic3']]],
- ['Jadvaldan tashqari ko‘paytirish va bo‘lish. Geometrik figuralar',[['20·3, 30·4 ko‘rinishidagi ifodalar','rmul'],['60:3, 100:2 ko‘rinishidagi ifodalar','rdiv'],['90:30 ko‘rinishidagi ifodalar','rdiv2'],['Yig‘indini songa va sonni yig‘indiga ko‘paytirish','distr'],['23·4, 4·23 ko‘rinishidagi ifodalar','m2x1'],['Yig‘indini songa bo‘lish','sumdiv'],['42:3, 72:4 ko‘rinishidagi ifodalar','d2by1'],['Bo‘lish va ko‘paytirishni tekshirish','chkdiv'],['Ikki xonali sonni ikki xonali songa bo‘lish','d2by2'],['Uch va undan ortiq ko‘paytuvchini ko‘paytirish','mul3f'],['Qoldiqli bo‘lish va uni tekshirish','rem'],['To‘g‘ri chiziq, kesma, nur',''],['100 ishtirokida ko‘paytirish va bo‘lish','m100'],['200·3, 800:4 ko‘rinishidagi ifodalar','rmul3'],['320·3 ko‘rinishidagi ifodalar','rmul3b'],['490:7 ko‘rinishidagi ifodalar','rdiv3'],['600:20, 900:300 ko‘rinishidagi ifodalar','rdiv4'],['240:30 ko‘rinishidagi ifodalar','rdiv5']]],
- ['1000 ichida yozma ko‘paytirish va bo‘lish',[['O‘nlikdan o‘tib ko‘paytirish','m3x1'],['Yuzlikdan o‘tib ko‘paytirish','m3x1'],['O‘nlikdan va yuzlikdan o‘tib ko‘paytirish','m3x1'],['396:3 ko‘rinishidagi ifodalar','d3by1'],['346:2 ko‘rinishidagi ifodalar','d3by1'],['852:4 ko‘rinishidagi ifodalar','d3by1'],['216:3 ko‘rinishidagi ifodalar','d3by1b'],['276:4 ko‘rinishidagi ifodalar','d3by1b'],['742:7 ko‘rinishidagi ifodalar (bo‘linmada 0)','d3by1z'],['Sonning bo‘luvchi va karralilarini aniqlash','divisors'],['Ikki xonali songa ko‘paytirish','m2x2'],['Uchburchaklarning turlari','tri'],['Amallarni bajarish algoritmi; qavsli ifodalarda amallar tartibi','order3'],['Kesma, doira va ko‘pburchakni teng bo‘laklarga bo‘lish',''],['Turli ko‘rinishda berilgan masalalar','wp3']]],
- ['10 000 ichida raqamlash, arifmetik amallar',[['To‘rt xonali sonlarni raqamlash','place4'],['To‘rt xonali sonni xona birliklari yig‘indisi ko‘rinishida yozish','expand4'],['To‘rt xonali sonlarni taqqoslash','cmp4'],['Matematika tarixidan: raqamlar qanday paydo bo‘lgan',''],['10 000 ichida qo‘shish va ayirish','as10000'],['Pozitsion va nopozitsion sanoq sistemalari',''],['Rim raqamlari','roman']]],
- ['10 000 ichida ko‘paytirish va bo‘lish. Kattaliklar',[['Og‘zaki ko‘paytirish va bo‘lish','rmul3'],['Natijasi 10 000 ichida yozma ko‘paytirish','m4x1'],['10 000 ichida yozma bo‘lish','d4by1'],['Bo‘lishni va ko‘paytirishni tekshirish','chkdiv'],['Uzunlik o‘lchov birliklari va ular orasidagi munosabat','len'],['Massa o‘lchov birliklari va ular orasidagi munosabat','mass']]],
- ['Matematik ifodalar, tengsizliklar, geometrik figuralar',[['a+b va a−b ifodaning qiymatini topish','exprab'],['a·b ifodaning qiymatini topish','exprmul'],['a:b ifodaning qiymatini topish','exprdiv'],['Tarkibli masalalar','wp3'],['Rost va yolg‘on mulohazalar','truefalse'],['Tengsizlik; “katta emas” va “kichik emas” belgilari','ineq'],['Parallel to‘g‘ri chiziqlar',''],['Perpendikular to‘g‘ri chiziqlar',''],['O‘qqa nisbatan simmetrik figuralar','']]],
- ['Oddiy va o‘nli kasrlar. Kattaliklar. Geometrik figuralar',[['Kasr tushunchasi','frread'],['Maxraji 2, 4, 8 bo‘lgan kasrlar','frread'],['Maxraji 3, 6, 12 bo‘lgan kasrlar','frread'],['To‘g‘ri va noto‘g‘ri kasrlar','properfr'],['Aralash son','mixed'],['Maxraji bir xil kasrlarni taqqoslash','frcmpden'],['Surati bir xil kasrlarni taqqoslash','frcmpnum'],['Kasrlarni yarim bilan taqqoslash','frhalf'],['Sonning kasrini va kasriga ko‘ra sonni topish','fracof3'],['Bir xil maxrajli kasrlarni qo‘shish va ayirish','fradd'],['Yuz o‘lchov birliklari; yuzalarni taqqoslash','areaunits'],['Vaqt o‘lchov birliklari va ular orasidagi munosabat','timeunits'],['Kalendar','calendar'],['Burchak gradusi','angle'],['Doiraviy diagrammalar',''],['O‘nli kasrlar; ularni oddiy kasr ko‘rinishida yozish','dec'],['O‘nli kasrlarni taqqoslash va tartiblash','deccmp'],['Shakllarni burish; burish simmetriyasi',''],['Fazoviy figuralar: piramida, konus',''],['Ma’lumotlarni turli ko‘rinishda ifodalash',''],['Tenglamaga olib kelinadigan masalalar','wpeq'],['Ikki qadamli va ikki amalli masalalar','wp3']]],
- ['3-sinfda o‘tilganlarni takrorlash',[['O‘tilganlarni takrorlash','mix3']]]],
-4:[['3-sinfda o‘tilganlarni takrorlash',[['O‘n ming ichida raqamlash va arifmetik amallar','as10000'],['Tengsizliklarni tanlash usuli bilan yechish','ineq']]],
- ['1 dan 1 000 000 gacha sonlarni raqamlash',[['Pozitsion va nopozitsion sanoq sistemalari',''],['Birlar, minglar va millionlar sinfi','classes'],['Ko‘p xonali sonlarni o‘qish va yozish','place6'],['Million ichida ko‘p xonali sonlarni taqqoslash','cmp6'],['Million ichida qo‘shish va ayirish (ustun usulida)','as6'],['Yassi va fazoviy shakllar',''],['Qirqma shakllar, buklanadigan ko‘pburchaklar','']]],
- ['Tenglamalar, tengsizliklar, kattaliklar',[['Qo‘shishning o‘rin almashtirish va guruhlash xossalari','group4'],['Natijani tekshirish usullari','chk4'],['Tenglamalar','eq4'],['Tengsizliklar','ineq4'],['Miqdorlarni qo‘shish va ayirish','qtyadd'],['O‘rta arifmetik qiymatni topish','avg'],['Massa birliklari orasidagi munosabatlar','mass4'],['Geometrik mazmundagi amaliy masalalar','rectform'],['Mulohazalar','truefalse']]],
- ['Million ichida ko‘paytirish va bo‘lish. Formulalar. Shkalalar',[['Bir xonali songa ko‘paytirish va bo‘lish','m6x1'],['Ikki xonali songa ko‘paytirish va bo‘lish','m2big'],['Uch xonali songa ko‘paytirish algoritmi','m3big'],['Uch xonali songa bo‘lish','d3big'],['Oxiri nol bilan tugaydigan sonlarni ko‘paytirish va bo‘lish','zeros'],['Tenglamalarni yechish','eq4'],['Formulalar (to‘g‘ri to‘rtburchak perimetri va yuzi)','rectform'],['Shkalalar','scale'],['Sonli ifodalarning qiymatini hisoblash; amallar tartibi','order4'],['Miqdorlarni songa ko‘paytirish va bo‘lish','qtymul'],['Harakatga doir masalalar: tezlik, vaqt, masofa','motion']]],
- ['Kasrlar',[['Oddiy kasrlar','properfr'],['Sonning kasrini topish','fracof4'],['Kasriga ko‘ra sonni topish','numbyfr'],['Kasrlarni taqqoslash','frcmp4'],['Kasrlarni qo‘shish va ayirish','fradd'],['O‘nli kasrlar','dec4'],['To‘plamlar; Eyler-Venn diagrammasi','venn']]],
- ['Koordinata to‘ri. Fazoviy shakllar',[['Nuqta koordinatasi','coord'],['Koordinata burchagi','coord'],['Ko‘pyoq','poly'],['To‘g‘ri burchakli parallelepiped','box'],['Kub','cube'],['Yuz o‘lchov birliklari','areaunits4'],['Hajm o‘lchov birliklari','volunits']]],
- ['Ma’lumotlarni grafik, diagramma va jadvallarda ifodalash',[['Grafiklar',''],['Ma’lumotlarni tasvirlash usullari',''],['Simmetrik shakllar; burish simmetriyasi','']]],
- ['4-sinfda o‘tilganlarni takrorlash',[['O‘tilganlarni takrorlash','mix4']]]],
-};
-
-// O'qituvchi uchun qisqa tushuntirish: mavzuni bolaga qanday yetkazish
-const TX={
- as20:'Bolaga sonni “o‘nlikkacha to‘ldirish” usulini ko‘rsating: 8 + 5 = 8 + 2 + 3 = 13. Ayirishni qo‘shishga teskari amal sifatida tushuntiring: 13 − 5 = ?, chunki 5 + ? = 13.',
- sameval:'Turli ifodalar bir xil qiymat berishi mumkinligini ko‘rsating. Ifodalarni hisoblab, natijalarni yonma-yon yozdiring. Bir qo‘shiluvchi qancha oshsa, ikkinchisi shuncha kamaysa — yig‘indi o‘zgarmaydi.',
- chkadd:'Qoida: yig‘indidan bitta qo‘shiluvchini ayirsak, ikkinchi qo‘shiluvchi chiqadi. Bolalar har bir misolni yechgandan keyin teskari amal bilan tekshirishni odat qilsin.',
- chksub:'Qoida: ayirmaga ayriluvchini qo‘shsak, kamayuvchi chiqadi. Tekshirish — xatoni o‘zi topishni o‘rgatadi, buni har darsda talab qiling.',
- perim:'Perimetr — shaklni aylanib chiqqan yo‘l uzunligi. Avval ip yoki chizg‘ich bilan shakl atrofini o‘lchab ko‘rsating, keyin barcha tomonlarni qo‘shish qoidasiga o‘ting.',
- numline:'Sonlar o‘qini sinf polida yoki doskada chizing. Bola “qadam” bilan yurib qo‘shish va ayirishni his qilsin: o‘ngga — qo‘shish, chapga — ayirish.',
- add100:'Avval birliklar qo‘shiladi. 10 dan oshsa, 10 ta birlik 1 ta o‘nlikka aylanib o‘nliklarga qo‘shiladi. Cho‘p dastalari (o‘nliklar) va alohida cho‘plar bilan ko‘rsatish samarali.',
- sub100:'Birliklardan ayirib bo‘lmasa, 1 ta o‘nlikni “bo‘zamiz” — u 10 ta birlikka aylanadi. Cho‘p dastasini yechib ko‘rsating. Ustun usulida o‘nlik ustiga nuqta qo‘ydiring.',
- tens:'Har bir ikki xonali son o‘nlik va birliklardan tuzilgan: 47 = 4 o‘nlik 7 birlik. Pul (10 so‘mlik va 1 so‘mlik) bilan o‘yin juda yaxshi ishlaydi.',
- wp2:'Masalani rasm yoki chizma bilan ko‘rsating. Har bir savolga “nima ma’lum, nima so‘ralgan?” deb javob berdiring. Tarkibli masalani 1) va 2) savollarga bo‘lib yechish odat bo‘lsin.',
- wpdiff:'“Nechta ko‘p / nechta kam” degan savol — ayirish bilan yechiladi. Ikki qatorga kartochkalarni juftlab qo‘yib, ortib qolganlarini sanab ko‘rsating.',
- seq:'Qonuniyatni topish uchun qo‘shni sonlar orasidagi farqni hisoblating. Keyin bolaning o‘zi ketma-ketlik o‘ylab, sherigiga topdirsin.',
- time2:'1 soat = 60 minut. Haqiqiy soat yoki karton soat bilan ishlang. Soat va minutni minutga o‘tkazishda: soatni 60 ga ko‘paytirib, minutni qo‘shamiz.',
- motion2:'Tezlik — 1 soatda bosilgan yo‘l. Masofa = tezlik · vaqt. Sonlar o‘qida har soat uchun bir xil “sakrash” chizib ko‘rsating.',
- rectper:'To‘g‘ri to‘rtburchakning qarama-qarshi tomonlari teng. Shuning uchun P = (bo‘yi + eni) · 2. Avval to‘rt tomonni qo‘shtirib, keyin qisqa formulaga o‘ting.',
- sqper:'Kvadratning to‘rttala tomoni teng: P = tomon · 4. Teskari masala: perimetr ma’lum bo‘lsa, tomon = P : 4.',
- unkadd:'Komponentlar bog‘lanishini “uycha” sxemasida ko‘rsating: yuqorida butun, pastda ikki qism. Noma’lum qism = butun − ma’lum qism; noma’lum butun = qismlar yig‘indisi.',
- repadd:'Ko‘paytirish — bir xil qo‘shiluvchilarni qisqa yozish. 3 + 3 + 3 + 3 = 3 · 4: 3 — qaysi son qo‘shilyapti, 4 — necha marta. Guruhlardagi buyumlarni sanab ko‘rsating.',
- letter2:'Harf — “quti”, uning ichiga son qo‘yiladi. Ifodaga harf o‘rniga sonni qo‘yib hisoblash odat bo‘lsin. Bir ifodani turli qiymatlar bilan hisoblating.',
- mulnames:'a · b = c: a va b — ko‘paytuvchilar, c — ko‘paytma. Nomlarni har bir misolda aytib o‘ting, keyin bolalar bir-birini sinasin.',
- unkall:'Har bir amal uchun teskari amalni eslating: noma’lum ko‘paytuvchi = ko‘paytma : ma’lum ko‘paytuvchi; noma’lum bo‘linuvchi = bo‘linma · bo‘luvchi; noma’lum bo‘luvchi = bo‘linuvchi : bo‘linma.',
- divmean:'Bo‘lish — teng taqsimlash. Buyumlarni bolalarga “bittadan” tarqatib ko‘rsating: hammaga teng tekkach, har biridagini sanaymiz. Shu bo‘linma.',
- wpmul:'“Har birida … tadan” degan so‘z — ko‘paytirishga, “teng bo‘lishdi”, “… tadan joyladilar” — bo‘lishga ishora. Masalani jadval (soni — har birida — jami) bilan yozdiring.',
- muldivrel:'Bitta ko‘paytirish misolidan ikkita bo‘lish misoli tuziladi: 4 · 6 = 24, demak 24 : 4 = 6 va 24 : 6 = 4. “Uchlik” kartochkalari bilan o‘ynating.',
- unkfac:'x · 6 = 42 da x — noma’lum ko‘paytuvchi. Uni topish uchun ko‘paytmani ma’lum ko‘paytuvchiga bo‘lamiz: 42 : 6 = 7. Javobni o‘rniga qo‘yib tekshirtiring.',
- unkdvd:'x : 4 = 7 da x — noma’lum bo‘linuvchi. Bo‘linmani bo‘luvchiga ko‘paytiramiz: 7 · 4 = 28. Tekshirish: 28 : 4 = 7.',
- mm:'1 sm = 10 mm. Chizg‘ichdagi eng kichik bo‘lakchalarni ko‘rsating. Qalamning, o‘chirg‘ichning uzunligini mm da o‘lchatib yozdiring.',
- m0110:'Uch qoida: songa 0 ni ko‘paytirsak — 0; 1 ga ko‘paytirsak yoki bo‘lsak — son o‘zgarmaydi; 10 ga ko‘paytirsak — oxiriga 0 qo‘shiladi. 0 ga bo‘lish mumkin emasligini alohida ta’kidlang.',
- order2:'Amallar tartibi: avval qavs ichidagisi, keyin ko‘paytirish va bo‘lish, oxirida qo‘shish va ayirish. Har amal ustiga tartib raqamini yozdiring (1, 2, 3).',
- mtall:'Jadvalni yodlashdan oldin ma’nosini tushuntiring. Har kuni 3–5 daqiqa og‘zaki “tez hisob” o‘tkazing. Bo‘lishni ko‘paytirish orqali toptiring: 42 : 6 = ?, chunki 6 · 7 = 42.',
- mtmul:'Ko‘paytirish jadvalini ustunlar bo‘yicha emas, “qo‘shni” misollar orqali o‘rgating: 7 · 8 ni bilmasa, 7 · 7 = 49 ga yana 7 qo‘shsin.',
- mtdiv:'Bo‘lish jadvali — ko‘paytirish jadvalining teskarisi. 56 : 8 = ? deganda “8 ni nechaga ko‘paytirsak 56 bo‘ladi?” deb so‘rang.',
- wpmul2:'Tarkibli masalani qadamlarga bo‘ling: avval ko‘paytirish bilan bitta qism topiladi, keyin qo‘shiladi yoki ayriladi. Har qadamga savol yozdiring.',
- unitfr:'Sonning ulushi — sonni teng qismlarga bo‘lib, bitta qismini olish. 12 ning to‘rtdan biri = 12 : 4. Non, olma yoki qog‘oz doirani bo‘lib ko‘rsating.',
- frword:'Ulush 1/4 ko‘rinishida yoziladi: pastdagi son — nechta teng qismga bo‘lingani, yuqoridagi 1 — bitta qism olingani. Qog‘oz bukib, bo‘yatib ko‘rsating.',
- logic2:'Muammoli masalalarni chizma bilan yechdiring. Shoshilmasdan “agar shunday bo‘lsa…” deb fikrlashni o‘rgating. To‘g‘ri javobga kelgan bolaga usulini sinfga tushuntirib berdiring.',
- rem:'Qoldiqli bo‘lishda qoldiq har doim bo‘luvchidan kichik bo‘ladi. Tekshirish: bo‘linma · bo‘luvchi + qoldiq = bo‘linuvchi. Cho‘plarni guruhlarga ajratib, ortganini ko‘rsating.',
- area:'Yuz — shakl egallagan joy. Katakli qog‘ozda 1 sm² kvadratchalarni sanatib boshlang, keyin to‘g‘ri to‘rtburchak uchun qisqa yo‘l: S = bo‘yi · eni.',
- place3:'Uch xonali son: yuzliklar, o‘nliklar, birliklar. Xona jadvalini chizib, har raqamni o‘z katagiga qo‘ydiring. 0 raqami “bu xonada hech narsa yo‘q” degani.',
- expand3:'352 = 300 + 50 + 2. Har bir raqam o‘z xonasiga qarab qiymat oladi. Kartochkalarni ustma-ust qo‘yib son yasash usulidan foydalaning.',
- cmp3:'Sonlar chapdan, katta xonadan boshlab solishtiriladi: avval yuzliklar, teng bo‘lsa o‘nliklar, keyin birliklar. Belgining “og‘zi” katta son tomonga ochiladi.',
- km:'1 km = 1000 m. Maktabdan biror ma’lum joygacha bo‘lgan masofani misol qiling. Km va m ni metrga o‘tkazishda kilometrni 1000 ga ko‘paytiramiz.',
- units1000:'10 birlik = 1 o‘nlik, 10 o‘nlik = 1 yuzlik, 10 yuzlik = 1 minglik. Xona jadvalida har qadam chapga 10 marta kattalashishini ko‘rsating.',
- as1000:'Uch xonali sonlarni qo‘shish-ayirishda ustun usuli: xonalar tagma-tag yoziladi, birliklardan boshlanadi. O‘tishlar (o‘nlik, yuzlik) uchun kichik nuqta qo‘ydiring.',
- circle:'Aylana — chiziq, doira — uning ichi bilan birga. Radius — markazdan aylanagacha, diametr — markaz orqali o‘tgan, ikki radiusga teng. Sirkul bilan chizdiring.',
- partwhole:'Butun va qism: qism ma’lum bo‘lsa, butunni topish uchun qismni qismlar soniga ko‘paytiramiz. Chizmada kesmani teng bo‘laklarga bo‘lib ko‘rsating.',
- group:'Guruhlash xossasi: qo‘shiluvchilarni qulay juftlab qo‘shish mumkin. 10, 20, 100 hosil qiluvchi juftlarni topishni o‘rgating.',
- subsum:'Sondan yig‘indini ayirish uchun qo‘shiluvchilarni birin-ketin ayirish mumkin: 80 − (15 + 5) = 80 − 15 − 5. Qaysi yo‘l qulayligini bolalarning o‘zi tanlasin.',
- commute:'Ko‘paytuvchilar o‘rnini almashtirish ko‘paytmani o‘zgartirmaydi: 3 · 8 = 8 · 3. Qatorlarni ustun qilib burib ko‘rsating. Bu jadvalni yarmigacha qisqartiradi.',
- fracof3:'Sonning kasrini topish: sonni maxrajga bo‘lib, suratga ko‘paytiramiz. Kasriga ko‘ra sonni topish: berilgan sonni suratga bo‘lib, maxrajga ko‘paytiramiz. Kesma chizib ko‘rsating.',
- logic3:'Kombinatorik masalalarni jadval yoki “daraxt” chizib yechdiring — barcha variantlar ko‘zga ko‘rinadi va hech biri tushib qolmaydi.',
- rmul:'20 · 3 = 2 o‘nlik · 3 = 6 o‘nlik = 60. Yumaloq sonlarni “o‘nliklar” bilan ko‘paytirishni og‘zaki mashq qildiring.',
- rdiv:'60 : 3 = 6 o‘nlik : 3 = 2 o‘nlik = 20. 100 : 2 ni 10 o‘nlik : 2 deb tushuntiring.',
- rdiv2:'90 : 30 — “30 ni nechaga ko‘paytirsak 90 bo‘ladi?” deb tanlash usuli bilan toptiring. Bu 9 : 3 bilan bir xil natija.',
- distr:'Yig‘indini songa ko‘paytirishda har bir qo‘shiluvchini ko‘paytirib, natijalarni qo‘shamiz: (20 + 3) · 4 = 80 + 12. Bu 23 · 4 ni og‘zaki hisoblashning asosi.',
- m2x1:'23 · 4 ni xona qo‘shiluvchilariga ajratamiz: 20 · 4 + 3 · 4 = 80 + 12 = 92. Avval og‘zaki, keyin ustun usulida.',
- sumdiv:'Yig‘indini songa bo‘lish: har bir qo‘shiluvchini bo‘lib, natijalarni qo‘shamiz. Qo‘shiluvchilarni bo‘linadigan qilib tanlashni o‘rgating: 72 = 60 + 12.',
- d2by1:'72 : 4 ni qulay qo‘shiluvchilarga ajratamiz: 72 = 40 + 32, 40 : 4 + 32 : 4 = 10 + 8 = 18. Tekshirish ko‘paytirish bilan.',
- chkdiv:'Bo‘lishni ko‘paytirish bilan, ko‘paytirishni bo‘lish bilan tekshiramiz. Har bir yozma misoldan keyin tekshiruvni qisqa yozdirish odat bo‘lsin.',
- d2by2:'Ikki xonali songa bo‘lishda bo‘linmani tanlash usuli bilan topamiz: 84 : 21 — 21 · 4 = 84. Avval bo‘linmani taxmin qilish, keyin tekshirish.',
- mul3f:'Ko‘p ko‘paytuvchida qulay juftlarni topamiz: 25 · 4 = 100, 5 · 2 = 10, 2 · 5 = 10. Avval shularni ko‘paytirib, hisob yengillashadi.',
- m100:'100 ga ko‘paytirishda oxiriga ikkita 0 qo‘shiladi, 100 ga bo‘lishda ikkita 0 olib tashlanadi.',
- rmul3:'200 · 3 = 2 yuzlik · 3 = 6 yuzlik = 600. Og‘zaki hisobda sonni yuzliklar yoki o‘nliklar bilan aytishni o‘rgating.',
- rmul3b:'320 · 3 = 32 o‘nlik · 3 = 96 o‘nlik = 960. Avval nolsiz ko‘paytirib, keyin 0 ni qo‘shamiz.',
- rdiv3:'490 : 7 = 49 o‘nlik : 7 = 7 o‘nlik = 70. Jadval bilimini o‘nliklarga qo‘llaymiz.',
- rdiv4:'600 : 20 — ikkalasidan bir xil nolni olib tashlaymiz: 60 : 2 = 30. 900 : 300 = 9 : 3 = 3.',
- rdiv5:'240 : 30 = 24 : 3 = 8. Bo‘luvchi va bo‘linuvchidan bir xil miqdorda nol olib tashlansa, bo‘linma o‘zgarmaydi.',
- m3x1:'Ustun usulida birliklardan boshlab ko‘paytiramiz. 10 dan oshgan qismni yuqori xonaga “eslab qolamiz” va keyingi xona ko‘paytmasiga qo‘shamiz.',
- d3by1:'Burchak usulida bo‘lish: yuzliklarni bo‘lamiz, qoldiqni o‘nliklarga qo‘shamiz, so‘ng birliklar. Har qadam: bo‘l — ko‘paytir — ayir — tushir.',
- d3by1b:'Birinchi raqam bo‘luvchidan kichik bo‘lsa, birinchi to‘liqsiz bo‘linuvchini ikki raqamdan olamiz. Avval bo‘linmada nechta raqam bo‘lishini aniqlash xatoni kamaytiradi.',
- d3by1z:'Bo‘linmada 0 chiqishi mumkin: tushirilgan raqam bo‘luvchidan kichik bo‘lsa, bo‘linmaga 0 yoziladi. Bolalar ko‘pincha shu 0 ni tushirib qoldiradi — alohida e’tibor bering.',
- divisors:'Bo‘luvchi — sonni qoldiqsiz bo‘ladigan son. Karrali — shu songa qoldiqsiz bo‘linadigan son. 1 dan boshlab juftlab topish usulini ko‘rsating: 24 = 1·24 = 2·12 = 3·8 = 4·6.',
- m2x2:'23 · 14 = 23 · 4 + 23 · 10. Ustun usulida ikkinchi qator bir xona chapga surilib yoziladi. Shu siljishni rang bilan belgilating.',
- tri:'Uchburchaklar tomonlariga ko‘ra: teng tomonli, teng yonli, turli tomonli; burchaklariga ko‘ra: o‘tkir, to‘g‘ri, o‘tmas burchakli. Qog‘ozdan kesib, guruhlarga ajratdiring.',
- order3:'Amallar algoritmi: 1) qavs, 2) ko‘paytirish va bo‘lish chapdan o‘ngga, 3) qo‘shish va ayirish chapdan o‘ngga. Har amalning tartib raqamini ustiga yozdiring.',
- wp3:'Murakkab masalada reja tuzdiring: nima ma’lum, nima so‘ralgan, qaysi amal birinchi. Qisqa shartni jadval yoki chizma ko‘rinishida yozish yechimni ochib beradi.',
- place4:'To‘rt xonali sonda mingliklar xonasi qo‘shiladi: 3 452 = 3 ming 4 yuz 5 o‘n 2. Ming ichidagi sonlarni o‘qishda guruhlab (3 ming 452) o‘qishni o‘rgating.',
- expand4:'4 735 = 4 000 + 700 + 30 + 5. Xona jadvali va kartochkalar bilan ishlang. Nol bor joyda qo‘shiluvchi tushib qolishini ko‘rsating: 4 035 = 4 000 + 30 + 5.',
- cmp4:'Avval xonalar soni solishtiriladi, teng bo‘lsa chapdan boshlab raqamlar. Ko‘p xonali son har doim katta.',
- as10000:'Ustun usuli to‘rt xonali sonlarda ham xuddi shunday: xonalar tagma-tag, birliklardan boshlab, o‘tishlarni belgilab.',
- roman:'Rim raqamlari: I = 1, V = 5, X = 10. Kichik raqam kattaning o‘ngida — qo‘shiladi (VI = 6), chapida — ayriladi (IV = 4). Soat siferblati va kitob boblarini misol qiling.',
- m4x1:'Ko‘p xonali sonni bir xonali songa ustun usulida ko‘paytiring. Xonadan o‘tish raqamlarini mayda yozib, keyin qo‘shish xatoni kamaytiradi.',
- d4by1:'Ko‘p xonali sonni bo‘lishda avval bo‘linmaning xonalar sonini aniqlating, keyin burchak usulida bo‘lish. Javobni ko‘paytirish bilan tekshirish majburiy.',
- len:'Uzunlik birliklari: 1 sm = 10 mm, 1 dm = 10 sm, 1 m = 100 sm, 1 km = 1000 m. Birlik jadvalini sinf devoriga osib qo‘ying.',
- mass:'Massa birliklari: 1 kg = 1000 g, 1 s (sentner) = 100 kg, 1 t = 1000 kg. Haqiqiy narsalarni (un qopi, shakar) misol qiling.',
- exprab:'Harfli ifodaga sonlarni qo‘yib hisoblash: avval ifodani qayta yozib, harflar o‘rniga sonni qo‘ydiring, keyin hisoblash.',
- exprmul:'a · b ifodada a va b o‘rniga sonlar qo‘yiladi. Bitta ifodani bir necha qiymatlar jadvali bilan hisoblating.',
- exprdiv:'a : b ifodada b hech qachon 0 bo‘la olmaydi. Qiymatlar jadvalini to‘ldirish mashqini bering.',
- truefalse:'Mulohaza — rost yoki yolg‘on bo‘lishi mumkin bo‘lgan gap. Har birini hisoblab tekshirishni o‘rgating, keyin bolalar o‘zlari mulohaza tuzib sinfdoshidan so‘rasin.',
- ineq:'Tengsizlikning yechimi — uni rost qiladigan son. Sonlar o‘qida tengsizlikni bo‘yab ko‘rsating. “Katta emas” (≤) va “kichik emas” (≥) belgilarini alohida tushuntiring.',
- frread:'Kasr — butunning teng qismlari. Maxraj — nechta teng qismga bo‘lingan, surat — nechta qism olingan. Pitsa yoki qog‘oz doira bilan ko‘rsating.',
- properfr:'To‘g‘ri kasrda surat maxrajdan kichik (1 dan kichik), noto‘g‘ri kasrda surat maxrajdan katta yoki teng (1 ga teng yoki katta).',
- mixed:'Noto‘g‘ri kasrni aralash songa o‘tkazish: suratni maxrajga bo‘lamiz, bo‘linma — butun qism, qoldiq — yangi surat.',
- frcmpden:'Maxrajlari bir xil bo‘lsa, bo‘laklar bir xil kattalikda — qaysida ko‘p bo‘lak olingan bo‘lsa, o‘sha katta.',
- frcmpnum:'Suratlari bir xil bo‘lsa, kichik maxrajli kasr katta: butunni kam bo‘lakka bo‘lsak, har bo‘lak katta bo‘ladi. Pitsani 4 va 8 bo‘lakka bo‘lib solishtiring.',
- frhalf:'Kasrni yarim bilan solishtirish: maxrajning yarmini toping. Surat undan katta bo‘lsa — yarimdan katta.',
- fradd:'Maxrajlari bir xil kasrlarni qo‘shishda suratlar qo‘shiladi, maxraj o‘zgarmaydi. Eng ko‘p uchraydigan xato — maxrajlarni ham qo‘shish. Rasmda ko‘rsating.',
- areaunits:'Yuz birliklari: 1 dm² = 100 sm², 1 m² = 100 dm². 1 dm² kvadratni qog‘ozdan kesib, ichida 100 ta sm² borligini sanatib ko‘rsating.',
- timeunits:'1 minut = 60 sekund, 1 soat = 60 minut, 1 sutka = 24 soat, 1 hafta = 7 kun, 1 yil = 12 oy. Kundalik hayotdan misollar bilan mustahkamlang.',
- calendar:'Oylardagi kunlar sonini “musht” usuli bilan eslash mumkin: bo‘rtiq — 31 kun, chuqurcha — 30 (fevral 28 yoki 29). Sinf taqvimi bilan ishlang.',
- angle:'Burchak transportir bilan gradusda o‘lchanadi. To‘g‘ri burchak = 90°, yoyiq burchak = 180°. Daftar burchagi — to‘g‘ri burchak namunasi.',
- dec:'O‘nli kasr — maxraji 10, 100 bo‘lgan kasrning qisqa yozuvi: 3/10 = 0,3. Vergul butun va kasr qismni ajratadi. Pul (so‘m va tiyin) misolida tushuntiring.',
- deccmp:'O‘nli kasrlarni solishtirishda verguldan keyingi raqamlar sonini tenglashtirish uchun oxiriga 0 qo‘shamiz: 0,7 = 0,70 > 0,65.',
- wpeq:'Masalani tenglama bilan yechish: noma’lumni x bilan belgilab, shartni tenglama qilib yozdiring. Bu 5-sinf algebrasining birinchi qadami.',
- classes:'Ko‘p xonali son o‘ngdan uchtadan sinflarga ajratiladi: birlar sinfi, minglar sinfi, millionlar sinfi. Yozishda sinflar orasida bo‘sh joy qoldiring: 425 300.',
- place6:'Ko‘p xonali sonni o‘qish: avval minglar sinfidagi sonni o‘qib “ming” deymiz, keyin birlar sinfini. Bo‘sh xonalarga 0 yozishni unutmaslikni o‘rgating.',
- cmp6:'Ko‘p xonali sonlarni solishtirish: avval xonalar soni, keyin chapdan boshlab har bir raqam.',
- as6:'Million ichida ustun usuli: sinflar orasida bo‘sh joy qoldirib, xonalarni aniq tagma-tag yozdiring.',
- group4:'O‘rin almashtirish va guruhlash xossalari hisobni yengillashtiradi: yig‘indisi 100, 1000 bo‘ladigan sonlarni avval qo‘shamiz.',
- chk4:'Har bir amalni teskari amal bilan tekshirish mumkin. Tekshirishni yozma ishning majburiy qismi qiling.',
- eq4:'Tenglamani yechishda noma’lum komponentni topish qoidasini qo‘llaymiz. Javobni tenglamaga qo‘yib tekshirish — tenglama yechishning oxirgi qadami.',
- ineq4:'Tengsizlikni yechish: avval tenglama sifatida chegarani topamiz, keyin qaysi tomoni mos kelishini sonlar o‘qida ko‘rsatamiz.',
- qtyadd:'Miqdorlarni qo‘shishda avval bir xil birlikka o‘tkazamiz (kg va g → g), keyin qo‘shamiz.',
- avg:'O‘rta arifmetik: barcha sonlarni qo‘shib, sonlar soniga bo‘lamiz. Sinfning baholari yoki bo‘ylari misolida hisoblating.',
- mass4:'Massa birliklari orasidagi munosabatlarni jadvalda takrorlang: t → s → kg → g. Har qadamda necha marta ekanini yozdiring.',
- rectform:'Formulalar: P = 2 · (a + b), S = a · b. Yuz va bitta tomon ma’lum bo‘lsa, ikkinchi tomon = S : a. Xona, bog‘ o‘lchamlari bilan amaliy masalalar tuzing.',
- m6x1:'Ko‘p xonali sonni bir xonali songa ustun usulida ko‘paytirish. Har xonadagi o‘tishni mayda yozing va qo‘shishni unutmang.',
- m2big:'Ikki xonali songa ko‘paytirishda ikkita to‘liqsiz ko‘paytma topiladi, ikkinchisi bir xona chapga suriladi. Bo‘lishda bo‘linma raqamlarini taxmin qilib, tekshiring.',
- m3big:'Uch xonali songa ko‘paytirishda uchta to‘liqsiz ko‘paytma, har biri bir xona chapga suriladi. Chiziqlarni katakli daftarda aniq tagma-tag yozish muhim.',
- d3big:'Uch xonali songa bo‘lishda bo‘luvchini yumaloqlab, bo‘linma raqamini taxmin qiling (345 ≈ 300). Taxminni ko‘paytirib tekshirib, kerak bo‘lsa tuzating.',
- zeros:'Oxiri nol bilan tugaydigan sonlarni ko‘paytirishda nollarni chetga olib, qolgan sonlarni ko‘paytiramiz va nollarni oxiriga qo‘shamiz: 300 · 40 = 12 · 1000 = 12 000.',
- scale:'Masshtab 1 : 1000 — xaritadagi 1 sm haqiqatda 1000 sm (10 m) degani. Maktab hovlisi rejasini chizdirish yaxshi amaliy mashq.',
- order4:'Murakkab ifodada har amal ustiga tartib raqamini yozdiring, keyin birma-bir hisoblating. Oraliq natijalarni alohida yozish xatoni kamaytiradi.',
- qtymul:'Miqdorni songa ko‘paytirish: avval kichik birlikka o‘tkazamiz (3 kg 200 g = 3 200 g), keyin ko‘paytiramiz.',
- motion:'Harakat formulalari: s = v · t, v = s : t, t = s : v. Uchburchak sxemasida (s yuqorida, v va t pastda) ko‘rsating. Har masalada birliklarni yozdiring.',
- fracof4:'Sonning kasrini topish: son : maxraj · surat. Avval bitta ulushni topib, keyin kerakli ulushlar sonini olamiz.',
- numbyfr:'Kasriga ko‘ra sonni topish: berilgan son : surat · maxraj. Kesma chizmada bitta ulushni topish yo‘lini ko‘rsating.',
- frcmp4:'Turli maxrajli kasrlarni solishtirish uchun umumiy maxrajga keltiramiz yoki ikkalasini yarim, 1 bilan solishtiramiz.',
- dec4:'O‘nli kasrlarni qo‘shishda vergul vergul tagida yoziladi. 0,1 = 1/10, 0,01 = 1/100 ekanini doim eslatib turing.',
- venn:'Eyler–Venn diagrammasida ikki doira kesishgan joy — ikkalasiga tegishlilar. Ularni ikki marta sanab yubormaslik uchun yig‘indidan bir marta ayiramiz.',
- coord:'Nuqta koordinatasi (x; y): avval gorizontal o‘q bo‘yicha (abssissa), keyin vertikal (ordinata). “Avval yo‘lak bo‘ylab, keyin zinadan yuqoriga” deb eslating.',
- poly:'Ko‘pyoqning yoqlari, qirralari va uchlari. Kub va qutini qo‘lga olib sanatib ko‘rsating: kubda 6 yoq, 12 qirra, 8 uch.',
- box:'To‘g‘ri burchakli parallelepipedning hajmi: V = a · b · c. Kichik kubiklardan qurib, nechtasi sig‘ishini sanatib ko‘rsating.',
- cube:'Kubning hajmi: V = a · a · a. Kubning barcha qirralari teng, 12 ta qirra bor.',
- areaunits4:'Yuz birliklari: 1 m² = 100 dm² = 10 000 sm². Har qadam 100 marta, chunki ikkala tomon ham 10 marta kattalashadi.',
- volunits:'Hajm birliklari: 1 dm³ = 1000 sm³ = 1 litr, 1 m³ = 1000 dm³. Har qadam 1000 marta, chunki uchta o‘lcham 10 dan kattalashadi.',
- mix2:'Bu bo‘lim — 2-sinf mavzularini aralash takrorlash. Topshiriqda turli mavzulardan misollar tushadi, bolaning qaysi mavzuda qiynalishini aniqlashga yordam beradi.',
- mix3:'3-sinf mavzularidan aralash takrorlash. Natijalardan kim qaysi mavzuni qayta ko‘rishi kerakligini Tahlil bo‘limida ko‘ring.',
- mix4:'4-sinf mavzularidan aralash takrorlash — yil oxiri yoki chorak yakuni uchun qulay.',
-};
-for(let n=2;n<=9;n++)TX['mt'+n]=`${n} ga ko‘paytirish jadvalini avval qo‘shish orqali tuzdiring (${n}, ${2*n}, ${3*n}…), keyin yodlating. Bo‘lishni “${n} ni nechaga ko‘paytirsak … bo‘ladi?” degan savol bilan toptiring. Har kuni 2–3 daqiqa og‘zaki takrorlash eng samarali usul.`;
-
-// generator → bitta savol: {q, o[4], a, s, t}
-function makeQ(key,topic){const g=G[key];if(!g)return null;
-  for(let tries=0;tries<12;tries++){let r;try{r=g()}catch(e){continue}
-    if(!r||r.a==null)continue;const A=fN(r.a);
-    const ws=[...new Set((r.w||[]).map(fN))].filter(x=>x!==A&&x!=='NaN'&&x!=='undefined'&&!/-\d|NaN|undefined|Infinity/.test(x));
-    if(ws.length<1)continue;
-    const opts=shuf([A,...shuf(ws).slice(0,3)]);
-    return {q:r.q,o:opts,a:opts.indexOf(A),s:r.s||'',t:topic||''}}
-  return null}
-// bir xil savol ikki marta tushmasin
-function makeSet(key,topic,n){const out=[],seen=new Set();for(let i=0;i<n*6&&out.length<n;i++){const q=makeQ(key,topic);if(q&&!seen.has(q.q)){seen.add(q.q);out.push(q)}}return out}
-const topicList=g=>(MV[g]||[]).flatMap(([sec,ts],si)=>ts.map(([name,key],ti)=>({id:`${g}-${si+1}-${ti+1}`,sec,si,name,key,g})));
-const topicById=id=>{const g=+String(id).split('-')[0];return topicList(g).find(t=>t.id===id)||null};
-
-// ================================================================ SINF RAHBARI KABINETI
-// Bosh · Sinfim · Mavzular · Mashg'ulot · Sinovlar · Tahlil · Xabarlar
-I.book='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 7h7M9 11h5"/></svg>';
-I.test='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3M8.5 11l1.5 1.5L13 9.5M8.5 16.5h7"/></svg>';
-I.task='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></svg>';
-
-let ASG=null,ASG_AT=0,rSort='num',rq='',mvGrade=0,mvQ='',sinTab='rasmiy',msgF='all',msgQ='';
-const MVX={}; // mavzu sahifasidagi namuna misollar
-function loadAsg(force){if(!S||!['rahbar','ota'].includes(S.me.role))return;if(!force&&ASG&&Date.now()-ASG_AT<60000)return;ASG_AT=Date.now();
-  api('asg.list').then(d=>{ASG=d;render()}).catch(e=>{ASG=ASG||{rows:[],answers:[]};toast(e.message,true)})}
-const myCls=()=>S.classes[0];
-const uzSort=(a,b)=>a.name.localeCompare(b.name,'uz');
-const myKids=()=>X.st.filter(s=>s.class_id===myCls()?.id).sort(uzSort);
-const jNum=()=>{const m={};myKids().forEach((s,i)=>m[s.id]=i+1);return m}; // jurnal tartib raqami (alifbo bo'yicha)
-const hasPin=sid=>(S.kidPin||[]).includes(sid);
-const firstName=n=>{const p=String(n||'').trim().split(/\s+/);return p[1]||p[0]||''};
-const dd=d=>d?String(d).slice(0,10).split('-').reverse().join('.'):'';
-const pc=(c,n)=>n?Math.round(c/n*100):null;
-const pcColor=p=>p==null?'var(--surface2)':p>=80?'#cdeedd':p>=60?'#e3f2d4':p>=40?'#fbecc8':'#f8d6d9';
-const pcInk=p=>p==null?'var(--muted)':p>=80?'#17663c':p>=60?'#3f6b14':p>=40?'#8a5a00':'#a3242f';
-const asgTargets=a=>a.student_ids||myKids().map(s=>s.id);
-const asgAns=(aid,sid)=>(ASG?.answers||[]).find(x=>x.assignment_id===aid&&x.student_id===sid&&x.at);
-const asgDoneN=a=>asgTargets(a).filter(sid=>asgAns(a.id,sid)).length;
-function asgAvg(a,sids){const r=(sids||asgTargets(a)).map(sid=>asgAns(a.id,sid)).filter(Boolean);return r.length?Math.round(r.reduce((x,y)=>x+y.score/y.qn,0)/r.length*100):null}
-// mavzular bo'yicha natija: {topicId: {sid: [c,n]}}
-function topicStats(){const T={};(ASG?.rows||[]).forEach(a=>{(ASG.answers||[]).filter(x=>x.assignment_id===a.id&&x.at).forEach(x=>{
-  a.questions.forEach((q,i)=>{const t=q.t||a.topic;if(!t)return;const o=((T[t]=T[t]||{})[x.student_id]=T[t][x.student_id]||[0,0]);o[1]++;if(x.answers[i]===q.a)o[0]++})})});return T}
-function topicClassPct(T,t){let c=0,n=0;Object.values(T[t]||{}).forEach(([a,b])=>{c+=a;n+=b});return {p:pc(c,n),n}}
-function kidAsgAvg(sid){const r=(ASG?.answers||[]).filter(x=>x.student_id===sid&&x.at);return r.length?{p:Math.round(r.reduce((a,x)=>a+x.score/x.qn,0)/r.length*100),n:r.length}:null}
-const topicName=id=>topicById(id)?.name||'';
-const uzDate=()=>{const d=new Date();return `${['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'][d.getDay()]}, ${d.getDate()}-${['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr'][d.getMonth()]}`};
-const shortName=s=>s.length>34?s.slice(0,32)+'…':s;
-
-// ---------------- kichik bezaklar (umumiy CSS)
-(function(){const st=document.createElement('style');st.textContent=`
-.todo{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;text-align:left;border-bottom:1px solid var(--line)}
-.todo:last-child{border-bottom:0}.todo .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;font-size:17px}
-.todo .m{flex:1;min-width:0}.todo .n{font-weight:600}.todo .s{font-size:12.5px;color:var(--muted)}
-.qa2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.qa2 .btn{flex-direction:column;gap:4px;padding:14px 8px;font-size:13.5px;text-align:center;line-height:1.25}
-.qa2 .btn b{font-size:20px;line-height:1}
-.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;font-size:13px;font-weight:600;background:var(--surface2)}
-.chip button{font-size:15px;line-height:1;color:var(--muted)}
-.heat{overflow-x:auto}.heat table{border-collapse:separate;border-spacing:3px;font-size:12.5px}
-.heat th{font-weight:600;color:var(--muted);text-align:left;padding:4px 6px;white-space:nowrap}.heat th.v{writing-mode:vertical-rl;transform:rotate(180deg);height:110px;text-align:left;vertical-align:bottom;font-weight:500}
-.heat td{padding:6px 4px;text-align:center;border-radius:6px;font-variant-numeric:tabular-nums;font-weight:600;min-width:34px}
-.heat td.nm{text-align:left;background:none;font-weight:500;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis}
-.qcard{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
-.qcard .qt{font-size:16.5px;white-space:pre-wrap}.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.opt{padding:11px 10px;border-radius:11px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;text-align:left;display:flex;gap:8px;align-items:center}
-.opt .L{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--surface2);font-size:12.5px;flex:none}
-.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}.opt.ok{border-color:#2f9e63;background:#dff3e7}.opt.no{border-color:var(--wrong);background:var(--wrong-soft)}
-.timer{position:sticky;top:0;z-index:3;background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;font-weight:700}
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:1px}
-.mcard{display:flex;align-items:flex-start;gap:12px;padding:14px;text-align:left;width:100%}
-.mcard .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:none}
-.mcard b{display:block;font-size:14.5px}.mcard small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;line-height:1.35}
-.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media (min-width:900px){.mgrid{grid-template-columns:repeat(4,1fr)}.qa2{grid-template-columns:repeat(4,1fr)}}
-.tabs.many .in{grid-auto-columns:1fr}
-.tabs.many button{font-size:9.5px;padding:8px 0 9px;letter-spacing:-.01em;min-width:0}.tabs.many button svg{width:21px;height:21px}
-@media (min-width:900px){.tabs.many button{font-size:15px}}
-.spark{width:100%;height:auto;display:block}
-.tline{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}.tline:last-child{border-bottom:0}
-.ex{padding:12px 14px;border-bottom:1px solid var(--line)}.ex:last-child{border-bottom:0}
-.ex .sol{margin-top:6px;font-size:13.5px;color:var(--accent-strong)}
-`;document.head.appendChild(st)})();
-
-// ================================================================ BOSH
-function scrRBosh(){const c=myCls();if(!c)return ['Bosh','',`<div class="card empty">Sinf biriktirilmagan</div>`];loadAsg();
-  const kids=myKids();const n=kids.length;const pinN=kids.filter(s=>hasPin(s.id)).length;
-  const rows=ASG?.rows||[];const act=rows.filter(a=>!a.due||a.due>=ASG.today);
-  const recent=rows.slice(0,8);const avgs=recent.map(a=>asgAvg(a)).filter(v=>v!=null);const avg=avgs.length?Math.round(avgs.reduce((a,b)=>a+b,0)/avgs.length):null;
-  const noPh=kids.filter(s=>!kidPhones(s).length).length,noInfo=kids.filter(s=>!hasInfo(s)).length;
-  const todo=[];
-  if(S.unread)todo.push(['💬','Javob kutayotgan xabarlar',`${S.unread} ta o’qilmagan`,'data-tab="xabar"','#e7e2ff']);
-  if(S.tgPending)todo.push(['🔑','PIN so’rovlari',`${S.tgPending} ta ota-ona Telegram orqali so’radi`,'data-act="tgReq"','#fde7cf']);
-  act.forEach(a=>{const left=asgTargets(a).length-asgDoneN(a);if(left>0)todo.push([a.kind==='sinov'?'🧪':'📝',a.title,`${left} ta bola hali bajarmagan${a.due?' · muddat '+dd(a.due):''}`,`data-go="asg:${a.id}"`,'#dff1ef'])});
-  const since=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
-  const its=(S.itests||[]).filter(t=>(t.day||'')>=since&&(t.class_id===c.id||(!t.class_id&&(!t.grade||t.grade===c.grade))));
-  its.forEach(t=>{const miss=kids.filter(s=>!IR(t.id,s.id)).length;if(miss&&miss<n+1)todo.push(['✎',`“${t.name}” ballari`,`${miss} ta bolaning bali kiritilmagan`,`data-go="itest:${t.id}"`,'#e5edff'])});
-  if(n-pinN)todo.push(['📲','PIN olmagan ota-onalar',`${n-pinN} ta ota-ona hali saytga kirmagan`,'data-go="pinless"','#ffe3e6']);
-  if(noPh)todo.push(['☎','Ota-ona telefoni yo’q',`${noPh} ta bolaniki kiritilmagan`,'data-go="phones"','#fff2c9']);
-  if(noInfo)todo.push(['🏠','Tug’ilgan yil va manzil',`${noInfo} ta bolaniki kiritilmagan`,'data-go="info"','#eef2f7']);
-  const T=topicStats();const weak=Object.keys(T).map(t=>({t,...topicClassPct(T,t)})).filter(x=>x.n>=5&&x.p!=null).sort((a,b)=>a.p-b.p).slice(0,3);
-  const t0=S.tests[0];const off=t0?(()=>{testId=t0.id;const p=present(kids);return {v:avgPct(kids),p:p.length,abs:kids.filter(s=>R(s.id)?.absent).length}})():null;
-  const hello=new Date().getHours()<11?'Xayrli tong':new Date().getHours()<17?'Assalomu alaykum':'Xayrli kech';
-  return [`${c.name} sinf`,`${S.schools[0]?.num}-maktab · sinf rahbari`,`
-  <div class="stage"><div class="slb">${uzDate()}</div><div class="t">${hello}, ${esc(firstName(S.me.name)||'ustoz')}!</div>
-   <div style="font-size:13.5px;opacity:.85">${c.name} sinfda ${n} ta o’quvchi. ${todo.length?`Bugun ${todo.length} ta ish kutmoqda.`:'Hamma ishlar joyida ✓'}</div></div>
-  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${[[n,'o’quvchi'],[`${pinN}/${n}`,'ota-ona saytda'],[act.length,'faol topshiriq'],[avg==null?'—':avg+'%','topshiriqlar o’rtachasi']].map(([v,l])=>`<div class="card kpi"><b>${v}</b><small>${l}</small></div>`).join('')}</div>
-  <section class="sec"><p class="label">Tezkor amallar</p><div class="qa2">
-   <button class="btn pri" data-ra="asgNew"><b>📝</b>Topshiriq berish</button>
-   <button class="btn sec" data-ra="classTest"><b>🧪</b>Sinfda sinov</button>
-   <button class="btn sec" data-act="compose" data-kind="sinf"><b>📢</b>Butun sinfga xabar</button>
-   <button class="btn sec" data-ra="sinovReq"><b>🎓</b>Rasmiy sinov so’rovi</button></div></section>
-  ${todo.length?`<section class="sec"><p class="label">Bugungi ishlar</p><div class="card list">${todo.slice(0,8).map(([ic,t,s,a,bg])=>`<button class="todo" ${a}><span class="ic" style="background:${bg}">${ic}</span><span class="m"><span class="n" style="display:block">${esc(t)}</span><span class="s" style="display:block">${esc(s)}</span></span>${I.chev}</button>`).join('')}</div></section>`:''}
-  ${weak.length?`<section class="sec"><p class="label">Sinf qiynalayotgan mavzular</p><div class="card list">${weak.map(w=>`<div class="row"><div class="m"><div class="n">${esc(shortName(topicName(w.t)))}</div><div class="bar"><i style="width:${w.p}%;background:${pcInk(w.p)}"></i></div></div><div class="num">${w.p}%</div><button class="btn sec sm" data-ra="asgNew" data-rv="${w.t}">Mashq</button></div>`).join('')}</div></section>`:''}
-  ${recent.length?`<section class="sec"><div class="sec-h"><p class="label">So’nggi topshiriqlar</p><button class="lnk" data-tab="mashq">Hammasi</button></div><div class="card list">${recent.slice(0,4).map(asgRow).join('')}</div></section>`:!ASG?'<div class="card empty">Yuklanmoqda…</div>':`<div class="card pad"><b>Birinchi topshiriqni bering</b><p class="note" style="margin:0">Mavzuni tanlang — sayt misollarni o’zi tuzadi. Bolalar ota-onasining telefonida yechadi, natija shu yerga keladi.</p><button class="btn pri" data-ra="asgNew">📝 Topshiriq berish</button></div>`}
-  ${off&&off.v!=null?`<button class="card row" data-tab="sinov" style="width:100%"><div class="m"><div class="s">Yosh Xorazmiylar · ${esc(t0.name)}</div><div class="n">Sinf o’rtachasi ${off.v}% · ${off.p} ta qatnashdi${off.abs?`, ${off.abs} ta kelmadi`:''}</div></div>${I.chev}</button>`:''}`]}
-function asgRow(a){const n=asgTargets(a).length,d=asgDoneN(a),v=asgAvg(a);
-  return `<button class="row" data-go="asg:${a.id}"><span class="ic" style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:${a.kind==='sinov'?'#fde7cf':'#dff1ef'};flex:none">${a.kind==='sinov'?'🧪':'📝'}</span><div class="m"><div class="n">${esc(a.title)}</div><div class="s">${dd(a.created_at)} · ${a.questions.length} savol${a.student_ids?` · ${n} ta bolaga`:''}${a.due?' · muddat '+dd(a.due):''}</div><div class="bar"><i style="width:${n?d/n*100:0}%"></i></div></div><div class="num">${d}/${n}<small>${v==null?'—':v+'%'}</small></div></button>`}
-
-// ================================================================ SINFIM (tartib raqami bilan)
-function scrRSinf(){const c=myCls();if(!c)return ['Sinfim','',''];loadAsg();
-  const t0=S.tests[0];if(t0)testId=t0.id;
-  return [`${c.name} sinf`,`${myKids().length} o’quvchi`,`
-  <label class="search">${I.search}<input id="rq" type="search" autocomplete="off" placeholder="Familiya yoki ism…" value="${esc(rq)}" aria-label="Qidirish"></label>
-  <div class="seg">${[['num','№ jurnal'],['ball','Natija'],['faol','Faollik']].map(([k,l])=>`<button data-ra="rsort" data-rv="${k}" aria-pressed="${rSort===k}">${l}</button>`).join('')}</div>
-  <div class="card list" id="rlist">${rList()}</div>
-  <p class="note" style="margin:0"><span class="dot" style="background:#2f9e63"></span>ota-ona saytda <span class="dot" style="background:var(--blank);margin-left:10px"></span>hali kirmagan. Tartib raqami alifbo bo’yicha, kelmaganlar ham raqamlanadi.</p>
-  ${rahbarPhones(c)}${rahbarInfo(c)}
-  ${t0&&present(myKids()).length?dlBtn('class',c.id):''}`]}
-function rList(){const num=jNum();let l=myKids();const t=norm(rq).trim();if(t)l=l.filter(s=>norm(s.name).split(' ').some(w=>t.split(/\s+/).every(x=>norm(s.name).includes(x))));
-  const off=s=>{const r=R(s.id);return !r?-2:r.absent?-1:pct(r)};
-  if(rSort==='ball')l=[...l].sort((a,b)=>off(b)-off(a)||uzSort(a,b));
-  if(rSort==='faol')l=[...l].sort((a,b)=>(kidAsgAvg(b.id)?.p??-1)-(kidAsgAvg(a.id)?.p??-1)||uzSort(a,b));
-  return l.map(s=>{const r=R(s.id);const k=kidAsgAvg(s.id);
-    const right=!r?'':r.absent?`<span class="pill gray">kelmadi</span>`:r.score==null?'':`<div class="num">${r.score}/${r.qn}<small>${pct(r)}%</small></div>`;
-    return `<button class="row" data-go="stu:${s.id}"><span class="rank" style="width:26px">${num[s.id]}</span>${avHtml(s.avatar,34,s.name,s.id)}<div class="m"><div class="n">${esc(s.name)}</div><div class="s"><span class="dot" style="background:${hasPin(s.id)?'#2f9e63':'var(--blank)'}"></span>${k?`topshiriqlar ${k.p}% (${k.n} ta)`:'topshiriq hali yo’q'}</div></div>${right}</button>`}).join('')||'<div class="empty">Topilmadi</div>'}
-
-// ================================================================ O'QUVCHI KARTASI (sinf rahbari uchun)
-function scrRStudent(id){const s=X.st.find(x=>x.id===id);if(!s)return ['Topilmadi','',''];loadAsg();
-  const num=jNum()[id];const pin=hasPin(id);
-  // natijalar tarixi: rasmiy, ichki, topshiriq
-  const hist=[];
-  S.tests.forEach(t=>{const r=R(id,t.id);if(r)hist.push({d:t.date||'',k:'Rasmiy',n:t.name,p:r.absent?null:pct(r),txt:r.absent?'kelmadi':`${r.score}/${r.qn}`,c:'#e7e2ff'})});
-  (S.itests||[]).forEach(t=>{const r=IR(t.id,id);if(r)hist.push({d:t.day||'',k:'Ichki',n:t.name,p:itPct(t,r),txt:r.absent?'kelmadi':`${r.score}/${t.qn}`,c:'#fde7cf',go:'itest:'+t.id})});
-  (ASG?.rows||[]).forEach(a=>{if(!asgTargets(a).includes(id))return;const x=asgAns(a.id,id);hist.push({d:(x?.at||a.created_at).slice(0,10),k:a.kind==='sinov'?'Online sinov':'Topshiriq',n:a.title,p:x?pc(x.score,x.qn):null,txt:x?`${x.score}/${x.qn}`:'bajarmagan',c:a.kind==='sinov'?'#ffe3e6':'#dff1ef',go:'asg:'+a.id})});
-  hist.sort((a,b)=>String(b.d).localeCompare(String(a.d)));
-  const pts=hist.filter(h=>h.p!=null).reverse();
-  const T=topicStats();const tops=Object.keys(T).filter(t=>T[t][id]).map(t=>({t,p:pc(...T[t][id]),n:T[t][id][1]})).sort((a,b)=>a.p-b.p);
-  const notes=(S.rnotes||[]).filter(n=>n.student_id===id);
-  return [s.name,`№ ${num} · ${s.cls} sinf`,`
-  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,68,s.name,s.id)}<div class="m" style="flex:1;min-width:0"><div class="n" style="font-weight:700;font-size:17px">${esc(s.name)}</div>
-   <div class="note">Jurnalda № ${num} · ${s.birth_year?s.birth_year+'-yil · ':''}${pin?'<span style="color:#2f9e63;font-weight:600">ota-ona saytda ✓</span>':'<span style="color:var(--wrong)">ota-ona hali saytga kirmagan</span>'}</div></div>
-   <button class="btn sec sm" data-act="kidAv" data-id="${s.id}">${s.avatar?'Surat':'Surat qo’yish'}</button></div>
-  <div class="qa2"><button class="btn pri" data-ra="asgNew" data-rs="${id}"><b>📝</b>Shu bolaga topshiriq</button>
-   <button class="btn sec" ${pin?`data-ra="writeParent" data-rs="${id}"`:'disabled'}><b>✉</b>Ota-onasiga yozish</button>
-   ${kidPhones(s)[0]?`<a class="btn sec" style="text-decoration:none;color:inherit;flex-direction:column;gap:4px;padding:14px 8px;font-size:13.5px" href="tel:+998${kidPhones(s)[0]}"><b>☎</b>Qo’ng’iroq</a>`:`<button class="btn sec" data-act="phoneEdit" data-id="${id}"><b>☎</b>Telefon kiritish</button>`}
-   <button class="btn sec" data-ra="noteFocus"><b>🗒</b>Izoh yozish</button></div>
-  ${pts.length>1?`<section class="sec"><p class="label">O’sish</p><div class="card pad">${spark(pts)}<div class="legend"><span><i style="background:#7c6bd6"></i>rasmiy</span><span><i style="background:#d9822b"></i>ichki</span><span><i style="background:var(--accent)"></i>topshiriq</span></div></div></section>`:''}
-  ${tops.length?`<section class="sec"><p class="label">Mavzular bo’yicha</p><div class="chips">${tops.map(x=>`<button class="chip" data-go="mv:${x.t}" style="background:${pcColor(x.p)};color:${pcInk(x.p)}">${esc(shortName(topicName(x.t)))} · ${x.p}%</button>`).join('')}</div>
-   ${tops[0]&&tops[0].p<60?`<button class="btn sec" data-ra="asgNew" data-rv="${tops[0].t}" data-rs="${id}">“${esc(shortName(topicName(tops[0].t)))}” bo’yicha mashq berish</button>`:''}</section>`:''}
-  <section class="sec"><p class="label">Natijalar tarixi</p><div class="card list">${hist.map(h=>`<${h.go?`button data-go="${h.go}"`:'div'} class="tline" style="width:100%;text-align:left"><span class="pill" style="background:${h.c};color:var(--fg)">${h.k}</span><div class="m" style="flex:1;min-width:0"><div class="n" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.n)}</div><div class="s note">${dd(h.d)}</div></div><div class="num">${esc(h.txt)}${h.p!=null?`<small>${h.p}%</small>`:''}</div></${h.go?'button':'div'}>`).join('')||'<div class="empty">Hali natija yo’q</div>'}</div></section>
-  <section class="sec"><p class="label">Izohlarim <span style="text-transform:none;letter-spacing:0;font-weight:500">· faqat siz ko’rasiz</span></p>
-   ${notes.map(n=>`<div class="card pad" style="gap:6px"><div style="white-space:pre-wrap">${esc(n.text)}</div><div class="note" style="display:flex;justify-content:space-between">${fmtDate(n.at)}<button class="lnk" data-ra="rnoteDel" data-rv="${n.id}" style="color:var(--wrong);padding:0">O’chirish</button></div></div>`).join('')}
-   <label class="field"><textarea id="rnText" placeholder="Masalan: ko’paytirish jadvalida 7 va 8 ni adashtiradi. Diqqati tez tarqaladi, oldingi partaga o’tkazdim." style="min-height:90px"></textarea></label>
-   <button class="btn sec" data-ra="rnoteSave" data-rs="${id}">Izohni saqlash</button></section>
-  <section class="sec"><p class="label">Ma’lumotlar</p><div class="card list">
-   <button class="row" data-act="phoneEdit" data-id="${id}"><div class="m"><div class="s">Ota-ona telefoni</div><div class="n">${kidPhones(s).map(ph).join(', ')||'—'}</div></div>${I.chev}</button>
-   <button class="row" data-act="infoEdit" data-id="${id}"><div class="m"><div class="s">Tug’ilgan yil · manzil</div><div class="n">${s.birth_year||'—'} · ${esc(s.address)||'—'}</div></div>${I.chev}</button></div></section>
-  ${moveBtn(s)}`]}
-function spark(pts){const W=600,H=120,p=14;const n=pts.length;const x=i=>p+(n<2?0:i*(W-2*p)/(n-1)),y=v=>H-p-(v/100)*(H-2*p);
-  const col=k=>k==='Rasmiy'?'#7c6bd6':k==='Ichki'?'#d9822b':'var(--accent)';
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" aria-label="Natijalar o‘zgarishi">${[25,50,75].map(v=>`<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="4 4"/>`).join('')}
-   <polyline fill="none" stroke="var(--navy)" stroke-opacity=".35" stroke-width="2" points="${pts.map((q,i)=>`${x(i)},${y(q.p)}`).join(' ')}" vector-effect="non-scaling-stroke"/>
-   ${pts.map((q,i)=>`<circle cx="${x(i)}" cy="${y(q.p)}" r="5" fill="${col(q.k)}" vector-effect="non-scaling-stroke"><title>${esc(q.n)}: ${q.p}%</title></circle>`).join('')}</svg>`}
-
-// ================================================================ MAVZULAR
-function scrRMavzu(){const own=myCls()?.grade;if(!mvGrade)mvGrade=MV[own]?own:2;loadAsg();
-  const T=topicStats();const q=norm(mvQ).trim();
-  const list=topicList(mvGrade).filter(t=>!q||norm(t.name).includes(q));
-  const secs=[...new Set(list.map(t=>t.si))];
-  return ['Mavzular',`${mvGrade}-sinf matematika · darslik bo’yicha`,`
-  <div class="seg">${[2,3,4].map(g=>`<button data-ra="mvg" data-rv="${g}" aria-pressed="${mvGrade===g}">${g}-sinf${g===own?' ✓':''}</button>`).join('')}</div>
-  <label class="search">${I.search}<input id="mvq" type="search" autocomplete="off" placeholder="Mavzu nomi…" value="${esc(mvQ)}" aria-label="Mavzu qidirish"></label>
-  <div id="mvlist">${mvList(list,secs,T)}</div>`]}
-function mvList(list,secs,T){return secs.map(si=>{const ts=list.filter(t=>t.si===si);return `<section class="sec"><p class="label">${si+1}. ${esc(ts[0].sec)}</p><div class="card list">${ts.map(t=>{const st=topicClassPct(T,t.id);
-  return `<button class="row" data-go="mv:${t.id}"><div class="m"><div class="n" style="font-weight:500">${esc(t.name)}</div><div class="s">${t.key?'Tushuntirish · misollar · avtomatik mashq':'Tushuntirish tayyorlanmoqda · o’z savollaringiz bilan topshiriq berish mumkin'}</div></div>${st.p!=null?`<span class="pill" style="background:${pcColor(st.p)};color:${pcInk(st.p)}">${st.p}%</span>`:''}${I.chev}</button>`}).join('')}</div></section>`}).join('')||'<div class="card empty">Topilmadi</div>'}
-function scrTopic(id){const t=topicById(id);if(!t)return ['Topilmadi','',''];loadAsg();
-  if(t.key&&!MVX[id])MVX[id]=makeSet(t.key,id,3);
-  const T=topicStats();const st=topicClassPct(T,id);const num=jNum();
-  const kids=myKids().filter(s=>T[id]?.[s.id]).map(s=>({s,p:pc(...T[id][s.id])})).sort((a,b)=>a.p-b.p);
-  return [t.name,`${t.g}-sinf · ${t.si+1}-bo’lim`,`
-  <div class="card pad" style="background:var(--accent-soft);border-color:transparent"><p class="label" style="color:var(--accent-strong)">Qanday tushuntirish</p>
-   <p style="margin:0;line-height:1.55">${esc(TX[t.key]||'Bu mavzu uchun tushuntirish hali yozilmagan. Loyiha jamoasidagi o’qituvchi uni tez orada qo’shadi. Hozircha topshiriqni o’zingiz yozgan savollar bilan berishingiz mumkin.')}</p></div>
-  ${t.key?`<section class="sec"><div class="sec-h"><p class="label">Namuna misollar</p><button class="lnk" data-ra="mvRe" data-rv="${id}">↻ Boshqalari</button></div>
-   <div class="card list">${MVX[id].map((q,i)=>`<div class="ex"><div style="font-weight:600">${i+1}. ${esc(q.q)}</div><div class="note" style="margin-top:4px">${q.o.map((o,k)=>`${'ABCD'[k]}) ${esc(o)}`).join('   ')}</div>
-    <details style="margin-top:6px"><summary class="lnk" style="cursor:pointer;padding:0">Javob va yechim</summary><div class="sol">To’g’ri javob: <b>${'ABCD'[q.a]}) ${esc(q.o[q.a])}</b>${q.s?`<br>${esc(q.s)}`:''}</div></details></div>`).join('')}</div></section>`:''}
-  <div class="qa2"><button class="btn pri" data-ra="asgNew" data-rv="${id}"><b>📝</b>Sinfga topshiriq</button>
-   <button class="btn sec" data-ra="classTest" data-rv="${id}"><b>🧪</b>Sinfda sinov</button>
-   ${t.key?`<button class="btn sec" data-ra="quickPrint" data-rv="${id}"><b>🖨</b>Varaq chop etish</button>`:''}
-   <button class="btn sec" data-ra="sinovReq" data-rv="${id}"><b>🎓</b>Rasmiy sinov so’rovi</button></div>
-  <section class="sec"><p class="label">Sinfim bu mavzuda${st.p!=null?` · o’rtacha ${st.p}%`:''}</p>
-   ${kids.length?`<div class="card list">${kids.map(({s,p})=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${num[s.id]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="bar"><i style="width:${p}%;background:${pcInk(p)}"></i></div></div><div class="num">${p}%</div></button>`).join('')}</div>`:'<div class="card empty">Bu mavzu bo’yicha hali topshiriq berilmagan</div>'}</section>`]}
-
-// ================================================================ TOPSHIRIQ YARATISH
-let AB=null;
-const genTopics=g=>topicList(g).filter(t=>t.key);
-function openAsgBuilder(o={}){const g=myCls()?.grade;const tl=genTopics(MV[g]?g:2);
-  AB={kind:o.kind||'mashq',topics:o.topic?[o.topic]:[],n:10,mode:o.students?'pick':'all',sids:new Set(o.students||[]),minutes:40,due:'',title:'',qs:[],own:null};
-  regenAB();drawAB()}
-function regenAB(){const per=AB.topics.length?Math.ceil(AB.n/AB.topics.length):0;let qs=[];
-  AB.topics.forEach(id=>{const t=topicById(id);if(t?.key)qs.push(...makeSet(t.key,id,per))});
-  qs=shuf(qs).slice(0,AB.n);AB.qs=[...AB.qs.filter(q=>q.mine),...qs];
-  if(!AB.titleEdited)AB.title=AB.topics.length===1?shortName(topicName(AB.topics[0])):AB.topics.length?`${AB.topics.length} mavzu bo’yicha ${AB.kind==='sinov'?'sinov':'mashq'}`:''}
-function syncAB(){const v=id=>$('#'+id)?.value;if(!$('#abTitle'))return;const tt=v('abTitle');if(tt!==AB.title)AB.titleEdited=true;AB.title=tt;AB.due=v('abDue')||'';AB.minutes=+v('abMin')||AB.minutes;
-  document.querySelectorAll('[data-abk]').forEach(c=>{const id=+c.dataset.abk;c.checked?AB.sids.add(id):AB.sids.delete(id)})}
-function drawAB(){const g=myCls()?.grade;const tl=genTopics(MV[g]?g:2);const num=jNum();
-  const secs=[...new Set(tl.map(t=>t.sec))];
-  openSheet(`<div class="sh-top"><div class="m"><h2>${AB.kind==='sinov'?'Online sinov':'Yangi topshiriq'}</h2><div class="s">Bolalar ota-onasining telefonida yechadi, natija sizga keladi</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-  <div class="seg"><button data-ra="abKind" data-rv="mashq" aria-pressed="${AB.kind==='mashq'}">📝 Mashg’ulot (uyga)</button><button data-ra="abKind" data-rv="sinov" aria-pressed="${AB.kind==='sinov'}">🧪 Online sinov (vaqtli)</button></div>
-  <p class="note" style="margin:0">${AB.kind==='sinov'?'Bola “Boshlash”ni bosgach vaqt ketadi. Javoblar oxirida ko’rinadi. Natija faqat sinf ichida qoladi.':'Bola istalgan vaqtda yechadi. Topshirgach to’g’ri javoblar va yechimlarni ko’radi.'}</p>
-  <label class="field"><span class="label">Mavzular</span><select id="abAdd"><option value="">+ Mavzu qo’shish…</option>${secs.map(sc=>`<optgroup label="${esc(sc)}">${tl.filter(t=>t.sec===sc).map(t=>`<option value="${t.id}" ${AB.topics.includes(t.id)?'disabled':''}>${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
-  ${AB.topics.length?`<div class="chips">${AB.topics.map(id=>`<span class="chip">${esc(shortName(topicName(id)))}<button data-ra="abDelT" data-rv="${id}" aria-label="Olib tashlash">×</button></span>`).join('')}</div>`:''}
-  <div><span class="label">Savollar soni</span><div class="seg" style="margin-top:6px">${[5,10,15,20].map(n=>`<button data-ra="abN" data-rv="${n}" aria-pressed="${AB.n===n}">${n}</button>`).join('')}</div></div>
-  <div><span class="label">Kimlarga</span><div class="seg" style="margin-top:6px"><button data-ra="abMode" data-rv="all" aria-pressed="${AB.mode==='all'}">Butun sinfga</button><button data-ra="abMode" data-rv="pick" aria-pressed="${AB.mode==='pick'}">Tanlangan bolalarga${AB.sids.size?` (${AB.sids.size})`:''}</button></div></div>
-  ${AB.mode==='pick'?`<div class="card list" style="max-height:280px;overflow:auto">${myKids().map(s=>`<label class="check"><input type="checkbox" data-abk="${s.id}" ${AB.sids.has(s.id)?'checked':''}><span class="rank">${num[s.id]}</span>${esc(s.name)}${hasPin(s.id)?'':' <span class="pill gray">PIN yo’q</span>'}</label>`).join('')}</div>`:''}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-   <label class="field"><span class="label">Nomi</span><input id="abTitle" value="${esc(AB.title)}" placeholder="Masalan: 7 ga ko’paytirish"></label>
-   ${AB.kind==='sinov'?`<label class="field"><span class="label">Vaqt (daqiqa)</span><input id="abMin" type="number" inputmode="numeric" min="5" max="120" value="${AB.minutes}"></label>`:`<label class="field"><span class="label">Muddat (ixtiyoriy)</span><input id="abDue" type="date" value="${AB.due}"></label>`}</div>
-  <section class="sec"><div class="sec-h"><p class="label">Savollar · ${AB.qs.length}</p>${AB.topics.length?`<button class="lnk" data-ra="abRe">↻ Yangilash</button>`:''}</div>
-   ${AB.qs.length?`<div class="card list">${AB.qs.map((q,i)=>`<div class="ex" style="display:flex;gap:10px"><div style="flex:1;min-width:0"><div style="font-weight:600">${i+1}. ${esc(q.q)}</div><div class="note">${q.o.map((o,k)=>`<span style="${k===q.a?'color:var(--accent-strong);font-weight:700':''}">${'ABCDE'[k]}) ${esc(o)}</span>`).join(' · ')}</div></div><button class="ib" style="width:30px;height:30px" data-ra="abDelQ" data-rv="${i}" aria-label="Savolni olib tashlash">${I.x}</button></div>`).join('')}</div>`:`<div class="card empty">Mavzu tanlang — savollar o’zi tuziladi. Yoki o’zingiz yozing.</div>`}
-   ${AB.own?`<div class="card pad"><label class="field"><span class="label">Savol</span><textarea id="ownQ" style="min-height:70px">${esc(AB.own.q)}</textarea></label>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[0,1,2,3].map(k=>`<label class="field"><span class="label">${'ABCD'[k]} javob</span><input id="ownO${k}" value="${esc(AB.own.o[k]||'')}"></label>`).join('')}</div>
-    <label class="field"><span class="label">To’g’ri javob</span><select id="ownA">${'ABCD'.split('').map((L,k)=>`<option value="${k}">${L}</option>`).join('')}</select></label>
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn sec" data-ra="ownCancel">Bekor</button><button class="btn pri" data-ra="ownAdd">Savolni qo’shish</button></div></div>`
-   :`<button class="btn sec" data-ra="ownOpen">+ O’zim savol yozaman</button>`}</section>
-  <div class="actions"><button class="btn sec" data-ra="abPrint" ${AB.qs.length?'':'disabled'}>🖨 Chop etish</button><button class="btn pri" data-ra="abSave" ${AB.qs.length?'':'disabled'}>Bolalarga yuborish</button></div>`);
-  const sel=$('#abAdd');if(sel)sel.onchange=()=>{syncAB();if(sel.value&&!AB.topics.includes(sel.value)){AB.topics.push(sel.value);regenAB()}drawAB()}}
-
-// ================================================================ CHOP ETISH (qog'oz varaq + javoblar kaliti)
-function printTest(qs,title,variants=1){const c=myCls();const sc=S.schools[0];
-  const vs=variants>1?[qs,...Array.from({length:variants-1},()=>shuf(qs).map(q=>{const o=shuf(q.o.map((x,k)=>({x,k})));return {...q,o:o.map(y=>y.x),a:o.findIndex(y=>y.k===q.a)}}))]:[qs];
-  const page=(v,vi)=>`<section class="pg"><div class="hd"><div><b>${esc(S.school?.name||'KARAKUL INTERNATIONAL SCHOOL')}</b> · Yosh Xorazmiylar</div><div>${sc?.num?sc.num+'-maktab · ':''}${esc(c?.name||'')} sinf</div></div>
-   <h1>${esc(title)}${variants>1?` · ${vi+1}-variant`:''}</h1><div class="nm">Familiya, ism: ______________________________ &nbsp; Sana: ____________</div>
-   <ol>${v.map(q=>`<li><div class="q">${esc(q.q)}</div><div class="o">${q.o.map((o,k)=>`<span>${'ABCDE'[k]}) ${esc(o)}</span>`).join('')}</div></li>`).join('')}</ol>
-   <div class="ans"><b>Javoblar:</b> ${v.map((q,i)=>`<span>${i+1}. ___</span>`).join('')}</div></section>`;
-  const key=`<section class="pg key"><h1>Javoblar kaliti · ${esc(title)}</h1><p>Faqat o’qituvchi uchun.</p>${vs.map((v,vi)=>`<h2>${variants>1?`${vi+1}-variant`:''}</h2><table><tr>${v.map((q,i)=>`<td><b>${i+1}</b><br>${'ABCDE'[q.a]}</td>`).join('')}</tr></table>`).join('')}</section>`;
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-   @page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#111;font-size:12.5pt}.pg{page-break-after:always}.pg:last-child{page-break-after:auto}
-   .hd{display:flex;justify-content:space-between;font-size:10pt;border-bottom:1.5px solid #13244f;padding-bottom:6px;color:#13244f}
-   h1{font-size:15pt;margin:12px 0 6px}.nm{margin:4px 0 12px;font-size:11pt}ol{padding-left:22px;margin:0}li{margin:0 0 10px;break-inside:avoid}
-   .q{font-weight:600;margin-bottom:4px}.o{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 12px}.ans{margin-top:12px;border-top:1px dashed #999;padding-top:8px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11pt}
-   table{border-collapse:collapse;margin:6px 0 14px}td{border:1px solid #888;padding:4px 8px;text-align:center;font-size:11pt}.key p{color:#666}
-  </style></head><body>${vs.map(page).join('')}${key}</body></html>`;
-  const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);
-  f.contentDocument.open();f.contentDocument.write(html);f.contentDocument.close();
-  setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('Chop etib bo’lmadi',true)}setTimeout(()=>f.remove(),60000)},400)}
-
-// ================================================================ SINFDA SINOV (online yoki qog'ozda)
-let CT=null;
-function openClassTest(topic){const g=myCls()?.grade;CT={topics:topic?[topic]:[],n:20,way:'qogoz',variants:2,minutes:40,title:''};drawCT()}
-function drawCT(){const g=myCls()?.grade;const tl=genTopics(MV[g]?g:2);const secs=[...new Set(tl.map(t=>t.sec))];
-  openSheet(`<div class="sh-top"><div class="m"><h2>Sinfda sinov o’tkazish</h2><div class="s">O’zingiz o’tkazasiz, natijani o’zingiz kiritasiz. Natija sinf ichida qoladi.</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-  <div class="seg"><button data-ra="ctWay" data-rv="qogoz" aria-pressed="${CT.way==='qogoz'}">🖨 Qog’ozda</button><button data-ra="ctWay" data-rv="online" aria-pressed="${CT.way==='online'}">📱 Telefonda (online)</button></div>
-  <p class="note" style="margin:0">${CT.way==='qogoz'?'Varaq chop etiladi (javoblar kaliti bilan). Sinov sahifasi ochiladi — har bolaning to’g’ri javoblari sonini yozasiz.':'Bolalar telefonda vaqt bilan yechadi, tekshirish o’zi bo’ladi.'}</p>
-  <label class="field"><span class="label">Mavzular</span><select id="ctAdd"><option value="">+ Mavzu qo’shish…</option>${secs.map(sc=>`<optgroup label="${esc(sc)}">${tl.filter(t=>t.sec===sc).map(t=>`<option value="${t.id}" ${CT.topics.includes(t.id)?'disabled':''}>${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
-  ${CT.topics.length?`<div class="chips">${CT.topics.map(id=>`<span class="chip">${esc(shortName(topicName(id)))}<button data-ra="ctDelT" data-rv="${id}" aria-label="Olib tashlash">×</button></span>`).join('')}</div>`:''}
-  <div><span class="label">Savollar soni</span><div class="seg" style="margin-top:6px">${[10,15,20,25,30].map(n=>`<button data-ra="ctN" data-rv="${n}" aria-pressed="${CT.n===n}">${n}</button>`).join('')}</div></div>
-  ${CT.way==='qogoz'?`<label class="check card"><input type="checkbox" id="ctVar" ${CT.variants>1?'checked':''}> 2 xil variant (qo’shni partadagilar ko’chirmasligi uchun)</label>`
-   :`<label class="field"><span class="label">Vaqt (daqiqa)</span><input id="ctMin" type="number" inputmode="numeric" value="${CT.minutes}"></label>`}
-  <label class="field"><span class="label">Sinov nomi</span><input id="ctTitle" value="${esc(CT.title||(CT.topics.length===1?shortName(topicName(CT.topics[0])):''))}" placeholder="Masalan: 2-chorak nazorat ishi"></label>
-  <button class="btn pri" data-ra="ctGo" ${CT.topics.length?'':'disabled'}>${CT.way==='qogoz'?'Varaqni chop etish va sinovni ochish':'Savollarni ko’rish va yuborish'}</button>`);
-  const sel=$('#ctAdd');if(sel)sel.onchange=()=>{CT.title=val('ctTitle');if(sel.value&&!CT.topics.includes(sel.value))CT.topics.push(sel.value);drawCT()}}
-function ctQuestions(){const per=Math.ceil(CT.n/CT.topics.length);let qs=[];CT.topics.forEach(id=>{const t=topicById(id);if(t?.key)qs.push(...makeSet(t.key,id,per))});return shuf(qs).slice(0,CT.n)}
-
-// ================================================================ RASMIY SINOV SO'ROVI (jamoa bilan hamkorlikda)
-function openSinovReq(topic){const c=myCls();const g=c?.grade;
-  openSheet(`<div class="sh-top"><div class="m"><h2>Rasmiy sinov so’rovi</h2><div class="s">Loyiha jamoasi bilan hamkorlikda</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-  <div class="card pad" style="background:var(--gold-soft);border-color:transparent"><ol class="isteps" style="margin:0"><li>So’rov loyiha jamoasiga boradi</li><li>Jamoa kunni belgilaydi va variant tuzadi (siz testni oldindan ko’rmaysiz)</li><li>Sinovni jamoa nazoratchisi o’tkazadi</li><li>Natijani <b>faqat jamoa</b> kiritadi, iqtidorlilarga sertifikat beriladi</li></ol></div>
-  <label class="field"><span class="label">Qaysi mavzular bo’yicha?</span><textarea id="srT" style="min-height:80px" placeholder="Masalan: jadval ichida ko’paytirish, 100 ichida qo’shish va ayirish">${topic?esc(topicName(topic)):''}</textarea></label>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label class="field"><span class="label">Taklif qilingan kun</span><input id="srD" type="date"></label>
-   <label class="field"><span class="label">Bolalar soni</span><input id="srN" type="number" inputmode="numeric" value="${myKids().length}"></label></div>
-  <label class="field"><span class="label">Izoh (ixtiyoriy)</span><input id="srC" placeholder="Masalan: 3-darsdan keyin qulay"></label>
-  <button class="btn pri" data-ra="srSend">So’rovni yuborish</button>`)}
-
-// ================================================================ MASHG'ULOTLAR va topshiriq sahifasi
-function scrRAsg(){loadAsg();const rows=(ASG?.rows||[]).filter(a=>a.kind==='mashq');
-  return ['Mashg’ulotlar',`${myCls()?.name||''} sinf · uyga va sinfda`,`
-  <div class="qa2"><button class="btn pri" data-ra="asgNew"><b>📝</b>Yangi topshiriq</button><button class="btn sec" data-tab="mavzu"><b>📚</b>Mavzudan tanlash</button></div>
-  <p class="note" style="margin:0">Topshiriq ota-onaning “Mashq” bo’limida chiqadi. Ota-ona Telegram’da xabar oladi. Bola yechgach, natija shu yerga keladi.</p>
-  ${!ASG?'<div class="card empty">Yuklanmoqda…</div>':rows.length?`<div class="card list">${rows.map(asgRow).join('')}</div>`:'<div class="card empty">Hali topshiriq berilmagan</div>'}`]}
-function scrAsg(id){loadAsg();const a=(ASG?.rows||[]).find(x=>x.id===id);if(!a)return [ASG?'Topilmadi':'Yuklanmoqda…','',''];
-  const num=jNum();const ids=asgTargets(a);const kids=myKids().filter(s=>ids.includes(s.id));
-  const done=kids.filter(s=>asgAns(a.id,s.id)),left=kids.filter(s=>!asgAns(a.id,s.id));const v=asgAvg(a);
-  const qst=a.questions.map((q,i)=>{const r=done.map(s=>asgAns(a.id,s.id).answers[i]);return {q,i,p:r.length?pc(r.filter(x=>x===q.a).length,r.length):null}});
-  const sorted=[...done].sort((x,y)=>asgAns(a.id,y.id).score-asgAns(a.id,x.id).score||uzSort(x,y));
-  return [a.title,`${a.kind==='sinov'?'Online sinov · '+a.minutes+' daqiqa':'Mashg’ulot'} · ${dd(a.created_at)}`,`
-  ${kpis([[`${done.length}/${kids.length}`,'topshirdi'],[v==null?'—':v+'%','o’rtacha'],[a.questions.length,'savol']])}
-  ${left.length?`<section class="sec"><p class="label">Bajarmaganlar · ${left.length}</p><div class="card list">${left.map(s=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${num[s.id]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${hasPin(s.id)?'ota-ona saytda':'ota-ona hali saytga kirmagan'}</div></div><span class="pill gray">bajarmagan</span></button>`).join('')}</div>
-   ${left.some(s=>hasPin(s.id))?`<button class="btn sec" data-ra="asgRemind" data-rv="${a.id}">🔔 Ota-onalariga eslatma yuborish</button>`:''}</section>`:''}
-  ${done.length?`<section class="sec"><p class="label">Natijalar</p><div class="card list">${sorted.map(s=>{const x=asgAns(a.id,s.id);const p=pc(x.score,x.qn);return `<button class="row" data-go="stu:${s.id}"><span class="rank">${num[s.id]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="bar"><i style="width:${p}%;background:${pcInk(p)}"></i></div></div><div class="num">${x.score}/${x.qn}<small>${p}%</small></div></button>`}).join('')}</div></section>
-  <section class="sec"><p class="label">Savollar bo’yicha</p><div class="card list">${qst.map(({q,i,p})=>`<div class="ex"><div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1;min-width:0"><b>${i+1}.</b> ${esc(q.q)}<div class="note">To’g’ri javob: ${esc(q.o[q.a])}</div></div>${p!=null?`<span class="pill" style="background:${pcColor(p)};color:${pcInk(p)}">${p}%</span>`:''}</div></div>`).join('')}</div>
-   <p class="note" style="margin:0">Foiz — shu savolga to’g’ri javob bergan bolalar ulushi. Past foizli savolni darsda qayta tushuntiring.</p></section>`:''}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-ra="asgPrint" data-rv="${a.id}">🖨 Chop etish</button><button class="btn dan" data-ra="asgDel" data-rv="${a.id}">O’chirish</button></div>`]}
-
-// ================================================================ SINOVLAR
-function scrRSinov(){const c=myCls();loadAsg();const t0=S.tests[0];
-  const seg=`<div class="seg">${[['rasmiy','Yosh Xorazmiylar'],['ichki','Sinfdagi sinovlar'],['online','Online sinovlar']].map(([k,l])=>`<button data-ra="sinTab" data-rv="${k}" aria-pressed="${sinTab===k}">${l}</button>`).join('')}</div>`;
-  if(sinTab==='ichki'){return ['Sinovlar',`${c.name} sinf`,`${seg}
-   <div class="qa2"><button class="btn pri" data-ra="classTest"><b>🧪</b>Mavzudan sinov tuzish</button><button class="btn sec" data-ra="itNewR"><b>✎</b>Faqat ball kiritish</button></div>
-   <p class="note" style="margin:0">Sinfda o’zingiz o’tkazgan sinovlar. Natijani siz kiritasiz, ota-ona va direktor ko’radi. Rasmiy reytingga qo’shilmaydi.</p>
-   ${itList(c.school_id,{classId:c.id})}`]}
-  if(sinTab==='online'){const rows=(ASG?.rows||[]).filter(a=>a.kind==='sinov');return ['Sinovlar',`${c.name} sinf`,`${seg}
-   <button class="btn pri" data-ra="asgNew" data-rk="sinov">🧪 Yangi online sinov</button>
-   <p class="note" style="margin:0">Bolalar telefonda vaqt bilan yechadi. Javoblar sinov tugagach ko’rinadi.</p>
-   ${!ASG?'<div class="card empty">Yuklanmoqda…</div>':rows.length?`<div class="card list">${rows.map(asgRow).join('')}</div>`:'<div class="card empty">Hali online sinov yo’q</div>'}`]}
-  const req=`<div class="card pad"><b>Rasmiy sinov — biz bilan hamkorlikda</b><p class="note" style="margin:0">Sinfingizda rasmiy sinov o’tkazishni so’rang. Variantni va o’tkazishni loyiha jamoasi bajaradi, natijani faqat jamoa kiritadi. Iqtidorlilar sertifikat oladi.</p><button class="btn sec" data-ra="sinovReq">🎓 So’rov yuborish</button></div>`;
-  if(!t0)return ['Sinovlar',`${c.name} sinf`,`${seg}<div class="card hero"><p class="label">Yosh Xorazmiylar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${req}`];
-  const v=scrClass(c.id,'rahbar');const num=jNum();
-  // ro'yxatdagi har bola oldiga jurnal raqami
-  let body=v[2].replace(/<button class="row" data-go="stu:(\d+)">(<span class="rank">[^<]*<\/span>)?/g,(m,id,rk)=>`<button class="row" data-go="stu:${id}">${rk||''}<span class="pill gray" style="min-width:34px;justify-content:center">№${num[id]||''}</span>`);
-  return ['Sinovlar',`${c.name} sinf · ${t0.name}`,`${seg}${tabrikCard('rahbar')}${body}${req}`]}
-
-// ================================================================ TAHLIL
-function scrRTahlil(){loadAsg();const kids=myKids();const num=jNum();const T=topicStats();
-  const tops=Object.keys(T).map(t=>({t,...topicClassPct(T,t)})).filter(x=>x.n).sort((a,b)=>a.p-b.p);
-  const help=kids.map(s=>({s,k:kidAsgAvg(s.id)})).filter(x=>x.k&&x.k.n>=2&&x.k.p<50).sort((a,b)=>a.k.p-b.k.p);
-  const cols=tops.slice(0,10);
-  const old=scrRahbarAnalysis()[2].replace('<div class="card empty">Hali ma’lumot yo’q</div>','');
-  return ['Tahlil',`${myCls()?.name||''} sinf`,`
-  ${!ASG?'<div class="card empty">Yuklanmoqda…</div>':!tops.length?`<div class="card pad"><b>Mavzular tahlili topshiriqlardan keyin ochiladi</b><p class="note" style="margin:0">Bir-ikkita topshiriq bering — sinfingiz qaysi mavzuda qiynalayotgani, kim kimga yordam kerakligi shu yerda ko’rinadi.</p><button class="btn pri" data-ra="asgNew">📝 Topshiriq berish</button></div>`:`
-  <section class="sec"><p class="label">Mavzular bo’yicha sinf · qiyinidan boshlab</p><div class="card list">${tops.map(x=>`<div class="row"><div class="m"><button class="n" data-go="mv:${x.t}" style="text-align:left;font-weight:600">${esc(topicName(x.t))}</button><div class="bar"><i style="width:${x.p}%;background:${pcInk(x.p)}"></i></div><div class="s">${x.n} ta javob</div></div><div class="num">${x.p}%</div>${x.p<70?`<button class="btn sec sm" data-ra="asgNew" data-rv="${x.t}">Mashq</button>`:''}</div>`).join('')}</div></section>
-  ${help.length?`<section class="sec"><p class="label">Yordam kerak bo’lgan bolalar</p><div class="card list">${help.map(({s,k})=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${num[s.id]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${k.n} ta topshiriq bo’yicha</div></div><span class="pill warn">${k.p}%</span></button>`).join('')}</div></section>`:''}
-  <section class="sec"><p class="label">Bola × mavzu jadvali</p><div class="card pad heat"><table><tr><th>№</th><th>O’quvchi</th>${cols.map((c,i)=>`<th style="text-align:center" title="${esc(topicName(c.t))}">M${i+1}</th>`).join('')}</tr>
-   ${kids.map(s=>`<tr><th>${num[s.id]}</th><td class="nm">${esc(s.name)}</td>${cols.map(c=>{const r=T[c.t]?.[s.id];const p=r?pc(...r):null;return `<td style="background:${pcColor(p)};color:${pcInk(p)}">${p==null?'·':p}</td>`}).join('')}</tr>`).join('')}</table></div>
-   <div class="card list">${cols.map((c,i)=>`<button class="row" data-go="mv:${c.t}" style="padding:8px 14px"><span class="pill gray">M${i+1}</span><div class="m"><div class="n" style="font-weight:500">${esc(topicName(c.t))}</div></div>${I.chev}</button>`).join('')}</div>
-   <div class="legend"><span><i style="background:#cdeedd"></i>80%+</span><span><i style="background:#e3f2d4"></i>60–79</span><span><i style="background:#fbecc8"></i>40–59</span><span><i style="background:#f8d6d9"></i>40 dan past</span></div></section>`}
-  ${S.tests.length?`<section class="sec"><p class="label">Yosh Xorazmiylar sinovi</p>${old}</section>`:''}`]}
-
-// ================================================================ PIN olmagan ota-onalar
-function scrPinless(){const num=jNum();const l=myKids().filter(s=>!hasPin(s.id));const bot=S.bot?`https://t.me/${S.bot}`:'';
-  const txt=`Assalomu alaykum, hurmatli ota-onalar! Farzandingizning “Yosh Xorazmiylar” natijalari, ustoz topshiriqlari va men bilan yozishmalar uchun saytga kiring. PIN kodni olish: ${bot||'@YoshXorazmiylarBot'} → “Raqamni yuborish” tugmasini bosing. Sayt: ${location.origin}`;
-  return ['PIN olmagan ota-onalar',`${l.length} ta`,`
-  <div class="card pad"><b>Ota-onalarga shu xabarni yuboring</b><div class="sms">${esc(txt)}</div>
-   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn pri" data-ra="copyTxt" data-rv="${esc(txt)}">Nusxa olish</button>${navigator.share?`<button class="btn sec" data-ra="shareTxt" data-rv="${esc(txt)}">Ulashish</button>`:`<a class="btn sec" style="text-decoration:none" href="https://t.me/share/url?url=${encodeURIComponent(location.origin)}&text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">Telegram</a>`}</div>
-   <p class="note" style="margin:0">Sinf guruhingizga tashlang. Raqami ro’yxatda bo’lmasa, so’rov sizga keladi — Bosh sahifadagi “PIN so’rovlari”dan tasdiqlaysiz.</p></div>
-  <div class="card list">${l.map(s=>`<button class="row" data-act="phoneEdit" data-id="${s.id}"><span class="rank">${num[s.id]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${kidPhones(s).length?kidPhones(s).map(ph).join(', ')+' · hali kirmagan':'<span style="color:var(--wrong)">telefon kiritilmagan</span>'}</div></div>${I.chev}</button>`).join('')||'<div class="empty">Hamma ota-onalar saytda ✓</div>'}</div>`]}
-
-// ================================================================ XABARLAR (sinf rahbari)
-function rahbarMsgTop(){
-  const card=(kind,ic,bg,t,s,attr)=>`<button class="card mcard" ${attr||`data-act="compose" data-kind="${kind}"`}><span class="ic" style="background:${bg}">${ic}</span><span><b>${t}</b><small>${s}</small></span></button>`;
-  return `${S.tgPending?`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`:''}
-   <div class="mgrid">${card('ota','✉','#dff1ef','Ota-onaga','Bitta bolaning ota-onasiga')}${card('sinf','📢','#fde7cf','Butun sinfga','Hamma ota-onalar o’qiydi')}${card('drh','🏫','#e5edff','Direktorga','Maktab direktori bilan')}${card('jamoa','🎓','#e7e2ff','Loyiha jamoasiga','Savol, taklif, xato')}</div>
-   <label class="search">${I.search}<input id="msgq" type="search" autocomplete="off" placeholder="Bola ismi yoki xabar…" value="${esc(msgQ)}" aria-label="Xabarlarni qidirish"></label>
-   <div class="seg">${[['all','Hammasi'],['ota','Ota-ona'],['sinf','Sinf'],['drh','Direktor'],['jamoa','Jamoa']].map(([k,l])=>`<button data-ra="msgF" data-rv="${k}" aria-pressed="${msgF===k}">${l}${k==='all'?'':''}</button>`).join('')}</div>`}
-function rahbarMsgFilter(list){let l=list;if(msgF!=='all')l=l.filter(t=>msgF==='drh'?['drh','drhs','dotalar'].includes(t.kind):t.kind===msgF);
-  const q=norm(msgQ).trim();if(q)l=l.filter(t=>norm(t.title+' '+(t.last?.text||'')).includes(q));
-  return [...l].sort((a,b)=>(b.unread>0)-(a.unread>0)||String(b.updated_at).localeCompare(String(a.updated_at)))}
-const MSG_TPL={
- ota:['Assalomu alaykum! Farzandingiz bugun darsga kelmadi. Sababini bilsak bo’ladimi?','Farzandingiz bugun darsda juda faol bo’ldi, barakalla!','Farzandingiz uy vazifasini bajarmadi. Uyda birga ko’rib chiqsangiz.','Saytda yangi topshiriq berildi, farzandingiz bilan birga yeching.','Iltimos, men bilan bog’laning.'],
- sinf:['Hurmatli ota-onalar! Ertaga soat ___ da ota-onalar majlisi bo’ladi.','Saytda yangi topshiriq berildi. Iltimos, farzandingiz bilan “Mashq” bo’limida yeching.','Ertaga matematikadan nazorat ishi. Farzandingiz takrorlab kelsin.','Ertaga darslar odatdagidek bo’ladi.']};
-
-// ================================================================ OTA-ONA: ustoz topshiriqlari va yechish
-function parentAsgSection(kid){if(!ASG){loadAsg();return '<div class="card empty">Yuklanmoqda…</div>'}
-  const rows=(ASG.rows||[]).filter(a=>a.student_id===kid.id);if(!rows.length)return '';
-  const open=rows.filter(a=>!a.done),done=rows.filter(a=>a.done);
-  const card=a=>`<button class="card row" data-ra="solve" data-rv="${a.id}" data-rs="${kid.id}" style="width:100%"><span style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:${a.kind==='sinov'?'#fde7cf':'#dff1ef'};flex:none;font-size:18px">${a.kind==='sinov'?'🧪':'📝'}</span><div class="m"><div class="n">${esc(a.title)}</div><div class="s">${a.questions.length} savol${a.minutes?` · ${a.minutes} daqiqa`:''}${a.due&&!a.done?` · muddat ${dd(a.due)}`:''}</div></div>${a.done?`<div class="num">${a.score}/${a.qn}<small>${pc(a.score,a.qn)}%</small></div>`:`<span class="pill ${a.due&&a.due<ASG.today?'warn':'ok'}">${a.started_at&&a.kind==='sinov'?'davom':'yangi'}</span>`}</button>`;
-  return `<section class="sec"><p class="label">Ustoz topshiriqlari${open.length?` · ${open.length} ta yangi`:''}</p>${open.map(card).join('')}
-   ${done.length?`<details><summary class="lnk" style="cursor:pointer">Bajarilganlar (${done.length})</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${done.map(card).join('')}</div></details>`:''}</section>`}
-let SV=null,svTimer=0;
-function openSolve(aid,sid){const a=(ASG?.rows||[]).find(x=>x.id===aid&&x.student_id===sid);if(!a)return;
-  SV={a,sid,ans:Array(a.questions.length).fill(-1),res:a.done?{score:a.score,qn:a.qn,questions:a.questions,answers:a.answers}:null,started:a.started_at};
-  drawSolve()}
-function drawSolve(){const {a,res}=SV;const kid=X.st.find(s=>s.id===SV.sid);clearInterval(svTimer);
-  const head=`<div class="sh-top"><div class="m"><h2>${esc(a.title)}</h2><div class="s">${esc(kid?.name||'')} · ${a.questions.length} savol${a.minutes?` · ${a.minutes} daqiqa`:''}</div></div><button class="ib" data-ra="svClose" aria-label="Yopish">${I.x}</button></div>`;
-  if(res){const p=pc(res.score,res.qn);
-    openSheet(`${head}<div class="card hero" style="text-align:center;align-items:center"><div class="big">${res.score}<small>/${res.qn}</small></div><p style="margin:0;font-weight:600">${p>=80?'Ajoyib! Barakalla! 🌟':p>=50?'Yaxshi! Xatolar ustida ishlaymiz 👍':'Harakat qildingiz! Xatolarni birga ko’rib chiqing 💪'}</p></div>
-     ${res.questions.map((q,i)=>{const my=res.answers[i];return `<div class="qcard"><div class="qt"><b>${i+1}.</b> ${esc(q.q)}</div><div class="opts">${q.o.map((o,k)=>`<div class="opt ${k===q.a?'ok':k===my?'no':''}"><span class="L">${'ABCDE'[k]}</span>${esc(o)}</div>`).join('')}</div>${my!==q.a?`<div class="note">${my<0?'Javob berilmagan. ':''}To’g’ri javob: <b>${esc(q.o[q.a])}</b>${q.s?` — ${esc(q.s)}`:''}</div>`:''}</div>`}).join('')}
-     <button class="btn pri" data-ra="svClose">Yopish</button>`);return}
-  if(a.kind==='sinov'&&!SV.started){openSheet(`${head}<div class="card pad" style="text-align:center;align-items:center;gap:14px"><div style="font-size:44px">🧪</div><b style="font-size:18px">Online sinov</b><p style="margin:0">${a.questions.length} ta savol, vaqt — <b>${a.minutes} daqiqa</b>.</p><p class="note">“Boshlash”ni bosganingizdan keyin vaqt ketadi. Javoblar sinov oxirida ko’rinadi. Farzandingiz o’zi yechsin.</p><button class="btn pri" data-ra="svStart" style="width:100%">Boshlash</button></div>`);return}
-  const left=()=>a.minutes&&SV.started?Math.max(0,Math.round((new Date(SV.started).getTime()+a.minutes*60000-Date.now())/1000)):null;
-  const n=SV.ans.filter(x=>x>=0).length;
-  openSheet(`${head}${a.kind==='sinov'?`<div class="timer"><span>⏱ <span id="svT">${recFmt(left()??0)}</span></span><span>${n}/${a.questions.length}</span></div>`:`<div class="bar" style="height:8px"><i style="width:${n/a.questions.length*100}%"></i></div>`}
-   ${a.questions.map((q,i)=>`<div class="qcard" id="svq${i}"><div class="qt"><b>${i+1}.</b> ${esc(q.q)}</div><div class="opts">${q.o.map((o,k)=>`<button class="opt" data-ra="svPick" data-rv="${i}:${k}" aria-pressed="${SV.ans[i]===k}"><span class="L">${'ABCDE'[k]}</span>${esc(o)}</button>`).join('')}</div></div>`).join('')}
-   <div class="actions"><button class="btn sec" data-ra="svClose">Keyinroq</button><button class="btn pri" data-ra="svSubmit">Topshirish (${n}/${a.questions.length})</button></div>`);
-  if(a.kind==='sinov'){svTimer=setInterval(()=>{const l=left();const el=$('#svT');if(el)el.textContent=recFmt(l);if(l<=0){clearInterval(svTimer);svSubmit(true)}},1000)}}
-async function svSubmit(auto){if(!SV||SV.res)return;try{const r=await api('asg.submit',{id:SV.a.id,student_id:SV.sid,answers:SV.ans});SV.res=r;if(auto)toast('Vaqt tugadi, javoblar topshirildi');loadAsg(true);load(true);drawSolve()}catch(e){toast(e.message,true)}}
-
-// ================================================================ hodisalar
-document.addEventListener('input',e=>{const el=e.target;
-  if(el.id==='rq'){rq=el.value;const l=$('#rlist');if(l)l.innerHTML=rList()}
-  if(el.id==='mvq'){mvQ=el.value;const q=norm(mvQ).trim();const list=topicList(mvGrade).filter(t=>!q||norm(t.name).includes(q));const b=$('#mvlist');if(b)b.innerHTML=mvList(list,[...new Set(list.map(t=>t.si))],topicStats())}
-  if(el.id==='msgq'){msgQ=el.value;const box=$('#msgList');if(box&&TH)box.innerHTML=rahbarMsgFilter(TH).map(thRow).join('')||'<div class="empty">Topilmadi</div>'}});
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-ra]');if(!b)return;const d=b.dataset;e.preventDefault();
-  try{switch(d.ra){
-   case 'rsort':rSort=d.rv;render();break;
-   case 'mvg':mvGrade=+d.rv;render();break;
-   case 'mvRe':MVX[d.rv]=null;render();break;
-   case 'sinTab':sinTab=d.rv;render();break;
-   case 'msgF':msgF=d.rv;render();break;
-   case 'asgNew':{const kind=d.rk||'mashq';openAsgBuilder({topic:d.rv||'',students:d.rs?[+d.rs]:null,kind});break}
-   case 'abKind':syncAB();AB.kind=d.rv;if(!AB.titleEdited)regenAB();drawAB();break;
-   case 'abDelT':syncAB();AB.topics=AB.topics.filter(x=>x!==d.rv);AB.qs=AB.qs.filter(q=>q.t!==d.rv||q.mine);regenAB();drawAB();break;
-   case 'abN':syncAB();AB.n=+d.rv;regenAB();drawAB();break;
-   case 'abMode':syncAB();AB.mode=d.rv;drawAB();break;
-   case 'abRe':syncAB();AB.qs=AB.qs.filter(q=>q.mine);regenAB();drawAB();break;
-   case 'abDelQ':syncAB();AB.qs.splice(+d.rv,1);drawAB();break;
-   case 'ownOpen':syncAB();AB.own={q:'',o:['','','','']};drawAB();$('#ownQ')?.focus();break;
-   case 'ownCancel':syncAB();AB.own=null;drawAB();break;
-   case 'ownAdd':{syncAB();const q=val('ownQ');const o=[0,1,2,3].map(k=>val('ownO'+k)).filter(Boolean);const a=+val('ownA');
-     if(!q){toast('Savolni yozing',true);break}if(o.length<2){toast('Kamida 2 ta javob yozing',true);break}if(!val('ownO'+a)){toast('To’g’ri javob katagi bo’sh',true);break}
-     const opts=[0,1,2,3].map(k=>val('ownO'+k));const keep=opts.map((x,k)=>({x,k})).filter(y=>y.x);
-     AB.qs.push({q,o:keep.map(y=>y.x),a:keep.findIndex(y=>y.k===a),s:'',t:AB.topics[0]||'',mine:true});AB.own=null;drawAB();break}
-   case 'abPrint':syncAB();printTest(AB.qs,AB.title||'Topshiriq');break;
-   case 'abSave':{syncAB();if(!AB.title){toast('Topshiriq nomini yozing',true);break}if(AB.mode==='pick'&&!AB.sids.size){toast('Bolalarni tanlang',true);break}
-     const r=await api('asg.save',{kind:AB.kind,title:AB.title,topic:AB.topics[0]||'',questions:AB.qs.map(({q,o,a,s,t})=>({q,o,a,s,t})),student_ids:AB.mode==='pick'?[...AB.sids]:[],minutes:AB.minutes,due:AB.due});
-     closeSheet();toast('Topshiriq yuborildi');ASG=null;loadAsg(true);stack.push('asg:'+r.id);render();break}
-   case 'quickPrint':{const t=topicById(d.rv);printTest(makeSet(t.key,t.id,15),t.name);break}
-   case 'classTest':openClassTest(d.rv||'');break;
-   case 'ctWay':CT.title=val('ctTitle');CT.minutes=+val('ctMin')||CT.minutes;CT.way=d.rv;drawCT();break;
-   case 'ctDelT':CT.title=val('ctTitle');CT.topics=CT.topics.filter(x=>x!==d.rv);drawCT();break;
-   case 'ctN':CT.title=val('ctTitle');CT.variants=$('#ctVar')?.checked?2:1;CT.n=+d.rv;drawCT();break;
-   case 'ctGo':{const title=val('ctTitle')||(CT.topics.length===1?shortName(topicName(CT.topics[0])):'Sinf sinovi');const qs=ctQuestions();
-     if(CT.way==='online'){AB={kind:'sinov',topics:[...CT.topics],n:CT.n,mode:'all',sids:new Set(),minutes:+val('ctMin')||40,due:'',title,titleEdited:true,qs,own:null};drawAB();break}
-     const variants=$('#ctVar')?.checked?2:1;const c=myCls();
-     const r=await api('itest.save',{school_id:c.school_id,class_id:c.id,name:title,subject:'Matematika',day:new Date().toISOString().slice(0,10),qn:qs.length});
-     printTest(qs,title,variants);closeSheet();toast('Varaq tayyor. Sinovdan keyin ballarni shu yerga yozing');await load();stack.push('itest:'+r.id);render();break}
-   case 'itNewR':{const c=myCls();formSheet('Sinf sinovi (faqat ball)',[{id:'itN',label:'Sinov nomi',value:'',ph:'Masalan: 1-chorak nazorat ishi'},{id:'itD',label:'Sana',value:new Date().toISOString().slice(0,10),type:'date'},{id:'itQ',label:'Eng yuqori ball (savollar soni)',value:20,mode:'numeric'}],'itSave',`<input type="hidden" id="itS" value="Matematika"><input type="hidden" id="itG" value="c${c.id}">`);Object.assign($('#sheet').dataset,{id:'',school:c.school_id});break}
-   case 'sinovReq':openSinovReq(d.rv||'');break;
-   case 'srSend':{const t=val('srT');if(!t){toast('Mavzularni yozing',true);break}const c=myCls();
-     const txt=`🎓 Rasmiy sinov so‘rovi · ${S.schools[0]?.num}-maktab, ${c.name} sinf · Mavzular: ${t} · Taklif qilingan kun: ${val('srD')?dd(val('srD')):'kelishiladi'} · Bolalar soni: ${val('srN')||myKids().length}${val('srC')?' · Izoh: '+val('srC'):''}`;
-     const r=await api('thread.new',{kind:'jamoa',topic:'sinov',text:txt});closeSheet();toast('So’rov jamoaga yuborildi');TH=null;openThread(r.id);break}
-   case 'asgDel':{if(!confirm('Topshiriq va bolalarning javoblari o’chirilsinmi?'))break;await api('asg.delete',{id:+d.rv});toast('O’chirildi');ASG=null;loadAsg(true);stack.pop();render();break}
-   case 'asgPrint':{const a=ASG.rows.find(x=>x.id===+d.rv);printTest(a.questions,a.title);break}
-   case 'asgRemind':{const a=ASG.rows.find(x=>x.id===+d.rv);const left=myKids().filter(s=>asgTargets(a).includes(s.id)&&!asgAns(a.id,s.id)&&hasPin(s.id));
-     if(!confirm(`${left.length} ta ota-onaga eslatma yuborilsinmi?`))break;let n=0;
-     for(const s of left){try{await api('thread.new',{kind:'ota',student_id:s.id,text:`Assalomu alaykum! “${a.title}” topshirig‘i hali bajarilmagan. Iltimos, farzandingiz bilan saytdagi “Mashq” bo‘limida yeching.`});n++}catch(e){}}
-     toast(`${n} ta ota-onaga yuborildi`);TH=null;break}
-   case 'writeParent':{openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=d.rs;break}
-   case 'tpl':{const t=$('#cmText');if(t){t.value=(t.value?t.value+' ':'')+d.rv;t.focus()}break}
-   case 'noteFocus':{const t=$('#rnText');if(t){t.scrollIntoView({block:'center'});t.focus()}break}
-   case 'rnoteSave':{const t=val('rnText');if(!t){toast('Izohni yozing',true);break}await api('rnote.save',{student_id:+d.rs,text:t});toast('Izoh saqlandi');await load();break}
-   case 'rnoteDel':{if(!confirm('Izoh o’chirilsinmi?'))break;await api('rnote.delete',{id:+d.rv});await load();break}
-   case 'copyTxt':{try{await navigator.clipboard.writeText(d.rv);toast('Nusxa olindi')}catch(err){toast('Nusxa olib bo’lmadi',true)}break}
-   case 'shareTxt':{try{await navigator.share({text:d.rv})}catch(err){}break}
-   case 'solve':openSolve(+d.rv,+d.rs);break;
-   case 'svPick':{const [i,k]=d.rv.split(':').map(Number);SV.ans[i]=SV.ans[i]===k?-1:k;const y=scrollY,sh=$('#sheet').scrollTop;drawSolve();$('#sheet').scrollTop=sh;break}
-   case 'svStart':{const r=await api('asg.start',{id:SV.a.id,student_id:SV.sid});SV.started=r.started_at;drawSolve();break}
-   case 'svSubmit':{const left=SV.ans.filter(x=>x<0).length;if(left&&!confirm(`${left} ta savolga javob berilmagan. Baribir topshirasizmi?`))break;await svSubmit(false);break}
-   case 'svClose':{clearInterval(svTimer);if(SV?.a.kind==='sinov'&&SV.started&&!SV.res&&!confirm('Sinov davom etmoqda, vaqt to’xtamaydi. Chiqasizmi?'))break;SV=null;closeSheet();render();break}
-  }}catch(err){toast(err.message,true)}});
-
 // ================================================================ routing
 const TABS={
   team:()=>[['bosh','Bosh',I.home],['maktab','Maktablar',I.school],...(P('kiritish')?[['kirit','Kiritish',I.pen]]:[]),['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['more','Ko’proq',I.more]],
   direktor:()=>[['bosh','Bosh',I.home],['ichki','Ichki sinov',I.pen],['tahlil','Tahlil',I.chart],['xabar','Xabarlar',I.chat,S.unread]],
-  rahbar:()=>[['bosh','Bosh',I.home],['sinf','Sinfim',I.users],['mavzu','Mavzular',I.book],['mashq','Mashg’ulot',I.task],['sinov','Sinovlar',I.test],['tahlil','Tahlil',I.chart],['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)]],
-  ota:()=>[['farzand','Farzandim',I.home],['mashq','Mashq',I.pen,(S.exNew||0)+(S.asgNew||0)],['xabar','Ustoz',I.chat,S.unread]],
+  rahbar:()=>[['sinf','Sinfim',I.users],['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['tahlil','Tahlil',I.chart]],
+  ota:()=>[['farzand','Farzandim',I.home],['mashq','Mashq',I.pen,S.exNew],['xabar','Ustoz',I.chat,S.unread]],
 };
 function screen(){
   const top=stack[stack.length-1];
   if(top){const [k,v]=top.split(':');
     if(k==='itest')return scrItest(+v);
-    if(k==='mv')return scrTopic(v); if(k==='asg')return scrAsg(+v); if(k==='pinless')return scrPinless();
     if(k==='school')return scrSchool(+v); if(k==='class')return scrClass(+v); if(k==='stu')return scrStudent(+v);
     if(k==='tests')return scrTests(); if(k==='pins')return scrPins(); if(k==='team')return scrTeam(); if(k==='history')return scrHistory();
     if(k==='savat')return scrTrash();
@@ -2399,12 +1606,12 @@ function screen(){
   if(tab==='xabar')return scrMessages();
   if(isTeam())return tab==='maktab'?scrSchools():tab==='kirit'?scrEntry():tab==='more'?scrMore():scrTeamHome();
   if(r==='direktor')return tab==='tahlil'?scrDirAnalysis():tab==='ichki'?scrItests():scrDirHome();
-  if(r==='rahbar')return tab==='tahlil'?scrRTahlil():tab==='sinf'?scrRSinf():tab==='mavzu'?scrRMavzu():tab==='mashq'?scrRAsg():tab==='sinov'?scrRSinov():scrRBosh();
+  if(r==='rahbar')return tab==='tahlil'?scrRahbarAnalysis():scrRahbar();
   return tab==='mashq'?scrExParent():scrParent();
 }
 
 // ---- atmosfera
-const THEME={mavzu:'mint',sinov:'sand',ichki:'sand',bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
+const THEME={ichki:'sand',bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
 (function atmo(){
   const tk=document.getElementById('tk'),dg=document.getElementById('dg'),gl=document.getElementById('gl');if(!gl)return;
   let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}if(tk)tk.innerHTML=t;
@@ -2430,7 +1637,7 @@ function render(){
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button>
    ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
-   ${tabs.length>1?`<nav class="tabs${tabs.length>5?' many':''}"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
+   ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
@@ -2529,7 +1736,7 @@ document.addEventListener('click',async e=>{
   if(d.d!=null){if(pin.length<6){pin+=d.d;pinErr=''}render();if(pin.length===6){const p=pin;pin='';try{await api('login',{pin:p,phone:lpGet()});await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}}return}
   if(d.side){stack=[];go(d.side);return}
   if(d.go){go(d.go);return}
-  if(d.tab){tab=d.tab;stack=[];if(tab==='xabar')TH=null;if(tab==='mashq'){EXL=null;ASG_AT=0}render();scrollTo(0,0);return}
+  if(d.tab){tab=d.tab;stack=[];if(tab==='xabar')TH=null;if(tab==='mashq')EXL=null;render();scrollTo(0,0);return}
   if(d.sort){sortBy=d.sort;render();return}
   if(d.rg){rGrade=+d.rg;render();return}
   if(d.tg!=null){topGrade=+d.tg;render();return} if(d.ts!=null){topSchool=+d.ts;render();return}

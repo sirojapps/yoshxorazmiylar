@@ -75,12 +75,6 @@ db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT 
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
-// sinf rahbari kabineti: topshiriqlar (mashg'ulot yoki online sinov), javoblar, shaxsiy izohlar
-db.exec(`CREATE TABLE IF NOT EXISTS assignments(id INTEGER PRIMARY KEY, class_id INTEGER NOT NULL, user_id INTEGER, kind TEXT DEFAULT 'mashq',
-  topic TEXT DEFAULT '', title TEXT NOT NULL, questions TEXT NOT NULL, student_ids TEXT DEFAULT '', minutes INTEGER DEFAULT 0, due TEXT DEFAULT '', created_at TEXT);
-CREATE TABLE IF NOT EXISTS assign_answers(assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, answers TEXT DEFAULT '', score INTEGER, qn INTEGER,
-  started_at TEXT, at TEXT, PRIMARY KEY(assignment_id,student_id));
-CREATE TABLE IF NOT EXISTS rnotes(id INTEGER PRIMARY KEY, student_id INTEGER NOT NULL, user_id INTEGER NOT NULL, text TEXT NOT NULL, at TEXT);`);
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -756,12 +750,9 @@ function itestsFor(u, out) {
   return { itests: u.role === 'ota' ? its.filter(t => res.some(r => r.itest_id === t.id)) : its, iresults: res };
 }
 const canItest = (u, schoolId) => ownsSchool(u, schoolId);
-// sinf rahbari faqat o'z sinfi uchun o'zi yaratgan ichki sinovni boshqaradi
-const rahbarItest = (u, t) => u.role === 'rahbar' && t && t.class_id === u.class_id && t.by === u.id;
 A['itest.save'] = (u, b) => {
-  if (u.role === 'rahbar') { b.class_id = u.class_id; b.school_id = schoolOfClass(u.class_id); if (b.id) need(rahbarItest(u, one('SELECT * FROM itests WHERE id=?', +b.id))); }
   const sid = u.role === 'direktor' ? u.school_id : +b.school_id;
-  need(canItest(u, sid) || u.role === 'rahbar');
+  need(canItest(u, sid));
   const name = str(b.name, 120); if (!name) bad('Sinov nomini yozing');
   const qn = parseInt(b.qn, 10); if (!(qn >= 1 && qn <= 100)) bad('Savollar (yoki eng yuqori ball) soni 1 dan 100 gacha');
   const day = /^\d{4}-\d{2}-\d{2}$/.test(String(b.day)) ? b.day : now().slice(0, 10);
@@ -769,7 +760,7 @@ A['itest.save'] = (u, b) => {
   const classId = +b.class_id || null; // bitta sinf uchun sinov
   if (classId) { const c = one('SELECT school_id,grade FROM classes WHERE id=?', classId); need(c && c.school_id === sid, 'Sinf shu maktabniki emas'); grade = c.grade; }
   if (b.id) {
-    const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) bad('Sinov topilmadi'); need(canItest(u, t.school_id) || rahbarItest(u, t));
+    const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) bad('Sinov topilmadi'); need(canItest(u, t.school_id));
     run('UPDATE itests SET name=?,day=?,qn=?,grade=?,subject=?,class_id=? WHERE id=?', name, day, qn, grade, subject, classId, t.id);
     log(u.id, 'ichki.tahrir', { id: t.id, name }); return { id: t.id };
   }
@@ -777,7 +768,7 @@ A['itest.save'] = (u, b) => {
   log(u.id, 'ichki.yaratish', { school_id: sid, name }); return { id: Number(r.lastInsertRowid) };
 };
 A['itest.delete'] = (u, b) => {
-  const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) return {}; need(canItest(u, t.school_id) || rahbarItest(u, t));
+  const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) return {}; need(canItest(u, t.school_id));
   tx(() => { const d = { itests: [t], iresults: all('SELECT * FROM iresults WHERE itest_id=?', t.id) }; run('DELETE FROM iresults WHERE itest_id=?', t.id); run('DELETE FROM itests WHERE id=?', t.id);
     toTrash(u, 'itest', t.id, t.name, `${(one('SELECT num FROM schools WHERE id=?', t.school_id) || {}).num}-maktab · ichki sinov · ${d.iresults.length} ta ball`, t.school_id, d); });
   log(u.id, 'ichki.ochirish', { id: t.id, name: t.name }); return {};
@@ -804,15 +795,8 @@ function extras(u, out) {
   const sIds = new Set((out.students || []).map(s => s.id));
   ex.certs = all('SELECT code,test_id,student_id FROM certificates').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
-  if (u.role === 'rahbar') {
-    ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
-    const parentPhones = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1").map(x => phone9(x.phone)));
-    ex.kidPin = (out.students || []).filter(s => [s.phone, ...(s.extra || [])].some(p => p && parentPhones.has(phone9(p)))).map(s => s.id);
-    ex.rnotes = all('SELECT id,student_id,text,at FROM rnotes WHERE user_id=? ORDER BY id DESC', u.id);
-  }
+  if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
   if (u.role === 'ota') {
-    ex.asgNew = (out.students || []).reduce((n, s) => n + all('SELECT id,student_ids FROM assignments WHERE class_id=?', s.class_id)
-      .filter(a => (!a.student_ids || JSON.parse(a.student_ids).includes(s.id)) && !one('SELECT 1 FROM assign_answers WHERE assignment_id=? AND student_id=? AND at IS NOT NULL', a.id, s.id)).length, 0);
     const grades = [...new Set((out.classes || []).map(c => c.grade))];
     ex.exNew = grades.length ? all(`SELECT id,grade FROM exercises WHERE day<=? AND grade IN (${grades.map(() => '?').join(',')})`, today(), ...grades)
       .filter(e => (out.students || []).some(s => out.classes.find(c => c.id === s.class_id)?.grade === e.grade && !one('SELECT 1 FROM ex_answers WHERE exercise_id=? AND student_id=?', e.id, s.id))).length : 0;
@@ -1075,7 +1059,7 @@ function addMessage(u, t, txt, image, audio = '') {
   const who = u.role === 'ceo' ? 'CEO' : u.name;
   notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
-const TOPICS = ['xato', 'pin', 'savol', 'taklif', 'sinov'];
+const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
 A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
 A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
   const acc = threadAccess(u, t); need(acc.see);
@@ -1218,104 +1202,6 @@ A['ex.answer'] = (u, b) => {
   const p = prev || { choice: ch, correct: ch === e.answer ? 1 : 0 };
   return { choice: p.choice, correct: !!p.correct, answer: e.answer, explain: e.explain };
 };
-
-// ---------------------------------------------------------------- sinf rahbari: topshiriqlar (mashg'ulot va online sinov)
-// Savollar sinf rahbari tomonidan yaratiladi (mavzu bo'yicha avtomatik yoki o'zi yozadi). Ota-onaga to'g'ri javob
-// faqat bola topshiriqni topshirgandan keyin ko'rinadi. Natija sinf ichida qoladi — rasmiy reytingga qo'shilmaydi.
-function cleanQuestions(v) {
-  const qs = Array.isArray(v) ? v : [];
-  if (!qs.length) bad('Kamida bitta savol kerak');
-  if (qs.length > 50) bad('Eng ko‘pi 50 ta savol');
-  return qs.map((q, i) => {
-    const t = String(q?.q ?? '').trim().slice(0, 600); if (!t) bad(`${i + 1}-savol matni bo‘sh`);
-    const o = (Array.isArray(q?.o) ? q.o : []).map(x => String(x ?? '').trim().slice(0, 120)).filter(Boolean).slice(0, 5);
-    if (o.length < 2) bad(`${i + 1}-savolda kamida 2 ta javob varianti kerak`);
-    const a = parseInt(q?.a, 10); if (!(a >= 0 && a < o.length)) bad(`${i + 1}-savolning to‘g‘ri javobini belgilang`);
-    return { q: t, o, a, t: String(q?.t || '').slice(0, 40), s: String(q?.s || '').slice(0, 400) };
-  });
-}
-const myClassStudents = u => all('SELECT id FROM students WHERE class_id=? AND active=1', u.class_id).map(r => r.id);
-const asgTargets = (a, classIds) => a.student_ids ? JSON.parse(a.student_ids) : classIds;
-A['asg.save'] = (u, b) => {
-  need(u.role === 'rahbar' && u.class_id, 'Topshiriqni faqat sinf rahbari beradi');
-  const title = str(b.title, 120); if (!title) bad('Topshiriq nomini yozing');
-  const kind = b.kind === 'sinov' ? 'sinov' : 'mashq';
-  const questions = cleanQuestions(b.questions);
-  const mine = new Set(myClassStudents(u));
-  let ids = Array.isArray(b.student_ids) ? [...new Set(b.student_ids.map(Number))].filter(id => mine.has(id)) : [];
-  if (Array.isArray(b.student_ids) && b.student_ids.length && !ids.length) bad('Bolalarni tanlang');
-  const minutes = kind === 'sinov' ? Math.max(5, Math.min(120, parseInt(b.minutes, 10) || 40)) : 0;
-  const due = /^\d{4}-\d{2}-\d{2}$/.test(String(b.due)) ? b.due : '';
-  const r = run('INSERT INTO assignments(class_id,user_id,kind,topic,title,questions,student_ids,minutes,due,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
-    u.class_id, u.id, kind, str(b.topic, 40), title, JSON.stringify(questions), ids.length ? JSON.stringify(ids) : '', minutes, due, now());
-  const id = Number(r.lastInsertRowid);
-  log(u.id, 'topshiriq.berish', { id, title, kind, n: questions.length });
-  // ota-onalarga bildirishnoma (Telegram orqali, agar ulangan bo'lsa)
-  const targets = ids.length ? ids : [...mine];
-  const parents = [...new Set(targets.flatMap(sid => parentsOf(sid).map(p => p.id)))];
-  notifyUsers(parents, `${kind === 'sinov' ? 'Sinf rahbari online sinov' : 'Sinf rahbari yangi topshiriq'} berdi: “${title}” (${questions.length} ta savol${minutes ? ', ' + minutes + ' daqiqa' : ''}${due ? ', muddati ' + due.split('-').reverse().join('.') : ''}).\n\nOchish: ${siteUrl()}`);
-  return { id };
-};
-A['asg.delete'] = (u, b) => {
-  const a = one('SELECT * FROM assignments WHERE id=?', +b.id); if (!a) return {};
-  need(u.role === 'rahbar' && a.class_id === u.class_id);
-  tx(() => { run('DELETE FROM assign_answers WHERE assignment_id=?', a.id); run('DELETE FROM assignments WHERE id=?', a.id); });
-  log(u.id, 'topshiriq.ochirish', { id: a.id, title: a.title }); return {};
-};
-A['asg.list'] = u => {
-  if (u.role === 'rahbar') {
-    const rows = all('SELECT * FROM assignments WHERE class_id=? ORDER BY id DESC LIMIT 300', u.class_id);
-    const ans = rows.length ? all(`SELECT assignment_id,student_id,answers,score,qn,started_at,at FROM assign_answers WHERE assignment_id IN (${rows.map(() => '?').join(',')})`, ...rows.map(r => r.id)) : [];
-    return { today: today(), rows: rows.map(a => ({ ...a, questions: JSON.parse(a.questions), student_ids: a.student_ids ? JSON.parse(a.student_ids) : null })), answers: ans.map(x => ({ ...x, answers: x.answers ? JSON.parse(x.answers) : [] })) };
-  }
-  need(u.role === 'ota');
-  const kids = kidsOfPhone(phone9(u.phone)).map(studentInfo).filter(Boolean);
-  const out = [];
-  for (const k of kids) {
-    for (const a of all('SELECT * FROM assignments WHERE class_id=? ORDER BY id DESC LIMIT 100', k.class_id)) {
-      if (a.student_ids && !JSON.parse(a.student_ids).includes(k.id)) continue;
-      const my = one('SELECT answers,score,qn,started_at,at FROM assign_answers WHERE assignment_id=? AND student_id=?', a.id, k.id);
-      const done = !!my?.at;
-      const qs = JSON.parse(a.questions).map(q => done ? q : { q: q.q, o: q.o, t: q.t });
-      out.push({ id: a.id, student_id: k.id, kind: a.kind, title: a.title, topic: a.topic, minutes: a.minutes, due: a.due, created_at: a.created_at,
-        questions: qs, started_at: my?.started_at || '', done, score: my?.score ?? null, qn: my?.qn ?? qs.length, answers: my?.answers ? JSON.parse(my.answers) : [] });
-    }
-  }
-  return { today: today(), rows: out };
-};
-function asgForKid(u, b) {
-  need(u.role === 'ota');
-  const a = one('SELECT * FROM assignments WHERE id=?', +b.id); if (!a) bad('Topshiriq topilmadi');
-  const sid = +b.student_id; need(kidsOfPhone(phone9(u.phone)).includes(sid));
-  const s = studentInfo(sid); need(s && s.class_id === a.class_id && (!a.student_ids || JSON.parse(a.student_ids).includes(sid)), 'Bu topshiriq farzandingiz uchun emas');
-  return { a, sid };
-}
-A['asg.start'] = (u, b) => { // online sinov: vaqt shu paytdan hisoblanadi
-  const { a, sid } = asgForKid(u, b);
-  const my = one('SELECT * FROM assign_answers WHERE assignment_id=? AND student_id=?', a.id, sid);
-  if (my?.at) bad('Bu topshiriq allaqachon topshirilgan');
-  if (!my) run('INSERT INTO assign_answers(assignment_id,student_id,started_at) VALUES(?,?,?)', a.id, sid, now());
-  return { started_at: my?.started_at || one('SELECT started_at FROM assign_answers WHERE assignment_id=? AND student_id=?', a.id, sid).started_at };
-};
-A['asg.submit'] = (u, b) => {
-  const { a, sid } = asgForKid(u, b);
-  const my = one('SELECT * FROM assign_answers WHERE assignment_id=? AND student_id=?', a.id, sid);
-  if (my?.at) bad('Bu topshiriq allaqachon topshirilgan');
-  const qs = JSON.parse(a.questions);
-  const ans = qs.map((q, i) => { const v = Array.isArray(b.answers) ? b.answers[i] : null; const n = parseInt(v, 10); return n >= 0 && n < q.o.length ? n : -1; });
-  const score = ans.filter((v, i) => v === qs[i].a).length;
-  if (my) run('UPDATE assign_answers SET answers=?,score=?,qn=?,at=? WHERE assignment_id=? AND student_id=?', JSON.stringify(ans), score, qs.length, now(), a.id, sid);
-  else run('INSERT INTO assign_answers(assignment_id,student_id,answers,score,qn,started_at,at) VALUES(?,?,?,?,?,?,?)', a.id, sid, JSON.stringify(ans), score, qs.length, now(), now());
-  return { score, qn: qs.length, questions: qs, answers: ans };
-};
-// sinf rahbarining shaxsiy izohlari (faqat o'zi ko'radi)
-A['rnote.save'] = (u, b) => {
-  need(u.role === 'rahbar');
-  const s = one('SELECT class_id FROM students WHERE id=? AND active=1', +b.student_id); need(s && s.class_id === u.class_id, 'Faqat o‘z sinfingiz o‘quvchisi');
-  const t = String(b.text || '').trim().slice(0, 2000); if (!t) bad('Izoh bo‘sh');
-  const r = run('INSERT INTO rnotes(student_id,user_id,text,at) VALUES(?,?,?,?)', +b.student_id, u.id, t, now()); return { id: Number(r.lastInsertRowid) };
-};
-A['rnote.delete'] = (u, b) => { need(u.role === 'rahbar'); run('DELETE FROM rnotes WHERE id=? AND user_id=?', +b.id, u.id); return {}; };
 
 // ---------------------------------------------------------------- http
 const fails = new Map(); // ip -> {n, until}
