@@ -1131,12 +1131,12 @@ async function certDemo(){toast('Tayyorlanmoqda…');CA=null;
    <p class="note">Imzo yoki muhr yoqmasa, shu sahifada “Almashtirish” orqali boshqa rasm yuklang va qayta ko’ring.</p>`)}
 async function certPng(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;toast('Tayyorlanmoqda…');
   const cv=await drawCert(c);cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`Sertifikat-${code}.png`;document.body.appendChild(a);a.click();a.remove()},'image/png')}
-async function certPdf(list){
+async function certPdf(list,label=''){
   if(!list.length)return;toast(`${list.length} ta sertifikat tayyorlanmoqda…`);
   await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>window.jspdf);
   const pdf=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   for(let i=0;i<list.length;i++){const cv=await drawCert(list[i]);if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',.9),'JPEG',0,0,297,210)}
-  pdf.save('Sertifikatlar.pdf');
+  pdf.save('Sertifikatlar'+(label?'_'+plain(label).replace(/[^\w-]+/g,'_'):'')+'.pdf');
 }
 // ================================================================ natijalarni yuklab olish (PDF / Excel)
 // Qamrov: 'C:<sinf>' — bitta sinf; 'G:<maktab>:<sinf darajasi>' — maktabdagi barcha N-sinflar; 'S:<maktab>' — butun maktab;
@@ -1184,6 +1184,8 @@ function dlOpen(kind,id){
    ${ok.length>1?`<p class="label">Nimani yuklab olasiz?</p><div class="card list">${ok.map((o,i)=>`<label class="row" style="cursor:pointer"><input type="radio" name="dlScope" value="${o[0]}" ${i?'':'checked'} style="width:20px;height:20px;accent-color:var(--accent)"><div class="m"><div class="n">${esc(o[1])}</div>${o[2]?`<div class="s">${o[2]}</div>`:''}</div></label>`).join('')}</div>`:''}
    ${isTeam()?`<p class="label">Rangli belgilash</p>
    <div class="card pad" style="gap:12px" id="dlMarkBox">${dlMarkHtml(dlPref().mode)}</div>`:`<div class="card pad" style="gap:8px"><p style="margin:0;display:flex;gap:10px;align-items:center"><span style="width:22px;height:22px;border-radius:6px;background:#f7cf62;flex:none"></span>1–3-o’rinlar</p><p style="margin:0;display:flex;gap:10px;align-items:center"><span style="width:22px;height:22px;border-radius:6px;background:#fdf1d2;border:1px solid #eadfbf;flex:none"></span>4–5-o’rinlar</p><p class="note" style="margin:0">Ro’yxat ball bo’yicha tartiblanadi, ranglar o’zi qo’yiladi.</p></div>`}
+   <label class="field"><span class="label">Hujjat sarlavhasi</span><input id="dlTitle" value="${esc(curTest()?.name||'')}" placeholder="Masalan: Matematika olimpiadasi saralash bosqichi"></label>
+   <p class="note" style="margin-top:-6px">“YOSH XORAZMIYLAR” ostida shu yozuv chiqadi. Har safar o’zingiz o’zgartirishingiz mumkin.</p>
    <p class="note">Faqat sinovda qatnashgan bolalar, ball bo’yicha tartiblangan va 1, 2, 3… deb raqamlangan. Bir xil ball olganlar familiyasi bo’yicha alifbo tartibida turadi.</p>
    <button class="btn pri" data-act="dlGo" data-f="pdf">PDF yuklab olish</button>
    <button class="btn sec" data-act="dlGo" data-f="xlsx">Excel yuklab olish</button>`);dlCountShow()}
@@ -1215,6 +1217,7 @@ function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.crea
 async function dlGo(f){
   const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
   const d=dlBuild(scope);if(!d.sections.length){toast('Natija yo’q',true);return}
+  const ttl=$('#dlTitle');if(ttl)d.test=ttl.value.trim();
   if(isTeam()){const {mode,top,star}=dlReadMark();dlSaveMark();
     d.sections.forEach(s=>s.rows.forEach(r=>{r.g=dlHit(r,mode,star);r.hl=dlHit(r,mode,top)?2:0}))}
   else d.sections.forEach(s=>s.rows.forEach(r=>{r.g=false;r.hl=r.o<=3?2:r.o<=5?1:0})); // direktor/sinf rahbari: 1–3 yorqin, 4–5 och rang
@@ -1241,7 +1244,7 @@ async function dlGo(f){
   d.sections.forEach((s,si)=>{if(si)pdf.addPage();let y=14;
     if(lg){pdf.addImage(lg,'JPEG',W/2-12,y,24,24);y+=29}
     pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.setTextColor(...NAVY);pdf.text('YOSH XORAZMIYLAR',W/2,y,{align:'center'});y+=7;
-    pdf.setFont('helvetica','normal');pdf.setFontSize(11);pdf.setTextColor(90);pdf.text(plain(d.test),W/2,y,{align:'center'});y+=7;
+    if(d.test){pdf.setFont('helvetica','normal');pdf.setFontSize(12);pdf.setTextColor(90);pdf.text(plain(d.test),W/2,y,{align:'center'});y+=7}
     pdf.setFont('helvetica','bold');pdf.setFontSize(14);pdf.setTextColor(...NAVY);pdf.text(plain(d.title),W/2,y,{align:'center'});y+=9;
     pdf.setFontSize(12);pdf.text(plain(s.h),15,y);pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(90);pdf.text(`${d.cnt||"Qatnashdi"}: ${s.rows.length} nafar`,W-15,y,{align:'right'});y+=3;
     pdf.autoTable({startY:y,head:[head],body:s.rows.map(row),theme:'grid',margin:{left:15,right:15},
@@ -1279,12 +1282,32 @@ function inkOnly(img){
     const pad=Math.round(Math.max(x1-x0,y1-y0)*.04);x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(W-1,x1+pad);y1=Math.min(H-1,y1+pad);
     const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;o.getContext('2d').drawImage(c,x0,y0,o.width,o.height,0,0,o.width,o.height);return o}
   catch(e){return img}}
+// sertifikatlar: tuman / maktab / sinf bosqichi / sinf bo'yicha saralab, bittalab yoki PDF qilib yuklab olish
+let cfSchool=0,cfGrade=0,cfClass=0,cfTest=0;
+function certFiltered(){
+  const all=(S.certs||[]).map(c=>({...c,s:X.st.find(x=>x.id===c.student_id)})).filter(c=>c.s);
+  const tests=[...new Set(all.map(c=>c.test_id))];if(cfTest&&!tests.includes(cfTest))cfTest=0;
+  let l=all.filter(c=>!cfTest||c.test_id===cfTest);
+  const schools=[...new Set(l.map(c=>c.s.school_id))].map(id=>X.sc[id]).filter(Boolean).sort((a,b)=>a.num-b.num);if(cfSchool&&!schools.some(x=>x.id===cfSchool)){cfSchool=0;cfGrade=0;cfClass=0}
+  l=l.filter(c=>!cfSchool||c.s.school_id===cfSchool);
+  const grades=[...new Set(l.map(c=>c.s.grade))].filter(Boolean).sort((a,b)=>a-b);if(cfGrade&&!grades.includes(cfGrade)){cfGrade=0;cfClass=0}
+  l=l.filter(c=>!cfGrade||c.s.grade===cfGrade);
+  const classes=cfSchool&&cfGrade?[...new Set(l.map(c=>c.s.class_id))].map(id=>X.cl[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})):[];if(cfClass&&!classes.some(x=>x.id===cfClass))cfClass=0;
+  l=l.filter(c=>!cfClass||c.s.class_id===cfClass);
+  l.sort((a,b)=>(a.s.num-b.s.num)||a.s.cls.localeCompare(b.s.cls,'uz',{numeric:true})||a.s.name.localeCompare(b.s.name,'uz'));
+  return {l,tests,schools,grades,classes}}
+function certLabel(){const p=[];p.push(cfSchool?X.sc[cfSchool]?.num+'-maktab':(isTeam()?'Butun tuman':''));if(cfGrade)p.push(cfGrade+'-sinflar');if(cfClass)p.push(X.cl[cfClass]?.name+' sinf');return p.filter(Boolean).join(' · ')}
 function scrCerts(){
-  const certs=(S.certs||[]).map(c=>({...c,s:X.st.find(x=>x.id===c.student_id)})).filter(c=>c.s).sort((a,b)=>a.code.localeCompare(b.code));
-  return ['Sertifikatlar',`${certs.length} ta`,`
+  const {l,tests,schools,grades,classes}=certFiltered();
+  const seg=(k,cur,items,all)=>`<div class="seg" style="overflow-x:auto;flex-wrap:nowrap"><button data-cf="${k}:0" aria-pressed="${!cur}">${all}</button>${items.map(([v,t])=>`<button data-cf="${k}:${v}" aria-pressed="${cur===v}" style="white-space:nowrap">${esc(t)}</button>`).join('')}</div>`;
+  return ['Sertifikatlar',`${l.length} ta`,`
   ${!S.assetsReady?`<div class="offline">Logotip, imzo yoki muhr rasmi hali yuklanmagan. ${S.me.role==='ceo'?'Ko’proq → Sozlamalar bo’limida yuklang.':'Sertifikat ularsiz chiqadi.'}</div>`:''}
-  ${certs.length>1?`<button class="btn pri" data-act="certPdf">Hammasini PDF qilib yuklab olish</button>`:''}
-  <div class="card list">${certs.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certPng" data-c="${c.code}">Yuklab olish</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
+  ${tests.length>1?seg('t',cfTest,tests.map(id=>[id,S.tests.find(t=>t.id===id)?.name||'Sinov']),'Barcha sinovlar'):''}
+  ${schools.length>1?seg('s',cfSchool,schools.map(x=>[x.id,x.num+'-maktab']),isTeam()?'Butun tuman':'Hammasi'):''}
+  ${grades.length>1?seg('g',cfGrade,grades.map(g=>[g,g+'-sinflar']),'Hamma sinflar'):''}
+  ${classes.length>1?seg('c',cfClass,classes.map(c=>[c.id,c.name]),`Barcha ${cfGrade}-sinflar`):''}
+  ${l.length?`<button class="btn pri" data-act="certPdf">⬇ ${l.length>1?`Hammasini PDF qilib yuklab olish (${l.length} ta)`:'PDF qilib yuklab olish'}</button><p class="note" style="margin:0">${esc(certLabel())}${certLabel()?' · ':''}har bir sertifikat alohida A4 sahifada, chop etishga tayyor.</p>`:''}
+  <div class="card list">${l.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certPng" data-c="${c.code}">Yuklab olish</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
 function tabrikCard(role){
   const t=S.tests.find(x=>(S.gifted||[]).some(k=>+k.split(':')[0]===x.id)); if(!t)return'';
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
@@ -1394,7 +1417,7 @@ document.addEventListener('click',async e=>{
    case 'dl':dlOpen(d.k,+d.id);break;
    case 'dlGo':await dlGo(d.f);break;
    case 'certDemo':await certDemo();break;
-   case 'certPdf':await certPdf((S.certs||[]).filter(c=>X.st.some(s=>s.id===c.student_id)));break;
+   case 'certPdf':await certPdf(certFiltered().l,certLabel());break;
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
    case 'exSave':await api('ex.save',{id:CMP.id||undefined,grade:+val('exG'),day:val('exD'),text:val('exT'),image:CMP.exImg,options:[0,1,2,3,4].map(i=>val('exO'+i)),answer:val('exA'),explain:val('exE')});closeSheet();toast('Mashq saqlandi');EXL=null;render();break;
@@ -1562,7 +1585,7 @@ document.addEventListener('click',async e=>{
   if(d.tg!=null){topGrade=+d.tg;render();return} if(d.ts!=null){topSchool=+d.ts;render();return}
   if(d.rm){rMode=d.rm;render();return}
   if(d.qs!=null){qSchool=+d.qs;render();return}
-  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;schClass=0;render();return} if(d.scl!=null){schClass=+d.scl;render();return} if(d.hc!=null){homeClass=+d.hc;render();return} if(d.itc!=null){itClass=+d.itc;render();return}
+  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;schClass=0;render();return} if(d.scl!=null){schClass=+d.scl;render();return} if(d.hc!=null){homeClass=+d.hc;render();return} if(d.cf!=null){const[k,v]=d.cf.split(':');if(k==='t')cfTest=+v;if(k==='s'){cfSchool=+v;cfGrade=0;cfClass=0}if(k==='g'){cfGrade=+v;cfClass=0}if(k==='c')cfClass=+v;render();return} if(d.itc!=null){itClass=+d.itc;render();return}
   if(d.child){child=+d.child;render();return}
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
   if(d.bit!=null){E.bits[d.bit]=E.bits[d.bit]==='1'?'0':'1';drawEntry();return}
