@@ -446,7 +446,8 @@ function stuRow(s,i,o={}){
   return `<button class="row" data-go="stu:${s.id}">${o.rank?`<span class="rank">${r&&!r.absent&&r.score!=null?i+1:''}</span>`:''}<div class="m"><div class="n">${esc(s.name)}</div>${o.sub||g?`<div class="s">${o.sub?esc(o.sub(s)):''}${g?` <span class="pill gold">★ iqtidorli</span>`:''}</div>`:''}</div>${right}</button>`}
 function sortStu(list){const a=[...list];
   if(sortBy==='ism')a.sort((x,y)=>x.name.localeCompare(y.name,'uz'));
-  else a.sort((x,y)=>(R(y.id)?.score??-1)-(R(x.id)?.score??-1)||x.name.localeCompare(y.name,'uz'));return a}
+  else{const k=id=>{const r=R(id);return !r?-3:r.absent?-2:r.score??-1}; // avval qatnashganlar (0 ball ham), keyin kelmaganlar, oxirida kiritilmaganlar
+    a.sort((x,y)=>k(y.id)-k(x.id)||x.name.localeCompare(y.name,'uz'))}return a}
 const sortSeg=()=>`<div class="seg"><button data-sort="ball" aria-pressed="${sortBy==='ball'}">Ball bo’yicha</button><button data-sort="ism" aria-pressed="${sortBy==='ism'}">Ism bo’yicha</button></div>`;
 // "Eng ko'p xato qilingan savollar" bo'limi hozircha o'chirilgan (natijalar asosan umumiy ball bilan kiritilgan). Qaytarish uchun true qiling.
 const SHOW_HARD=false;
