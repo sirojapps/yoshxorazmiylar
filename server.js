@@ -173,6 +173,11 @@ function defW(n) {
 const cleanW = (w, n) => Array.isArray(w) && w.length === n && w.every(x => typeof x === 'number' && x >= 0 && x <= 100) && Math.abs(w.reduce((a, x) => a + x, 0) - 100) < 0.01 ? w.map(r2) : null;
 function wFor(testId, grade, n) { const r = one('SELECT w FROM wts WHERE test_id=? AND grade=?', testId, grade); let w = null; try { w = r && cleanW(JSON.parse(r.w), n); } catch (e) { } return w || defW(n); }
 const is100 = testId => one('SELECT scoring FROM tests WHERE id=?', testId)?.scoring === '100';
+// teng ball bo'lsa o'rin: qiyin guruhlar (16–20, 11–15 …) bo'yicha to'g'ri javoblar, keyin oxirgi savoldan boshlab
+function tieCmp(a, b) { const x = a.bits || '', y = b.bits || ''; if (!x || !y || x.length !== y.length || a.qn !== 100) return 0; const n = x.length, one = (s, i, j) => [...s.slice(i, j)].filter(c => c === '1').length;
+  for (let g = Math.floor((n - 1) / 5); g >= 0; g--) { const d = one(y, g * 5, g * 5 + 5) - one(x, g * 5, g * 5 + 5); if (d) return d; }
+  for (let i = n - 1; i >= 0; i--) if (x[i] !== y[i]) return x[i] === '1' ? -1 : 1; return 0; }
+const resCmp = (a, b) => { const d = (b.score ?? -1) - (a.score ?? -1); return Math.abs(d) > 1e-9 ? d : tieCmp(a, b); };
 function score(testId, grade, mode, answers, bits, variant) {
   const key = keyFor(testId, grade, variant);
   if (!is100(testId)) return scoreOld(key, mode, answers, bits);
@@ -284,7 +289,7 @@ function state(u) {
     const kids = new Set(out.children);
     const avg = {};
     for (const r of out.results) { const s = studs.find(x => x.id === r.student_id); const k = r.test_id + ':' + s.class_id; if (!r.absent) { (avg[k] ||= []).push(r.score / r.qn); } }
-    out.classAvg = Object.fromEntries(Object.entries(avg).map(([k, v]) => [k, Math.round(v.reduce((a, b) => a + b, 0) / v.length * 100)]));
+    out.classAvg = Object.fromEntries(Object.entries(avg).map(([k, v]) => [k, Math.round(v.reduce((a, b) => a + b, 0) / v.length * 1000) / 10]));
     out.results = out.results.filter(r => kids.has(r.student_id));
     out.students = out.students.filter(s => kids.has(s.id));
     out.classes = out.classes.filter(c => out.students.some(s => s.class_id === c.id));
@@ -294,20 +299,20 @@ function state(u) {
   out.gifted = [];
   for (const t of out.tests) {
     if (!t.finished) continue;
-    const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
+    const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
       WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL`, t.id);
     for (const g of [...new Set(rows.map(r => r.grade))]) {
       const gr = rows.filter(r => r.grade === g).sort((a, b) => b.score - a.score);
-      out.district[t.id + ':' + g] = Math.round(gr.reduce((a, r) => a + r.score / r.qn, 0) / gr.length * 100);
+      out.district[t.id + ':' + g] = Math.round(gr.reduce((a, r) => a + r.score / r.qn, 0) / gr.length * 1000) / 10;
       // sinf rahbari: o'z maktabining shu sinf bosqichi o'rtachasi (solishtirish uchun)
-      if (u.role === 'rahbar') { const my = gr.filter(r => r.school_id === schoolIds[0]); if (my.length) out.district[t.id + ':school:' + g] = Math.round(my.reduce((a, r) => a + r.score / r.qn, 0) / my.length * 100); }
+      if (u.role === 'rahbar') { const my = gr.filter(r => r.school_id === schoolIds[0]); if (my.length) out.district[t.id + ':school:' + g] = Math.round(my.reduce((a, r) => a + r.score / r.qn, 0) / my.length * 1000) / 10; }
       // direktor: o'z maktabining tumandagi o'rni (boshqa maktablar nomi va bolalari ko'rsatilmaydi)
       if (u.role === 'direktor') {
         const by = {}; for (const r of gr) (by[r.school_id] ||= []).push(r.score / r.qn);
         const avgs = Object.entries(by).map(([k, v]) => [+k, v.reduce((a, b) => a + b, 0) / v.length]).sort((a, b) => b[1] - a[1]);
         const i = avgs.findIndex(x => x[0] === u.school_id); if (i >= 0) out.district[t.id + ':srank:' + g] = [avgs.filter(x => x[1] > avgs[i][1]).length + 1, avgs.length];
       }
-      if (u.role === 'ota') for (const kid of out.children) { const i = gr.findIndex(r => r.student_id === kid); if (i >= 0) out.district[t.id + ':rank:' + kid] = [gr.filter(r => r.score > gr[i].score).length + 1, gr.length]; }
+      if (u.role === 'ota') for (const kid of out.children) { const i = gr.findIndex(r => r.student_id === kid); if (i >= 0) out.district[t.id + ':rank:' + kid] = [gr.filter(r => resCmp(r, gr[i]) < 0).length + 1, gr.length]; }
     }
   }
   for (const t of out.tests) for (const sid of schoolIds) if (announced(t.id, sid)) out.gifted.push(...giftedIds(t, sid).filter(id => out.students.some(s => s.id === id)).map(id => t.id + ':' + id));
@@ -316,7 +321,7 @@ function state(u) {
 }
 // iqtidorli: har bir maktab ichida, o'z sinf bosqichida eng yaxshi gifted_top% va kamida gifted_min%
 function giftedIds(t, schoolId) {
-  const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
+  const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
     WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL AND s.active=1`, t.id).filter(r => !schoolId || r.school_id === schoolId);
   const ids = [];
   for (const g of [...new Set(rows.map(r => r.school_id + ':' + r.grade))]) {
