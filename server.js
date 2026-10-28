@@ -464,6 +464,7 @@ A['trash.restore'] = (u, b) => {
   need(u.role === 'ceo' || r.by === u.id);
   return tx(() => {
     if (r.kind === 'student') { if (!one('SELECT 1 FROM students WHERE id=?', r.ref_id)) bad('Bu o‘quvchi butunlay o‘chirilgan'); run('UPDATE students SET active=1 WHERE id=?', r.ref_id); }
+    else if (r.kind === 'probs') { const ids = JSON.parse(r.data || '{}').ids || []; run(`UPDATE probs SET active=1 WHERE id IN (${inList(ids)})`, ...ids); }
     else {
       const d = JSON.parse(r.data || '{}');
       if (r.kind === 'school' && one('SELECT 1 FROM schools WHERE num=?', d.schools[0].num)) bad(`${d.schools[0].num}-maktab hozir bor. Avval uni o‘chiring yoki raqamini o‘zgartiring`);
@@ -476,7 +477,8 @@ A['trash.restore'] = (u, b) => {
 };
 function purgeTrash(id) {
   const r = one('SELECT * FROM trash WHERE id=?', id); if (!r) return;
-  tx(() => { if (r.kind === 'student' && one('SELECT 1 FROM students WHERE id=? AND active=0', r.ref_id)) dropStudents([r.ref_id]); run('DELETE FROM trash WHERE id=?', r.id); });
+  tx(() => { if (r.kind === 'student' && one('SELECT 1 FROM students WHERE id=? AND active=0', r.ref_id)) dropStudents([r.ref_id]);
+    if (r.kind === 'probs') { const ids = JSON.parse(r.data || '{}').ids || []; run(`DELETE FROM probs WHERE active=0 AND id IN (${inList(ids)})`, ...ids); } run('DELETE FROM trash WHERE id=?', r.id); });
 }
 A['trash.purge'] = (u, b) => { need(u.role === 'ceo', 'Butunlay o‘chirishni faqat CEO qiladi'); const r = one('SELECT label FROM trash WHERE id=?', +b.id); purgeTrash(+b.id); log(u.id, 'savat.tozalash', { name: r?.label }); return {}; };
 setInterval(() => { try { const lim = new Date(Date.now() - 30 * 864e5).toISOString(); for (const r of all('SELECT id FROM trash WHERE at<?', lim)) purgeTrash(r.id); } catch (e) { } }, 6 * 36e5);
@@ -588,13 +590,13 @@ A['bank.upload'] = (u, b) => {
 };
 function bankList() {
   const used = {}; for (const l of all('SELECT l.bank_id,l.test_id,t.name FROM tlinks l JOIN tests t ON t.id=l.test_id')) (used[l.bank_id] ||= []).push({ id: l.test_id, name: l.name });
-  return all('SELECT id,name,grade,qn,nopt,keys,at FROM tbank ORDER BY grade,id DESC').map(r => ({ id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, variants: Object.keys(JSON.parse(r.keys)), at: r.at, used: used[r.id] || [] }));
+  return all('SELECT id,name,grade,qn,nopt,keys,at,kind FROM tbank ORDER BY grade,id DESC').map(r => ({ id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, kind: r.kind || 'matn', variants: Object.keys(JSON.parse(r.keys)), at: r.at, used: used[r.id] || [] }));
 }
 // test savollari (kitobcha uchun) — kalit kabi maxfiy
 A['bank.get'] = (u, b) => {
   need(canKey(u), 'Test savollarini faqat CEO yoki kalit huquqi bor a‘zo ko‘radi');
   const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi');
-  return { id: r.id, name: r.name, grade: r.grade, qn: r.qn, data: JSON.parse(r.data) };
+  return { id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, kind: r.kind || 'matn', data: JSON.parse(r.data), keys: JSON.parse(r.keys), used: bankUsed(r.id) };
 };
 A['bank.delete'] = (u, b) => {
   need(canKey(u));
@@ -621,6 +623,232 @@ A['test.useBank'] = (u, b) => {
     return {};
   });
 };
+// ================================================================ MISOLLAR BAZASI (rasmli misollar, mavzular daraxti, test tuzish)
+// Rasmlar va PDF fayllar bazaning o'zida saqlanadi — kunlik zaxira nusxaga ular ham kiradi.
+db.exec(`CREATE TABLE IF NOT EXISTS media(id TEXT PRIMARY KEY, type TEXT NOT NULL, data BLOB NOT NULL, size INTEGER, by INTEGER, at TEXT);
+CREATE TABLE IF NOT EXISTS probs(id INTEGER PRIMARY KEY, grade INTEGER NOT NULL, topic TEXT NOT NULL, kind TEXT DEFAULT 'masala', level INTEGER DEFAULT 2,
+  q TEXT NOT NULL, img TEXT DEFAULT '', o TEXT NOT NULL, a TEXT NOT NULL, fix INTEGER DEFAULT 0, sol TEXT DEFAULT '', src TEXT DEFAULT '',
+  sig TEXT, active INTEGER DEFAULT 1, by INTEGER, at TEXT);
+CREATE INDEX IF NOT EXISTS probs_gt ON probs(grade,topic,active);
+CREATE UNIQUE INDEX IF NOT EXISTS probs_sig ON probs(sig);`);
+try { db.exec("ALTER TABLE tbank ADD COLUMN kind TEXT DEFAULT 'matn'"); } catch (e) { }
+
+// Mavzular daraxti: darslik mavzulari + darslikdan tashqari, lekin shu yoshdagi bolalarga kerakli mavzular.
+// Kodlar o'zgarmaydi (yangi mavzu guruh oxiriga yangi kod bilan qo'shiladi), shuning uchun misollar o'z joyida qoladi.
+const PB_TOPICS = {
+  2: [
+    ['Sonlar (100 ichida)', [['2A1', 'Sonlarni o‘qish va yozish: o‘nlik va birlik'], ['2A2', 'Sonlarni taqqoslash (>, <, =)'], ['2A3', 'Sonlar ketma-ketligi: oldingi va keyingi son'], ['2A4', 'Juft va toq sonlar'], ['2A5', 'Sonning tarkibi, xona birliklari']]],
+    ['Qo‘shish va ayirish', [['2B1', 'O‘nlikdan o‘tmay qo‘shish va ayirish'], ['2B2', 'O‘nlikdan o‘tib qo‘shish'], ['2B3', 'O‘nlikdan o‘tib ayirish'], ['2B4', 'Qo‘shish va ayirish komponentlari'], ['2B5', 'Noma’lum qo‘shiluvchi, kamayuvchi, ayriluvchini topish'], ['2B6', 'Qulay usulda og‘zaki hisoblash'], ['2B7', 'Qavsli ifodalar va amallar tartibi']]],
+    ['Ko‘paytirish va bo‘lish', [['2C1', 'Ko‘paytirish ma’nosi (teng qo‘shiluvchilar)'], ['2C2', 'Bo‘lish ma’nosi (teng bo‘laklarga ajratish)'], ['2C3', '2 va 3 ga ko‘paytirish va bo‘lish'], ['2C4', '4 va 5 ga ko‘paytirish va bo‘lish'], ['2C5', '0 va 1 bilan amallar'], ['2C6', 'Ko‘paytirishning o‘rin almashtirish xossasi']]],
+    ['Matnli masalalar', [['2D1', 'Bir amalli masalalar'], ['2D2', '“…ta ko‘p / …ta kam” masalalari'], ['2D3', 'Ikki amalli masalalar'], ['2D4', 'Ko‘paytirish va bo‘lishga oid masalalar'], ['2D5', '“…marta ko‘p / …marta kam” masalalari'], ['2D6', 'Narx, miqdor, qiymat (pul) masalalari']]],
+    ['Kattaliklar', [['2E1', 'Uzunlik: sm, dm, m'], ['2E2', 'Vaqt: soat va minut, soatga qarab vaqtni aniqlash'], ['2E3', 'Kalendar: kun, hafta, oy, yil'], ['2E4', 'Pul: so‘m bilan hisob-kitob'], ['2E5', 'Massa (kg) va sig‘im (litr)']]],
+    ['Geometriya', [['2F1', 'Nuqta, to‘g‘ri chiziq, kesma, nur'], ['2F2', 'Siniq chiziq va uning uzunligi'], ['2F3', 'Burchak, to‘g‘ri burchak'], ['2F4', 'Uchburchak, to‘rtburchak, kvadrat'], ['2F5', 'Perimetr'], ['2F6', 'Doira, aylana va fazoviy shakllar']]],
+    ['Ma’lumotlar', [['2G1', 'Jadval va oddiy diagramma o‘qish']]],
+    ['Mantiq va olimpiada (darslikdan tashqari)', [['2H01', 'Sonli qonuniyatlar: keyingi son qaysi?'], ['2H02', 'Shakl va rasmli qonuniyatlar'], ['2H03', 'Shakllarni sanash (rasmda nechta?)'], ['2H04', 'Gugurt cho‘plari bilan masalalar'], ['2H05', 'Sehrli kvadrat va sonli jumboqlar'], ['2H06', 'Mantiqiy masalalar: kim, qayerda, nima?'], ['2H07', 'Taqqoslash va tartiblash (kim baland, kim kichik)'], ['2H08', 'Yosh masalalari'], ['2H09', 'Kesish va bo‘laklash (arra, lenta)'], ['2H10', 'Simmetriya va oynadagi aks'], ['2H11', 'Fazoviy tasavvur: kublar, yoyilmalar'], ['2H12', 'Labirint va yo‘l topish'], ['2H13', 'Nechta usul bilan? (oddiy kombinatorika)'], ['2H14', 'Tarozi va muvozanat masalalari'], ['2H15', 'Eng kami nechta? (Dirixle prinsipi)'], ['2H16', 'Tanga va pul jumboqlari']]],
+  ],
+  3: [
+    ['Sonlar (1000 ichida)', [['3A1', 'Uch xonali sonlar: o‘qish, yozish, xona birliklari'], ['3A2', 'Sonlarni taqqoslash va yaxlitlash'], ['3A3', 'Rim raqamlari'], ['3A4', 'Sonlar ketma-ketligi, juft va toq sonlar']]],
+    ['Qo‘shish va ayirish', [['3B1', '1000 ichida og‘zaki qo‘shish va ayirish'], ['3B2', 'Yozma (ustun) qo‘shish'], ['3B3', 'Yozma (ustun) ayirish'], ['3B4', 'Komponentlar va noma’lumni topish'], ['3B5', 'Qulay usulda hisoblash']]],
+    ['Ko‘paytirish va bo‘lish', [['3C1', 'Ko‘paytirish jadvali'], ['3C2', 'Jadval bo‘yicha bo‘lish'], ['3C3', 'Ikki xonali sonni bir xonali songa ko‘paytirish'], ['3C4', 'Uch xonali sonni bir xonali songa ko‘paytirish'], ['3C5', 'Bir xonali songa bo‘lish'], ['3C6', 'Qoldiqli bo‘lish'], ['3C7', '10 va 100 ga ko‘paytirish va bo‘lish'], ['3C8', 'Ko‘paytirish va bo‘lish komponentlari, noma’lumni topish'], ['3C9', 'Ko‘paytirish xossalari']]],
+    ['Ifodalar va tenglamalar', [['3D1', 'Amallar tartibi va qavslar'], ['3D2', 'Tenglamalar'], ['3D3', 'Harfli ifodalar']]],
+    ['Matnli masalalar', [['3E1', 'Ikki va uch amalli masalalar'], ['3E2', 'Narx, miqdor, qiymat'], ['3E3', 'Farq va karrali taqqoslash'], ['3E4', 'Birga keltirish va ulushlarga bo‘lish'], ['3E5', 'Teskari masalalar']]],
+    ['Ulushlar (kasrlar)', [['3F1', 'Ulush tushunchasi'], ['3F2', 'Sonning ulushini va ulushiga ko‘ra sonni topish']]],
+    ['Kattaliklar', [['3G1', 'Uzunlik: mm, sm, dm, m, km'], ['3G2', 'Massa (g, kg) va sig‘im (l)'], ['3G3', 'Vaqt: sutka, soat, minut, sekund; vaqt oralig‘i'], ['3G4', 'Kalendar va hafta kunlari'], ['3G5', 'Ismli sonlar ustida amallar']]],
+    ['Geometriya', [['3H1', 'Perimetr'], ['3H2', 'Kvadrat va to‘g‘ri to‘rtburchak yuzi'], ['3H3', 'Doira va aylana: radius, diametr'], ['3H4', 'Burchak va uchburchak turlari']]],
+    ['Ma’lumotlar', [['3I1', 'Jadval, piktogramma va ustunli diagramma'], ['3I2', 'Narxlar jadvali va xarid ro‘yxati']]],
+    ['Mantiq va olimpiada (darslikdan tashqari)', [['3J01', 'Sonli qonuniyatlar'], ['3J02', 'Shaklli qonuniyatlar'], ['3J03', 'Shakllarni sanash'], ['3J04', 'Gugurt cho‘plari bilan masalalar'], ['3J05', 'Sehrli kvadrat va sonli krossvordlar'], ['3J06', 'Mantiqiy masalalar'], ['3J07', 'Yosh masalalari'], ['3J08', 'Kesish, bo‘laklash, ustun va oraliqlar'], ['3J09', 'Hafta kunlari va kalendar jumboqlari'], ['3J10', 'Fazoviy tasavvur: kublar, yoyilmalar'], ['3J11', 'Nechta usul bilan? (kombinatorika)'], ['3J12', 'Tarozi va muvozanat masalalari'], ['3J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['3J14', 'Raqamli jumboqlar (yulduzcha o‘rniga raqam)'], ['3J15', 'Simmetriya, burish, oynadagi aks'], ['3J16', 'Labirint, yo‘l va xarita'], ['3J17', 'Eng ko‘p / eng kam bo‘lishi mumkin? (eng katta qiymat)']]],
+  ],
+  4: [
+    ['Ko‘p xonali sonlar', [['4A1', 'Ko‘p xonali sonlarni o‘qish va yozish, sinflar va xonalar'], ['4A2', 'Taqqoslash va yaxlitlash'], ['4A3', 'Sonlar ketma-ketligi va xossalari']]],
+    ['Qo‘shish va ayirish', [['4B1', 'Ko‘p xonali sonlarni qo‘shish va ayirish'], ['4B2', 'Noma’lum komponentni topish'], ['4B3', 'Qulay usulda hisoblash']]],
+    ['Ko‘paytirish va bo‘lish', [['4C1', 'Bir xonali songa ko‘paytirish'], ['4C2', 'Ikki va uch xonali songa ko‘paytirish'], ['4C3', 'Nol bilan tugaydigan sonlarni ko‘paytirish va bo‘lish'], ['4C4', 'Bir xonali songa bo‘lish'], ['4C5', 'Ikki xonali songa bo‘lish'], ['4C6', 'Qoldiqli bo‘lish'], ['4C7', 'Ko‘paytirish va bo‘lish xossalari']]],
+    ['Ifodalar va tenglamalar', [['4D1', 'Ko‘p amalli ifodalar, amallar tartibi'], ['4D2', 'Tenglamalar'], ['4D3', 'Harfli ifodalar va formulalar']]],
+    ['Matnli masalalar', [['4E1', 'Ko‘p amalli masalalar'], ['4E2', 'Harakat: tezlik, vaqt, masofa'], ['4E3', 'Qarama-qarshi va bir yo‘nalishdagi harakat'], ['4E4', 'Narx, miqdor, qiymat'], ['4E5', 'Ish unumi masalalari'], ['4E6', 'O‘rta arifmetik'], ['4E7', 'Yig‘indi va ayirmasiga ko‘ra ikki sonni topish'], ['4E8', 'Yig‘indi va karrali nisbatiga ko‘ra topish']]],
+    ['Kasrlar', [['4F1', 'Kasrlarni o‘qish, yozish va taqqoslash'], ['4F2', 'Sonning kasrini va kasriga ko‘ra sonni topish'], ['4F3', 'Maxrajlari bir xil kasrlarni qo‘shish va ayirish']]],
+    ['Kattaliklar', [['4G1', 'Uzunlik, massa birliklari va ularni almashtirish'], ['4G2', 'Yuza birliklari: sm², dm², m², ar, gektar'], ['4G3', 'Vaqt: asr, yil, oy, sutka; vaqtni hisoblash'], ['4G4', 'Ismli sonlar ustida amallar']]],
+    ['Geometriya', [['4H1', 'Murakkab shakllar perimetri va yuzi'], ['4H2', 'To‘g‘ri burchakli parallelepiped va kub, hajm'], ['4H3', 'Burchaklar, uchburchaklar, chizmalar'], ['4H4', 'Masshtab va plan']]],
+    ['Ma’lumotlar', [['4I1', 'Jadval va diagrammalar'], ['4I2', 'Grafik va ma’lumotlarni tahlil qilish']]],
+    ['Mantiq va olimpiada (darslikdan tashqari)', [['4J01', 'Sonli qonuniyatlar'], ['4J02', 'Shaklli qonuniyatlar'], ['4J03', 'Shakllarni sanash'], ['4J04', 'Gugurt cho‘plari bilan masalalar'], ['4J05', 'Sehrli kvadrat va raqamli jumboqlar'], ['4J06', 'Mantiqiy masalalar: rost-yolg‘on, jadval usuli'], ['4J07', 'Yosh masalalari'], ['4J08', 'Kesish, ustun va oraliqlar'], ['4J09', 'Kalendar jumboqlari'], ['4J10', 'Fazoviy tasavvur: kub, yoyilma, ko‘rinishlar'], ['4J11', 'Kombinatorika va oddiy ehtimollik'], ['4J12', 'Tarozi, quyish va o‘lchash jumboqlari'], ['4J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['4J14', 'Bo‘linish belgilari va sonlar xossalari'], ['4J15', 'Raqamlar yig‘indisi, raqamli jumboqlar'], ['4J16', 'Eng katta / eng kichik qiymat'], ['4J17', 'Simmetriya, burish, oynadagi aks']]],
+  ],
+};
+const PB_TOPIC = {}; // kod -> {g, group, name}
+for (const [g, groups] of Object.entries(PB_TOPICS)) for (const [group, list] of groups) for (const [code, name] of list) PB_TOPIC[code] = { g: +g, group, name };
+const PB_KIND = ['hisoblash', 'masala', 'mantiq', 'geometriya'];
+
+// ---- media: rasm va PDF (faqat kalit huquqi borlar yuklaydi, jamoa ko'radi)
+const MTYPES = { 'image/png': [0x89, 0x50], 'image/jpeg': [0xff, 0xd8], 'image/webp': [0x52, 0x49], 'application/pdf': [0x25, 0x50] };
+function readRaw(req, limit) {
+  return new Promise((res, rej) => { const parts = []; let n = 0; req.on('data', c => { n += c.length; if (n > limit) { rej(new HttpErr(413, 'Fayl juda katta (ko‘pi bilan 9 MB)')); req.destroy(); return; } parts.push(c); }); req.on('end', () => res(Buffer.concat(parts))); req.on('error', rej); });
+}
+async function mediaPut(u, req) {
+  need(canKey(u), 'Fayl yuklash uchun kalit huquqi kerak');
+  const type = String(req.headers['content-type'] || '').split(';')[0].trim();
+  const sig = MTYPES[type]; if (!sig) bad('Faqat PNG, JPG, WEBP rasm yoki PDF fayl yuklanadi');
+  const buf = await readRaw(req, 9.5e6);
+  if (buf.length < 8 || buf[0] !== sig[0] || buf[1] !== sig[1]) bad('Fayl buzilgan yoki turi noto‘g‘ri');
+  const id = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 24);
+  run('INSERT OR IGNORE INTO media(id,type,data,size,by,at) VALUES(?,?,?,?,?,?)', id, type, buf, buf.length, u.id, now());
+  return { id, size: buf.length };
+}
+const mediaOk = id => typeof id === 'string' && /^[0-9a-f]{24}$/.test(id) && !!one('SELECT 1 FROM media WHERE id=?', id);
+const mediaType = id => one('SELECT type FROM media WHERE id=?', id)?.type || '';
+
+// ---- misolni tekshirish va tozalash
+function cleanProb(x, i) {
+  const at = `${i + 1}-misol`;
+  const g = parseInt(x.grade, 10); if (!PB_TOPICS[g]) bad(`${at}: sinf noto‘g‘ri (${x.grade})`);
+  const t = PB_TOPIC[x.topic]; if (!t || t.g !== g) bad(`${at}: mavzu topilmadi (${x.topic || 'yozilmagan'})`);
+  const q = String(x.q ?? '').replace(/\r\n?/g, '\n').trim().slice(0, 3000);
+  const img = x.img ? String(x.img) : ''; if (img && (!mediaOk(img) || !mediaType(img).startsWith('image/'))) bad(`${at}: rasmi yuklanmagan`);
+  if (!q && !img) bad(`${at}: savol matni yo‘q`);
+  const o = (Array.isArray(x.o) ? x.o : []).map(v => typeof v === 'string' ? { t: v } : (v || {})).map(v => ({ t: str(v.t, 300), i: v.i ? String(v.i) : '' }));
+  if (o.length < 2 || o.length > 5) bad(`${at}: javob variantlari 2 tadan 5 tagacha bo‘lishi kerak`);
+  o.forEach((v, k) => { if (v.i && !mediaOk(v.i)) bad(`${at}: ${'ABCDE'[k]} variant rasmi yuklanmagan`); if (!v.t && !v.i) bad(`${at}: ${'ABCDE'[k]} variant bo‘sh`); });
+  const a = String(x.a || '').toUpperCase(); const ai = 'ABCDE'.indexOf(a); if (ai < 0 || ai >= o.length) bad(`${at}: to‘g‘ri javob ko‘rsatilmagan`);
+  const kind = PB_KIND.includes(x.kind) ? x.kind : 'masala';
+  const level = Math.min(3, Math.max(1, parseInt(x.level, 10) || 2));
+  return { grade: g, topic: x.topic, kind, level, q, img, o, a, fix: x.fix ? 1 : 0, sol: String(x.sol ?? '').trim().slice(0, 3000), src: str(x.src, 120) };
+}
+const probSig = p => crypto.createHash('sha1').update([p.grade, String(p.q).toLowerCase().replace(/\s+/g, ' ').replace(/[`'‘’ʻʼ]/g, "'"), p.img, p.o.map(v => v.t.toLowerCase() + '#' + v.i).join('|')].join('§')).digest('hex');
+const hasImg = p => !!p.img || p.o.some(v => v.i);
+function probRow(r) { const o = JSON.parse(r.o); return { id: r.id, grade: r.grade, topic: r.topic, kind: r.kind, level: r.level, q: r.q, img: r.img, o, a: r.a, fix: !!r.fix, sol: r.sol, src: r.src, at: r.at, pic: !!r.img || o.some(v => v.i) }; }
+
+A['pb.meta'] = u => {
+  need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
+  const counts = {};
+  for (const r of all("SELECT grade,topic,count(*) n,sum(CASE WHEN img<>'' OR o GLOB '*\"i\":\"[0-9a-f]*' THEN 1 ELSE 0 END) p FROM probs WHERE active=1 GROUP BY grade,topic")) (counts[r.grade] ||= {})[r.topic] = { n: r.n, p: r.p };
+  return { topics: PB_TOPICS, kinds: PB_KIND, counts, total: one('SELECT count(*) n FROM probs WHERE active=1').n };
+};
+A['pb.list'] = (u, b) => {
+  need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
+  const w = ['active=1'], a = [];
+  if (b.grade) { w.push('grade=?'); a.push(+b.grade); }
+  if (b.topic) { w.push('topic=?'); a.push(String(b.topic)); }
+  if (b.pic) w.push("(img<>'' OR o GLOB '*\"i\":\"[0-9a-f]*')");
+  if (b.q) { w.push('q LIKE ?'); a.push('%' + String(b.q).slice(0, 60).replace(/[%_]/g, '') + '%'); }
+  const lim = Math.min(60, Math.max(1, +b.limit || 30)), off = Math.max(0, +b.offset || 0);
+  const total = one(`SELECT count(*) n FROM probs WHERE ${w.join(' AND ')}`, ...a).n;
+  return { total, rows: all(`SELECT * FROM probs WHERE ${w.join(' AND ')} ORDER BY level,id LIMIT ? OFFSET ?`, ...a, lim, off).map(probRow) };
+};
+A['pb.get'] = (u, b) => {
+  need(canKey(u)); const ids = (Array.isArray(b.ids) ? b.ids : []).map(Number).filter(Boolean).slice(0, 60);
+  const m = Object.fromEntries(all(`SELECT * FROM probs WHERE id IN (${inList(ids)})`, ...ids).map(r => [r.id, probRow(r)]));
+  return { rows: ids.map(id => m[id]).filter(Boolean) };
+};
+// paket yoki qo'lda: bir so'rovda 40 tagacha misol. Bazada bor misol takror qo'shilmaydi
+A['pb.add'] = (u, b) => {
+  need(canKey(u), 'Misol qo‘shish uchun kalit huquqi kerak');
+  const items = Array.isArray(b.items) ? b.items : []; if (!items.length) bad('Misol yo‘q'); if (items.length > 40) bad('Bir martada 40 tadan ko‘p emas');
+  const clean = items.map(cleanProb);
+  return tx(() => {
+    const out = []; let added = 0, dup = 0;
+    for (const p of clean) {
+      const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
+      if (ex) { if (!ex.active) { run('UPDATE probs SET active=1,topic=?,kind=?,level=?,a=?,fix=?,sol=? WHERE id=?', p.topic, p.kind, p.level, p.a, p.fix, p.sol, ex.id); added++; out.push({ id: ex.id, dup: false }); } else { dup++; out.push({ id: ex.id, dup: true }); } continue; }
+      const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, u.id, now());
+      added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
+    }
+    if (added) log(u.id, 'misol.qoshish', { soni: added, takror: dup });
+    return { added, dup, ids: out };
+  });
+};
+A['pb.delete'] = (u, b) => {
+  need(canKey(u), 'Misol o‘chirish uchun kalit huquqi kerak');
+  const ids = (Array.isArray(b.ids) ? b.ids : []).map(Number).filter(Boolean).slice(0, 500);
+  const rows = all(`SELECT id,grade,topic FROM probs WHERE active=1 AND id IN (${inList(ids)})`, ...ids); if (!rows.length) bad('Misol topilmadi');
+  return tx(() => {
+    run(`UPDATE probs SET active=0 WHERE id IN (${inList(rows.map(r => r.id))})`, ...rows.map(r => r.id));
+    const tp = [...new Set(rows.map(r => PB_TOPIC[r.topic]?.name || r.topic))];
+    toTrash(u, 'probs', rows[0].id, `${rows.length} ta misol`, `${rows[0].grade}-sinf · ${tp.slice(0, 2).join(', ')}${tp.length > 2 ? '…' : ''}`, null, { ids: rows.map(r => r.id) });
+    log(u.id, 'misol.ochirish', { soni: rows.length }); return { n: rows.length };
+  });
+};
+// bazadan tasodifiy tanlash: mavzular bo'yicha teng taqsimlanadi, suratlilar soni hisobga olinadi, osondan qiyinga tartiblanadi
+function rnd(seed) { let s = (seed >>> 0) || 0x9e3779b9; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+function shuffle(a, r = Math.random) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+A['pb.pick'] = (u, b) => {
+  need(canKey(u));
+  const g = parseInt(b.grade, 10); if (!PB_TOPICS[g]) bad('Sinfni tanlang');
+  const topics = (Array.isArray(b.topics) ? b.topics : []).filter(t => PB_TOPIC[t]?.g === g);
+  const n = Math.min(50, Math.max(1, parseInt(b.n, 10) || 20)), nimg = Math.min(n, Math.max(0, parseInt(b.nimg, 10) || 0));
+  const ex = (Array.isArray(b.exclude) ? b.exclude : []).map(Number);
+  let pool = all(`SELECT * FROM probs WHERE active=1 AND grade=?${topics.length ? ` AND topic IN (${inList(topics)})` : ''}`, g, ...topics).map(probRow).filter(p => !ex.includes(p.id));
+  if (b.pic === 1) pool = pool.filter(p => p.pic); if (b.pic === 0) pool = pool.filter(p => !p.pic);
+  const spread = l => { const by = {}; shuffle(l).forEach(p => (by[p.topic] ||= []).push(p)); const ks = shuffle(Object.keys(by)), out = []; let more = true; while (more) { more = false; for (const k of ks) if (by[k].length) { out.push(by[k].shift()); more = true; } } return out; };
+  const pic = spread(pool.filter(p => p.pic)), txt = spread(pool.filter(p => !p.pic));
+  let take = pic.slice(0, nimg); take = take.concat(txt.slice(0, n - take.length));
+  if (take.length < n) take = take.concat(pic.slice(nimg).slice(0, n - take.length));
+  take.sort((x, y) => x.level - y.level);
+  return { rows: take, short: n - take.length, pool: pool.length };
+};
+
+// ---- variantlar: savollar to'rtta blok ichida aralashadi (osondan qiyinga tartib saqlanadi), javoblar o'rni ham almashadi
+function makeVariant(qs, seed) {
+  const r = rnd(seed), n = qs.length, B = Math.max(1, Math.ceil(n / 4)), order = [];
+  for (let s = 0; s < n; s += B) order.push(...shuffle(Array.from({ length: Math.min(B, n - s) }, (_, i) => i + s), r));
+  return order.map(i => {
+    const q = qs[i]; if (q.fix || q.o.length < 2) return { ...q };
+    const p = shuffle([...q.o.keys()], r); return { ...q, o: p.map(k => q.o[k]), oi: p.map(k => q.oi[k]), a: 'ABCDE'[p.indexOf('ABCDE'.indexOf(q.a))] };
+  });
+}
+// bazadan tuzilgan yoki paketdan kelgan test (savollar rasmlari bilan) — Testlar bazasiga yoziladi
+A['bank.build'] = (u, b) => {
+  need(canKey(u), 'Test tuzish uchun kalit huquqi kerak');
+  const name = str(b.name, 120); if (!name) bad('Test nomini yozing');
+  const g = parseInt(b.grade, 10); if (!(g >= 1 && g <= 11)) bad('Sinfni tanlang');
+  const raw = Array.isArray(b.qs) ? b.qs : []; if (raw.length < 5 || raw.length > 50) bad(`Savollar soni 5 tadan 50 tagacha bo‘lishi kerak (${raw.length} ta)`);
+  const qs = raw.map((x, i) => {
+    const at = `${i + 1}-savol`;
+    const q = String(x.q ?? '').replace(/\r\n?/g, '\n').trim().slice(0, 3000), img = x.img ? String(x.img) : '';
+    if (img && !mediaOk(img)) bad(`${at}: rasmi topilmadi`); if (!q && !img) bad(`${at}: matni yo‘q`);
+    const o = (Array.isArray(x.o) ? x.o : []).map(v => typeof v === 'string' ? { t: v } : (v || {}));
+    if (o.length < 2 || o.length > 5) bad(`${at}: javob variantlari to‘liq emas`);
+    const ot = o.map(v => str(v.t, 300)), oi = o.map(v => v.i ? String(v.i) : '');
+    oi.forEach((id, k) => { if (id && !mediaOk(id)) bad(`${at}: ${'ABCDE'[k]} variant rasmi topilmadi`); if (!id && !ot[k]) bad(`${at}: ${'ABCDE'[k]} variant bo‘sh`); });
+    const a = String(x.a || '').toUpperCase(), ai = 'ABCDE'.indexOf(a); if (ai < 0 || ai >= o.length) bad(`${at}: to‘g‘ri javob ko‘rsatilmagan`);
+    return { q, img, o: ot, oi, a, fix: x.fix ? 1 : 0, pid: +x.pid || 0 };
+  });
+  const nv = Math.min(4, Math.max(1, parseInt(b.nvar, 10) || 1));
+  const seed = crypto.randomInt(1, 2 ** 31);
+  const data = { A: { qs } }; for (let k = 1; k < nv; k++) data[VARS[k]] = { qs: makeVariant(qs, seed + k * 7919) };
+  const keys = Object.fromEntries(Object.entries(data).map(([v, x]) => [v, x.qs.map(q => q.a).join('')]));
+  const nopt = Math.max(4, ...qs.map(q => q.o.length)), kind = b.kind === 'paket' ? 'paket' : 'baza';
+  const r = run('INSERT INTO tbank(name,grade,qn,nopt,data,keys,by,at,kind) VALUES(?,?,?,?,?,?,?,?,?)', name, g, qs.length, nopt, JSON.stringify(data), JSON.stringify(keys), u.id, now(), kind);
+  log(u.id, 'test.bazaga', { name, grade: g, variantlar: nv, savol: qs.length, turi: kind });
+  return { id: Number(r.lastInsertRowid) };
+};
+// tayyor PDF test: kitobcha PDFning o'zi saqlanadi, kalit PDFdan o'qiladi yoki qo'lda belgilanadi
+const cleanKey = (k, qn, nopt) => { const s = String(k || '').toUpperCase().replace(/[^A-E]/g, ''); if (s.length !== qn) bad(`Kalit to‘liq emas: ${s.length} / ${qn} ta javob belgilangan`); if ([...s].some(c => 'ABCDE'.indexOf(c) >= nopt)) bad(`Kalitda ${'ABCDE'[nopt - 1]} dan keyingi harf bor`); return s; };
+const bankUsed = id => !!one('SELECT 1 FROM tlinks WHERE bank_id=?', id);
+A['bank.pdf'] = (u, b) => {
+  need(canKey(u), 'Test yuklash uchun kalit huquqi kerak');
+  if (!mediaOk(b.pdf) || mediaType(b.pdf) !== 'application/pdf') bad('PDF fayl yuklanmagan');
+  if (b.bank_id) { // mavjud PDF testga yangi variant
+    const r = one('SELECT * FROM tbank WHERE id=?', +b.bank_id); if (!r || r.kind !== 'pdf') bad('Test topilmadi');
+    if (bankUsed(r.id)) bad('Bu test imtihonga berilgan. Variant qo‘shish uchun avval imtihondan olib tashlang');
+    const data = JSON.parse(r.data), keys = JSON.parse(r.keys); const v = VARS.find(x => !data[x]); if (!v) bad('Ko‘pi bilan 4 ta variant bo‘ladi');
+    data[v] = { pdf: b.pdf }; keys[v] = cleanKey(b.key, r.qn, r.nopt);
+    run('UPDATE tbank SET data=?,keys=? WHERE id=?', JSON.stringify(data), JSON.stringify(keys), r.id);
+    log(u.id, 'test.variant', { name: r.name, variant: VARS.indexOf(v) + 1 }); return { id: r.id, variant: v };
+  }
+  const name = str(b.name, 120); if (!name) bad('Test nomini yozing');
+  const g = parseInt(b.grade, 10); if (!(g >= 1 && g <= 11)) bad('Sinfni tanlang');
+  const qn = parseInt(b.qn, 10); if (!(qn >= 5 && qn <= 50)) bad('Savollar soni 5 tadan 50 tagacha bo‘lishi kerak');
+  const nopt = parseInt(b.nopt, 10) === 5 ? 5 : 4;
+  const key = cleanKey(b.key, qn, nopt);
+  const r = run('INSERT INTO tbank(name,grade,qn,nopt,data,keys,by,at,kind) VALUES(?,?,?,?,?,?,?,?,?)', name, g, qn, nopt, JSON.stringify({ A: { pdf: b.pdf } }), JSON.stringify({ A: key }), u.id, now(), 'pdf');
+  log(u.id, 'test.bazaga', { name, grade: g, savol: qn, turi: 'pdf' });
+  return { id: Number(r.lastInsertRowid) };
+};
+A['bank.key'] = (u, b) => {
+  need(canKey(u), 'Kalitni faqat CEO yoki kalit huquqi bor a‘zo o‘zgartiradi');
+  const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi'); if (r.kind !== 'pdf') bad('Bu testning kaliti savollardan olinadi');
+  if (bankUsed(r.id)) bad('Bu test imtihonga berilgan. Kalitni o‘zgartirish uchun avval imtihondan olib tashlang');
+  const keys = JSON.parse(r.keys), v = varOf(b.variant) || 'A'; if (!keys[v]) bad('Variant topilmadi');
+  const old = keys[v]; keys[v] = cleanKey(b.key, r.qn, r.nopt);
+  run('UPDATE tbank SET keys=? WHERE id=?', JSON.stringify(keys), r.id); log(u.id, 'test.kalit', { name: r.name, variant: VARS.indexOf(v) + 1, old, new: keys[v] }); return {};
+};
+
 A['result.save'] = (u, b) => {
   need(can(u, 'kiritish'));
   const t = one('SELECT * FROM tests WHERE id=?', b.test_id); if (!t) bad('Sinov topilmadi');
@@ -1415,6 +1643,13 @@ const server = http.createServer(async (req, res) => {
         db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`); log(u.id, 'zaxira.yuklab_olish', {});
         const buf = fs.readFileSync(f); fs.unlinkSync(f);
         return send(res, 200, buf, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="yoshxorazmiylar-${now().slice(0, 10)}.db"` });
+      }
+      if (url.pathname === '/api/media' && req.method === 'POST') return send(res, 200, await mediaPut(u, req));
+      const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
+      if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
+        const m = isTeam(u) && one('SELECT type,data FROM media WHERE id=?', mm[1]);
+        if (!m) { res.writeHead(404, SEC); return res.end(); }
+        res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
       }
       const act = url.pathname.slice(5); const fn = A[act];
       if (!fn || req.method !== 'POST') return send(res, 404, { error: 'Topilmadi' });

@@ -326,6 +326,20 @@ body{background:var(--bg)}
 }
 @media (max-width:1199px){.dash{display:flex;flex-direction:column;gap:14px}.dmain{display:flex;flex-direction:column;gap:14px}.dpair{display:flex;flex-direction:column;gap:14px}}
 @media (min-width:900px){#verBar{bottom:24px!important}}
+.pb{gap:10px}.pb .pq{display:flex;gap:10px;align-items:flex-start}.pb .pq .m{flex:1;min-width:0}
+.pn{flex:none;min-width:28px;height:28px;border-radius:8px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.pt{font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.pimg{display:block;max-width:100%;max-height:300px;margin-top:8px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:zoom-in}
+.pos{display:flex;flex-wrap:wrap;gap:6px}.po{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--surface)}
+.po b{color:var(--navy)}.po img{height:30px;width:auto;mix-blend-mode:multiply}.pimg{mix-blend-mode:multiply}.po.ok{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+.pmeta,.ptools{display:flex;flex-wrap:wrap;gap:6px}
+.pbbar{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(20,33,61,.15);z-index:3}
+@media (min-width:900px){.pbbar{bottom:16px}}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px}
+.kr{display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.kr b{width:24px;text-align:right;font-size:13px;margin-right:2px;flex:none}.kr button{flex:1;height:32px;border-radius:7px;background:var(--surface2);font-weight:600;font-size:13.5px}
+.kr button.on{background:var(--accent);color:var(--on-accent)}.kr button:disabled{opacity:1}
+.spk{display:flex;flex-wrap:wrap;gap:6px}.spk button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:500}
 </style>
 </head>
 <body>
@@ -398,6 +412,7 @@ const I={
  back:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
  x:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
  out:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H4"/></svg>',
+ book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5M9 8h7M9 12h5"/></svg>',
  chev:'<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
  search:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
 };
@@ -809,7 +824,7 @@ function drawEntry(){
    :E.mode==='belgi'?`<p class="note">Bola to’g’ri yechgan savollarni bosing. Bosilmaganlari xato hisoblanadi.</p>
     <div class="tiles">${E.bits.map((v,i)=>`<button class="tile" data-bit="${i}" aria-pressed="${v==='1'}">${i+1}</button>`).join('')}</div>
     <div style="display:flex;gap:16px"><button class="lnk" data-act="allOn">Hammasi to’g’ri</button><button class="lnk" data-act="allOff">Tozalash</button></div>`
-   :`${varsOf(testId,s.grade).length>1?`<div class="seg">${varsOf(testId,s.grade).map(v=>`<button data-ev="${v}" aria-pressed="${E.v===v}">Variant ${v}</button>`).join('')}</div>`:''}<p class="note">Varaqadagi harflarni kiriting. Sayt kalit bilan o’zi tekshiradi.${E.key?'':' <b>Bu sinf uchun kalit hali kiritilmagan</b> — ball kalit kiritilgach hisoblanadi.'}</p>
+   :`${varsOf(testId,s.grade).length>1?`<div class="seg">${varsOf(testId,s.grade).map(v=>`<button data-ev="${v}" aria-pressed="${E.v===v}">${VL(v)}-variant</button>`).join('')}</div>`:''}<p class="note">Varaqadagi harflarni kiriting. Sayt kalit bilan o’zi tekshiradi.${E.key?'':' <b>Bu sinf uchun kalit hali kiritilmagan</b> — ball kalit kiritilgach hisoblanadi.'}</p>
     <div class="letters">${[0,Math.ceil(qn/2)].map((st,ci)=>`<div class="lcol">${Array.from({length:ci?qn-st:st||Math.ceil(qn/2)},(_,j)=>{const i=st+j;const a=E.ans[i];
       return `<div class="lrow"><span>${i+1}</span>${'ABCDE'.split('').map(L=>`<button class="lb" data-q="${i}" data-l="${L}" aria-pressed="${a===L}">${L}</button>`).join('')}</div>`}).join('')}</div>`).join('')}</div>`}
    ${E.existed&&(P('tuzatish')||R(s.id)?.entered_by===S.me.id)?`<button class="btn dan" data-act="entryDel">Kiritilgan natijani o’chirish</button>`:''}
@@ -876,7 +891,7 @@ function scrMore(){
 
 // ---------------- o'chirish (faqat CEO: maktab, sinf, sinov) va savat
 let TRASH=null;
-const KIND_L={school:'Maktab',class:'Sinf',test:'Sinov',itest:'Ichki sinov',student:'O’quvchi'};
+const KIND_L={school:'Maktab',class:'Sinf',test:'Sinov',itest:'Ichki sinov',student:'O’quvchi',probs:'Misollar',bank:'Test'};
 function openDel(kind,id){
   let title,what,need,hint;
   if(kind==='school'){const sc=X.sc[id];const cls=S.classes.filter(c=>c.school_id===id);const st=X.st.filter(s=>s.school_id===id);const res=st.filter(s=>S.tests.some(t=>R(s.id,t.id))).length;
@@ -1669,12 +1684,13 @@ function scopeLabel(t){const sc=tScope(t);if(!sc)return 'hamma maktablar';
   const bySch={};sc.c.forEach(id=>{const c=X.cl[id];if(c&&!sc.s.includes(c.school_id))(bySch[c.school_id]||=[]).push(c.name)});
   Object.entries(bySch).forEach(([sid,l])=>p.push(`${X.sc[sid]?.num}-maktab (${l.join(', ')})`));return p.join(' · ')||'—'}
 function scrBank(){const l=S.bank||[];const gs=[...new Set(l.map(b=>b.grade))].sort((a,b)=>a-b);
-  return ['Testlar bazasi',`${l.length} ta test`,`<p class="note" style="margin:0">Test bazaga o’z nomi bilan yuklanadi va hech bir sinov yoki imtihonga o’zi tegmaydi. Imtihonga “Sinovlar va imtihonlar” bo’limida beriladi.</p>
-  ${canKey()?`<button class="btn pri" data-act="bankUp">📄 Test yuklash</button>`:''}
-  ${gs.map(g=>`<section class="sec"><p class="label">${g}-sinf</p><div class="card list">${l.filter(b=>b.grade===g).map(b=>`<div class="row" style="align-items:flex-start"><div class="m"><div class="n">${esc(b.name)}</div>
-    <div class="s">${b.qn} ta savol · ${b.variants.length>1?`${b.variants.length} variant (${b.variants.join(', ')})`:'1 variant'} · ${fmtDate(b.at)}</div>
+  const KL={pdf:'📄 Tayyor PDF',baza:'🧩 Bazadan tuzilgan',paket:'📦 Paketdan',matn:'📝 Matn fayldan'};
+  return ['Testlar bazasi',`${l.length} ta test`,`<p class="note" style="margin:0">Test bazaga o’z nomi bilan tushadi va hech bir imtihonga o’zi tegmaydi. Imtihonga “Imtihonlar” bo’limida, 1-qadamda beriladi — kaliti va titullari o’zi moslashadi.</p>
+  ${canKey()?`<div class="qa"><button class="btn pri" data-pb="tzOpen">🧩 Bazadan tuzish</button><button class="btn sec" data-pb="pdfUp">📄 Tayyor test (PDF)</button><button class="btn sec" data-pb="pkOpen" style="grid-column:1/-1">📦 Claude paketi (misollar + test)</button></div>`:''}
+  ${gs.map(g=>`<section class="sec"><p class="label">${g}-sinf</p><div class="card list">${l.filter(b=>b.grade===g).map(b=>`<div class="row" style="align-items:flex-start"><div class="m"><div class="n" style="white-space:normal">${esc(b.name)}</div>
+    <div class="s">${KL[b.kind]||KL.matn} · ${b.qn} ta savol · ${b.variants.length>1?`${b.variants.length} variant`:'1 variant'} · ${fmtDate(b.at)}</div>
     <div class="s">${b.used.length?'Imtihonda: '+b.used.map(x=>esc(x.name)).join(', '):'Hali imtihonga berilmagan'}</div>
-    ${canKey()?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sec sm" data-act="book" data-id="${b.id}">📘 Kitobcha (PDF)</button>${b.used.length?'':`<button class="btn sec sm" data-act="bankDel" data-id="${b.id}" style="color:var(--wrong)">O’chirish</button>`}</div>`:''}</div></div>`).join('')}</div></section>`).join('')||'<div class="card empty">Hali test yuklanmagan</div>'}`]}
+    ${canKey()?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sec sm" data-act="book" data-id="${b.id}">📘 Kitobcha (PDF)</button>${b.kind==='pdf'?`<button class="btn sec sm" data-pb="bankKey" data-id="${b.id}">🔑 Kalit</button>${!b.used.length&&b.variants.length<4?`<button class="btn sec sm" data-pb="pdfUp" data-id="${b.id}">+ ${b.variants.length+1}-variant</button>`:''}`:''}${b.used.length?'':`<button class="btn sec sm" data-act="bankDel" data-id="${b.id}" style="color:var(--wrong)">O’chirish</button>`}</div>`:''}</div></div>`).join('')}</div></section>`).join('')||'<div class="card empty">Hali test yo’q</div>'}`]}
 function openBankUp(){TB={p:null};
   openSheet(`<div class="sh-top"><div class="m"><h2>Test yuklash</h2><div class="s">Testlar bazasiga</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <label class="field"><span class="label">Test nomi</span><input id="tbName" type="text" placeholder="Masalan: 2-bosqich saralash testi"></label>
@@ -1685,19 +1701,19 @@ function openBankUp(){TB={p:null};
 function tbShow(){const el=$('#tbRes');if(!el||!TB?.p)return;const {secs,errs}=TB.p;
   const grades=[...new Set(secs.map(s=>s.grade))].sort((a,b)=>a-b);
   el.innerHTML=`<div class="card list">${grades.map(g=>{const vs=secs.filter(s=>s.grade===g);
-    return `<div class="row"><div class="m"><div class="n">${g}-sinf · ${vs.map(s=>s.variant).join(', ')} variant</div><div class="s">${vs.map(s=>`${s.variant}: ${s.qs.length} ta savol`).join(' · ')}</div></div><span class="pill ok">kalit ✓</span></div>`}).join('')}</div>
+    return `<div class="row"><div class="m"><div class="n">${g}-sinf · ${vs.length} variant</div><div class="s">${vs.map(s=>`${VL(s.variant)}-variant: ${s.qs.length} ta savol`).join(' · ')}</div></div><span class="pill ok">kalit ✓</span></div>`}).join('')}</div>
    ${errs.length?`<div class="card pad" style="border-color:var(--wrong)"><b style="color:var(--wrong)">Faylda xato bor — yuklab bo’lmaydi</b>${errs.slice(0,12).map(e=>`<div class="note" style="color:var(--wrong)">• ${esc(e)}</div>`).join('')}${errs.length>12?`<div class="note">… yana ${errs.length-12} ta</div>`:''}</div>`
    :`<button class="btn pri" data-act="tbSave">Bazaga yuklash · ${secs.reduce((a,s)=>a+s.qs.length,0)} ta savol</button>`}`}
 function tbPick(){const i=document.createElement('input');i.type='file';i.accept='.txt,text/plain';i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{TB.p=parseTestText(r.result);tbShow()};r.readAsText(f,'utf-8')};i.click()}
 // imtihonga bazadan test tanlash (natija kiritilgan bo'lsa — qulf)
 function openUseBank(tid,g){const t=S.tests.find(x=>x.id===tid),vi=vinfo(tid,g),l=(S.bank||[]).filter(b=>b.grade===g);
   openSheet(`<div class="sh-top"><div class="m"><h2>${g}-sinf uchun test</h2><div class="s">${esc(t.name)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-  <div class="card list">${l.map(b=>`<button class="row" data-act="useBank" data-t="${tid}" data-g="${g}" data-b="${b.id}"><div class="m"><div class="n">${esc(b.name)}</div><div class="s">${b.qn} ta savol · ${b.variants.join(', ')} variant</div></div>${vi?.bank?.id===b.id?'<span class="pill ok">tanlangan</span>':I.chev}</button>`).join('')||`<div class="empty">Bazada ${g}-sinf uchun test yo’q. Avval “Testlar bazasi”ga yuklang.</div>`}</div>
+  <div class="card list">${l.map(b=>`<button class="row" data-act="useBank" data-t="${tid}" data-g="${g}" data-b="${b.id}"><div class="m"><div class="n">${esc(b.name)}</div><div class="s">${b.qn} ta savol · ${b.variants.length} variant</div></div>${vi?.bank?.id===b.id?'<span class="pill ok">tanlangan</span>':I.chev}</button>`).join('')||`<div class="empty">Bazada ${g}-sinf uchun test yo’q. Avval “Testlar bazasi”ga yuklang.</div>`}</div>
   ${vi?.bank?`<button class="btn sec" data-act="useBank" data-t="${tid}" data-g="${g}" data-b="0" style="color:var(--wrong)">Testni imtihondan olib tashlash</button>`:''}
   <p class="note" style="margin:0">Bu sinf bosqichiga birinchi natija kiritilishi bilan test qulflanadi va boshqa almashtirib bo’lmaydi.</p>`)}
 function testGrades(t){const gs=new Set(S.classes.filter(c=>covers(t,c)).map(c=>c.grade));Object.keys(S.vinfo?.[t.id]||{}).forEach(g=>gs.add(+g));return [...gs].sort((a,b)=>a-b)}
 function testGradeRows(t){return testGrades(t).map(g=>{const vi=vinfo(t.id,g);
-  return `<div class="row" style="padding:8px 0"><div class="m"><div class="n">${g}-sinf${vi?.locked?' 🔒':''}</div><div class="s">${vi?.bank?`📘 ${esc(vi.bank.name)} · ${vi.qn} savol${vi.v.length>1?' · '+vi.v.join(', ')+' variant':''}`:vi?`Kalit qo’lda kiritilgan · ${vi.qn} savol`:'Test berilmagan'}</div></div>
+  return `<div class="row" style="padding:8px 0"><div class="m"><div class="n">${g}-sinf${vi?.locked?' 🔒':''}</div><div class="s">${vi?.bank?`📘 ${esc(vi.bank.name)} · ${vi.qn} savol${vi.v.length>1?' · '+vi.v.length+' variant':''}`:vi?`Kalit qo’lda kiritilgan · ${vi.qn} savol`:'Test berilmagan'}</div></div>
    ${canKey()&&!vi?.locked&&!(vi&&!vi.bank)?`<button class="btn sec sm" data-act="useBankOpen" data-t="${t.id}" data-g="${g}">${vi?.bank?'Almashtirish':'Test tanlash'}</button>`:''}</div>`}).join('')}
 function scopeHtml(t){const sc=tScope(t)||{s:[],c:[]};
   return `<details class="card pad"${tScope(t)?' open':''}><summary style="cursor:pointer;font-weight:600">Qamrov: ${t.id?esc(scopeLabel(t)):'hamma maktablar'}</summary>
@@ -1707,32 +1723,6 @@ function scopeHtml(t){const sc=tScope(t)||{s:[],c:[]};
 function readScope(){const s=[...document.querySelectorAll('input[name=scS]:checked')].map(i=>+i.value);
   const c=[...document.querySelectorAll('input[name=scC]:checked')].map(i=>+i.value).filter(id=>!s.includes(X.cl[id]?.school_id));return {s,c}}
 const pdfTxt=s=>String(s??'').replace(/[ʻ`´]/g,'‘').replace(/[ʼ]/g,'’').replace(/[−]/g,'-').replace(/\t/g,' ');
-async function bookPdf(bankId){
-  const bk=await api('bank.get',{id:bankId});const rows=Object.entries(bk.data).map(([v,x])=>({grade:bk.grade,variant:v,qs:x.qs}));
-  toast('Kitobcha tayyorlanmoqda…');await loadLib(JSPDF,()=>window.jspdf);
-  const t={name:bk.name},g=bk.grade,d={rows};const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});const X0=18,XW=174,YB=282;
-  d.rows.forEach((b,bi)=>{if(bi)pdf.addPage();let y=16;
-    const head=first=>{pdf.setFont('helvetica','bold');pdf.setFontSize(first?13:9);pdf.setTextColor(0);
-      if(first){pdf.text('YOSH XORAZMIYLAR',X0,y);pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.text(pdfTxt(t.name),X0+XW,y,{align:'right'});y+=8;
-        pdf.setFont('helvetica','bold');pdf.setFontSize(16);pdf.text(`${b.grade}-sinf · matematika`,X0,y);pdf.setLineWidth(.6);pdf.rect(X0+XW-34,y-6.5,34,10);pdf.text(`Variant ${b.variant}`,X0+XW-17,y+.6,{align:'center'});y+=7;
-        pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(60);pdf.text(pdfTxt(`${b.qs.length} ta savol · Har bir savolning bitta to‘g‘ri javobi bor.`),X0,y);y+=5;
-        pdf.setFont('helvetica','bold');pdf.setTextColor(0);pdf.text(pdfTxt('Javobni faqat TITUL VARAQQA belgilang. Kitobchaga yozmang!'),X0,y);y+=3;pdf.setDrawColor(180);pdf.setLineWidth(.3);pdf.line(X0,y,X0+XW,y);y+=7}
-      else{pdf.setTextColor(120);pdf.text(`${b.grade}-sinf · Variant ${b.variant}`,X0,10);pdf.setTextColor(0);y=18}};
-    head(true);
-    b.qs.forEach((q,i)=>{pdf.setFontSize(12.5);pdf.setFont('helvetica','normal');
-      const ql=pdf.splitTextToSize(pdfTxt(q.q),XW-9);const opts=q.o.map((o,k)=>`${'ABCDE'[k]})  ${pdfTxt(o)}`);
-      const w=Math.max(...opts.map(o=>pdf.getTextWidth(o)))+6;const per=w*opts.length<=XW-9?opts.length:w*2<=XW-9?2:1;
-      const ol=per===1?opts.map(o=>pdf.splitTextToSize(o,XW-9)):opts.map(o=>[o]);const orows=Math.ceil(opts.length/per);
-      const h=ql.length*5.6+(per===1?ol.reduce((a,x)=>a+x.length,0):orows)*6+5;
-      if(y+h>YB){pdf.addPage();head(false)}
-      pdf.setFont('helvetica','bold');pdf.text(`${i+1}.`,X0+7,y,{align:'right'});pdf.setFont('helvetica','normal');pdf.text(ql,X0+9,y);y+=ql.length*5.6+1;
-      if(per===1)ol.forEach(x=>{pdf.text(x,X0+12,y);y+=x.length*6});
-      else{const cw=(XW-9)/per;opts.forEach((o,k)=>{pdf.text(o,X0+12+(k%per)*cw,y+Math.floor(k/per)*6)});y+=orows*6}
-      y+=4});
-  });
-  pdf.save(plain(`${t.name}_${g}-sinf_kitobcha`).replace(/[^\w-]+/g,'_')+'.pdf');
-}
-
 // ---------------- titul varaq: A4 ga ikkita (210 × 148,5 mm), burchakda 4 ta qora kvadrat, QR kod
 const TIW=210,TIH=148.5;
 function tLayout(qn,nopt){
@@ -1755,7 +1745,7 @@ function drawTitul(pdf,it,oy){
   if(it.name){pdf.setFont('helvetica','bold');let fs=15;pdf.setFontSize(fs);while(pdf.getTextWidth(pdfTxt(it.name))>132&&fs>9)pdf.setFontSize(--fs);pdf.text(pdfTxt(it.name),22,oy+23.5)}
   else{pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.text('Familiya, ism:',22,oy+23.5);pdf.setDrawColor(0);pdf.setLineWidth(.3);pdf.line(46,oy+24,152,oy+24)}
   pdf.setFont('helvetica','normal');pdf.setFontSize(10.5);pdf.text(pdfTxt(`${it.sch} · ${it.cls} sinf`),22,oy+30.5);
-  pdf.setDrawColor(0);pdf.setLineWidth(.5);pdf.rect(22,oy+34,30,9);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(`Variant ${it.v}`,37,oy+40.2,{align:'center'});
+  pdf.setDrawColor(0);pdf.setLineWidth(.5);pdf.rect(22,oy+34,30,9);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(`${VL(it.v)}-variant`,37,oy+40.2,{align:'center'});
   if(!it.name){pdf.setFont('helvetica','normal');pdf.setFontSize(8.5);pdf.setTextColor(90);pdf.text(pdfTxt('Zaxira titul — ismingizni yozing'),56,oy+40)}
   drawQR(pdf,it.qr,L.qr.x,oy+L.qr.y,L.qr.s);
   pdf.setFont('helvetica','normal');pdf.setFontSize(8.5);pdf.setTextColor(60);
@@ -1784,7 +1774,7 @@ function openTitul(kind,id,tid){const t=S.tests.find(x=>x.id===tid);if(!t){toast
   const gs=[...new Set(cls.map(c=>c.grade))].sort((a,b)=>a-b);const n=cls.reduce((a,c)=>a+X.st.filter(s=>s.class_id===c.id).length,0);
   openSheet(`<div class="sh-top"><div class="m"><h2>Titullar</h2><div class="s">${esc(t.name)} · ${kind==='class'?`${X.sc[cls[0].school_id].num}-maktab · ${esc(cls[0].name)}`:`${X.sc[id].num}-maktab · ${cls.length} sinf`}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card list">${gs.map(g=>{const vi=vinfo(t.id,g);const vs=varsOf(t.id,g);
-    return `<div class="row"><div class="m"><div class="n">${g}-sinf · ${vi?.qn||20} ta savol</div><div class="s">${vs.length>1?`${vs.length} variant (${vs.join(', ')}) — bolalar navbatma-navbat oladi`:'1 variant (A)'}</div>${vi?'':`<div class="s" style="color:var(--wrong)">Bu sinf uchun kalit yo’q — titulda 20 ta savol bo’ladi. Avval test yuklang.</div>`}</div></div>`}).join('')}</div>
+    return `<div class="row"><div class="m"><div class="n">${g}-sinf · ${vi?.qn||20} ta savol</div><div class="s">${vs.length>1?`${vs.length} variant (${VLs(vs)}) — bolalar ro’yxat bo’yicha navbatma-navbat oladi`:'1 variant'}</div>${vi?'':`<div class="s" style="color:var(--wrong)">Bu sinf uchun kalit yo’q — titulda 20 ta savol bo’ladi. Avval test yuklang.</div>`}</div></div>`}).join('')}</div>
   <p class="note" style="margin:0">Har bir bolaga ismi, sinfi va QR kodi yozilgan titul chiqadi: <b>${n} ta</b>. Bitta A4 varaqqa ikkitadan joylashadi — chop etib, o’rtasidan qirqing. Chop etishda “Asl o’lcham” (100%) ni tanlang.</p>
   <label class="field"><span class="label">Har sinfga zaxira titul (ro’yxatda yo’q bola uchun)</span><input id="tSp" type="number" inputmode="numeric" min="0" max="10" value="${ls.get('tsp',3)}"></label>
   <button class="btn pri" data-act="titulGo" data-k="${kind}" data-id="${id}" data-t="${t.id}">🖨 PDF yuklab olish</button>`)}
@@ -1943,12 +1933,12 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const c=X.cl[SC.c
     if(SC.stream){const v=$('#scanV');v.srcObject=SC.stream;v.play().catch(()=>{})}return}
   if(SC.view==='left'){const left=l.filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
     el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${left.length} ta</p><div class="card list">${left.map((s,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(s.name)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div>
-    <p class="note">Kelmagan bolalarni sinf sahifasida bir bosishda “Kelmadi” qilish mumkin.</p><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
+    ${left.length&&P('kiritish')?`<button class="btn sec" data-sa="absRest">Qolgan ${left.length} tasini “Kelmadi” deb belgilash</button>`:''}<button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   const r=SC.res,q=r.qr,keyLen=q.qn;
   el.innerHTML=`${top}<div class="scan-body">
    <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div><div class="note">${r.st.num}-maktab · ${esc(r.st.cls)}</div>`
-     :`<div class="n" style="font-weight:700">Zaxira titul</div><div class="note">Titulda qo’lda yozilgan ism-familiyani kiriting</div>`}</div><span class="pill gold">Variant ${q.v}</span></div>
-    ${r.st?'':`<label class="field"><input id="scName" type="text" autocomplete="off" placeholder="Familiya Ism"></label>`}
+     :`<div class="n" style="font-weight:700">Zaxira titul</div><div class="note">Bola ismini titulga qo’lda yozgan</div>`}</div><span class="pill gold">${VL(q.v)}-variant</span></div>
+    ${r.st?'':(()=>{const left=scanSt().filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));return `${left.length?`<p class="note" style="margin:0">Titulda yozilgan bola ro’yxatda bo’lsa, ismini bosing:</p><div class="spk">${left.map(s=>`<button data-sa="pick" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div><p class="note" style="margin:0">Ro’yxatda yo’q bo’lsa — familiya va ismini yozing, u shu sinfga yangi o’quvchi bo’lib qo’shiladi:</p>`:''}<label class="field"><input id="scName" type="text" autocomplete="off" placeholder="Familiya Ism"></label>`})()}
     ${r.other?`<div class="note" style="color:var(--wrong)">Bu bola ${esc(r.st.cls)} sinfdan. Natija o’z sinfiga yoziladi.</div>`:''}
     ${r.old&&!r.old.absent?`<div class="note" style="color:var(--wrong)">Bu bola avval tekshirilgan: <b>${r.old.score??'?'}/${r.old.qn}</b>. Saqlasangiz, yangi natija bilan almashtiriladi.</div>`:''}
     ${r.multi?`<div class="note" style="color:var(--wrong)"><b>${r.multi}</b> ta savolda bir nechta doiracha bo’yalgan (qizil) — bunday javob xato hisoblanadi. Kerak bo’lsa, harfni bosib tuzating.</div>`:''}
@@ -1969,6 +1959,9 @@ async function scanClick(e){const b=e.target.closest('[data-sa]');e.stopPropagat
   if(a==='ch'){const r=SC.res,i=+b.dataset.i,seq=[...'ABCDE'.slice(0,r.qr.nopt),'-'],cur=r.ans[i]==='*'?'-':r.ans[i];r.ans[i]=seq[(seq.indexOf(cur)+1)%seq.length];
     r.multi=r.ans.filter(x=>x==='*').length;b.className=r.ans[i]==='-'?'e':'';b.querySelector('b').textContent=r.ans[i]==='-'?'—':r.ans[i];return}
   if(a==='save'){b.disabled=true;await scanSave(SC.res,false);b.disabled=false;return}
+  if(a==='pick'){const st=X.st.find(s=>s.id===+b.dataset.id);if(!st||!SC.res)return;SC.res.st=st;SC.res.old=R(st.id,SC.tid);b.disabled=true;await scanSave(SC.res,false);return}
+  if(a==='absRest'){const n=scanSt().filter(s=>!R(s.id,SC.tid)).length;if(!n||!confirm(`Tekshirilmagan ${n} ta bola “Kelmadi” deb belgilanadi.\n\nSinfdagi hamma titullar skanerlandimi?`))return;
+    const r=await api('results.absentRest',{test_id:SC.tid,class_id:SC.cid});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();scanDraw();return}
   }catch(err){toast(err.message,true)}}
 
 // ================================================================ IMTIHON: bitta joyda, ketma-ket 5 qadam
@@ -2034,9 +2027,290 @@ function scrClassEntry(cid){const c=X.cl[cid],t=curTest();if(!c||!t)return ['Top
   return [`${X.sc[c.school_id]?.num}-maktab · ${c.name}`,t.name,`<div class="card pad"><div class="sec-h"><span class="note">Kiritildi</span><b class="num">${d} / ${l.length}</b></div><div class="bar" style="margin:0"><i style="width:${l.length?d/l.length*100:0}%"></i></div></div>
    <div class="card list">${l.map(entryRow).join('')}</div>${absBtn('class',cid,l.length-d)}`]}
 
+// ================================================================ MISOLLAR BAZASI: mavzular daraxti, rasmli misollar, paket, test tuzish, PDF test
+const VL=v=>{const i='ABCD'.indexOf(v);return i<0?String(v):String(i+1)}; // variant raqami: bolalar javob harfi bilan adashtirmasin
+const VLs=vs=>vs.map(VL).join(', ');
+const mUrl=id=>'/api/m/'+id;
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PDFJSW='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PKIND_L={hisoblash:'Hisoblash',masala:'Masala',mantiq:'Mantiq',geometriya:'Geometriya'};
+const LEVEL_L=['','Oson','O’rta','Qiyin'];
+let PBOG=new Set(),PBM=null,PBL=null,PBG=ls.get('pbg',3),PBPIC=0,PK=null,TZ=null,PU=null;
+const pbT=code=>{for(const g of Object.keys(PBM?.topics||{}))for(const [grp,l] of PBM.topics[g])for(const [c,n] of l)if(c===code)return {g:+g,group:grp,name:n,code:c};return null};
+const pbCnt=(g,c)=>PBM?.counts?.[g]?.[c]||{n:0,p:0};
+async function pbMeta(force){if(PBM&&!PBM.err&&!force)return PBM;try{PBM=await api('pb.meta')}catch(e){PBM={err:e.message}}return PBM}
+function pbNeed(){if(!PBM){pbMeta().then(render);return ['Misollar bazasi','','<div class="card empty">Yuklanmoqda…</div>']}if(PBM.err)return ['Misollar bazasi','',`<div class="card empty">${esc(PBM.err)}</div>`];return null}
+async function mediaUp(blob){
+  let r;try{r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob,credentials:'same-origin'})}catch(e){throw new Error('Server bilan aloqa yo’q. Internetni tekshiring.')}
+  let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw new Error(d.error||'Fayl yuklanmadi');return d.id}
+function dataBlob(u){const m=String(u).match(/^data:([^;,]+)(;base64)?,(.*)$/s);if(!m)throw new Error('Paketdagi rasm buzilgan');const b=m[2]?atob(m[3]):decodeURIComponent(m[3]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type:m[1]})}
+const pbPic=p=>!!p.img||(p.o||[]).some(v=>v.i||v.img);
+
+// ---- bitta misol ko'rinishi (bazada, test tuzishda, paketda)
+function probHtml(p,o={}){const src=x=>!x?'':String(x).startsWith('data:')?x:mUrl(x);
+  const opts=(p.o||[]).map((v,k)=>{v=typeof v==='string'?{t:v}:v;const L='ABCDE'[k];return `<div class="po${o.ans!==false&&L===p.a?' ok':''}"><b>${L})</b>${v.i?`<img src="${src(v.i)}" alt="${L} variant rasmi" loading="lazy">`:''}${v.t?`<span>${esc(v.t)}</span>`:''}</div>`}).join('');
+  const t=pbT(p.topic);
+  return `<div class="card pad pb${o.cls?' '+o.cls:''}">${o.head||''}<div class="pq">${o.n?`<span class="pn">${o.n}</span>`:''}<div class="m">${p.q?`<div class="pt">${esc(p.q).replace(/\n/g,'<br>')}</div>`:''}${p.img?`<img class="pimg" src="${src(p.img)}" alt="Misol rasmi" loading="lazy" data-zoom="${src(p.img)}">`:''}</div></div>
+   <div class="pos">${opts}</div>
+   <div class="pmeta">${o.topic&&t?`<span class="pill gray">${esc(t.name)}</span>`:''}<span class="pill gray">${PKIND_L[p.kind]||'Masala'}</span><span class="pill ${p.level===3?'warn':p.level===1?'ok':'gold'}">${LEVEL_L[p.level||2]}</span>${pbPic(p)?'<span class="pill gray">🖼 suratli</span>':''}${p.fix?'<span class="pill gray">javoblar o’rni qotirilgan</span>':''}</div>
+   ${p.sol?`<details><summary class="note" style="cursor:pointer">Yechim</summary><div class="pt" style="margin-top:6px">${esc(p.sol).replace(/\n/g,'<br>')}</div></details>`:''}${o.tools||''}</div>`}
+
+// ---- asosiy sahifa: sinf → mavzular guruhlari → mavzu (har birida nechta misol)
+function scrPB(){const w=pbNeed();if(w)return w;
+  const gs=Object.keys(PBM.topics).map(Number);if(!gs.includes(PBG))PBG=gs[0];
+  const g=PBG,groups=PBM.topics[g],cn=PBM.counts[g]||{};const tot=Object.values(cn).reduce((a,x)=>a+x.n,0),pic=Object.values(cn).reduce((a,x)=>a+x.p,0);
+  return ['Misollar bazasi',`${PBM.total} ta misol`,`
+  <div class="seg">${gs.map(x=>`<button data-pbg="${x}" aria-pressed="${x===g}">${x}-sinf</button>`).join('')}</div>
+  <div class="qa"><button class="btn pri" data-pb="pkOpen">📦 Paket yuklash</button><button class="btn sec" data-pb="tzOpen">🧩 Test tuzish</button></div>
+  <div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div style="font-weight:700">${g}-sinf: ${tot} ta misol</div><div class="note">${pic} tasi suratli · ${groups.reduce((a,[,l])=>a+l.length,0)} ta mavzu</div></div></div>
+  <div class="seg"><button data-pbi="0" aria-pressed="${!PBPIC}">Hamma misollar</button><button data-pbi="1" aria-pressed="${!!PBPIC}">🖼 Faqat suratli</button></div>
+  ${groups.map(([grp,l])=>{const n=l.reduce((a,[c])=>a+(PBPIC?pbCnt(g,c).p:pbCnt(g,c).n),0);
+    return `<details class="sec" data-pbog="${g}:${esc(grp)}"${PBOG.has(g+':'+grp)?'':' open'}><summary class="label" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px"><span>${esc(grp)}</span><span>${n}</span></summary><div class="card list" style="margin-top:8px">${l.map(([c,nm])=>{const k=pbCnt(g,c),v=PBPIC?k.p:k.n;
+      return `<button class="row" data-go="pbt:${c}"${v?'':' style="opacity:.6"'}><div class="m"><div class="n" style="white-space:normal">${esc(nm)}</div><div class="s">${k.n?`${k.n} ta misol${k.p?` · ${k.p} suratli`:''}`:'Hali misol yo’q'}</div></div><span class="num">${v||''}</span>${I.chev}</button>`}).join('')}</div></details>`}).join('')}
+  <p class="note">Yangi misol qo’shish: misolni suratga olib Claude’ga yuboring. U misolni chiroyli qilib, mavzusi, qiyinligi va javobi bilan <b>paket</b> fayl qilib beradi — shu yerda “Paket yuklash” orqali bazaga tushadi.</p>`]}
+function scrPBTopic(code){const w=pbNeed();if(w)return w;const t=pbT(code);if(!t)return ['Topilmadi','',''];
+  if(!PBL||PBL.code!==code||PBL.pic!==PBPIC){PBL={code,pic:PBPIC,rows:[],total:null,sel:new Set(),loading:false};pbMore()}
+  const L=PBL;
+  return [t.name,`${t.g}-sinf · ${t.group}`,`
+  ${L.total==null?'<div class="card empty">Yuklanmoqda…</div>':!L.total?`<div class="card empty">Bu mavzuda ${PBPIC?'suratli ':''}misol hali yo’q</div>`:`<p class="note" style="margin:0">${L.total} ta misol${PBPIC?' (faqat suratli)':''}. O’chirish uchun misollarni belgilang.</p>`}
+  ${L.rows.map((p,i)=>probHtml(p,{n:i+1,head:`<label class="check" style="padding:0;justify-content:flex-end;font-size:13px"><input type="checkbox" data-pbsel="${p.id}" ${L.sel.has(p.id)?'checked':''}>Tanlash</label>`})).join('')}
+  ${L.total!=null&&L.rows.length<L.total?`<button class="btn sec" data-pb="pbMore">Yana ko’rsatish (${L.total-L.rows.length} ta qoldi)</button>`:''}
+  <div id="pbSelBar">${pbSelBar()}</div>`]}
+const pbSelBar=()=>PBL?.sel.size?`<div class="pbbar"><span>${PBL.sel.size} ta tanlandi</span><button class="btn sec sm" data-pb="pbSelNone">Bekor</button><button class="btn dan sm" data-pb="pbDel">🗑 O’chirish</button></div>`:'';
+async function pbMore(){const L=PBL;if(!L||L.loading)return;L.loading=true;
+  try{const r=await api('pb.list',{grade:pbT(L.code)?.g,topic:L.code,pic:L.pic?1:0,offset:L.rows.length,limit:30});if(PBL!==L)return;L.rows.push(...r.rows);L.total=r.total}catch(e){toast(e.message,true)}
+  L.loading=false;render()}
+
+// ---- paket: Claude tayyorlagan .json fayl (misollar rasmlari bilan, ixtiyoriy — test sifatida ham)
+function openPkt(){PK=null;
+  openSheet(`<div class="sh-top"><div class="m"><h2>Paket yuklash</h2><div class="s">Claude tayyorlagan misollar fayli</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  <p class="note" style="margin:0">Paket faylini (.json) tanlang. Har bir misol o’z sinfi va mavzusiga o’zi tushadi, rasmlari bilan. Bazada bor misol takror qo’shilmaydi.</p>
+  <button class="btn pri" data-pb="pkPick">📦 Faylni tanlash</button><div id="pkRes"></div>`)}
+function pkPick(){const i=document.createElement('input');i.type='file';i.accept='.json,.txt,application/json,text/plain';
+  i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{const txt=String(r.result||'');
+    if(/^\s*===/.test(txt)){closeSheet();openBankUp();TB.p=parseTestText(txt);tbShow();return}
+    let j;try{j=JSON.parse(txt)}catch(e){toast('Fayl o’qilmadi. Claude bergan paketni o’zgartirmasdan yuklang',true);return}
+    if(j?.yx!=='paket'||!Array.isArray(j.items)||!j.items.length){toast('Bu fayl misollar paketi emas',true);return}
+    await pbMeta();PK={name:f.name,items:j.items.map(x=>({...x,o:(x.o||[]).map(v=>typeof v==='string'?{t:v}:v),on:x.bazaga!==false})),test:j.test||null};pkShow()};r.readAsText(f,'utf-8')};i.click()}
+function pkShow(){const el=$('#pkRes');if(!el||!PK)return;const on=PK.items.filter(x=>x.on).length;
+  const bad=PK.items.map((x,i)=>!pbT(x.topic)?`${i+1}-misol: mavzu topilmadi (${esc(x.topic||'—')})`:'').filter(Boolean);
+  const byT={};PK.items.forEach(x=>{const t=pbT(x.topic);const k=t?`${t.g}-sinf · ${t.name}`:'?';byT[k]=(byT[k]||0)+1});
+  const t=PK.test;
+  el.innerHTML=`<div class="card pad"><b>${esc(PK.name)}</b><div class="note">${PK.items.length} ta misol · ${PK.items.filter(pbPic).length} tasi suratli</div>
+   <div class="note">${Object.entries(byT).map(([k,n])=>`${esc(k)}: <b>${n}</b>`).join('<br>')}</div></div>
+   ${t?`<div class="card pad"><label class="check" style="padding:0"><input type="checkbox" id="pkT" checked><b>Testlar bazasiga test sifatida ham qo’shish</b></label>
+    <label class="field"><span class="label">Test nomi</span><input id="pkTN" type="text" value="${esc(t.name||'')}"></label>
+    <label class="field"><span class="label">Nechta variant?</span><select id="pkTV">${[1,2,3,4].map(n=>`<option value="${n}"${n===(+t.nvar||1)?' selected':''}>${n} ta variant</option>`).join('')}</select></label>
+    <p class="note" style="margin:0">Variantlarda savollar va javoblar o’rni sayt tomonidan aralashtiriladi, har biriga alohida kalit yoziladi.</p></div>`:''}
+   <p class="label">Misollar (belgisini olib tashlasangiz, bazaga qo’shilmaydi${t?', lekin testda qoladi':''})</p>
+   ${PK.items.map((x,i)=>probHtml(x,{n:i+1,topic:true,head:`<label class="check" style="padding:0;justify-content:flex-end;font-size:13px"><input type="checkbox" data-pkon="${i}" ${x.on?'checked':''}>Bazaga qo’shilsin</label>`})).join('')}
+   ${bad.length?`<div class="card pad" style="border-color:var(--wrong)"><b style="color:var(--wrong)">Paketda xato bor</b>${bad.slice(0,8).map(e=>`<div class="note" style="color:var(--wrong)">• ${e}</div>`).join('')}</div>`
+    :`<div id="pkProg" class="note"></div><button class="btn pri" data-pb="pkGo">Yuklash · ${on} ta misol bazaga${t?' + test':''}</button>`}`}
+async function pkGo(btn){if(!PK)return;btn.disabled=true;const prog=m=>{const e=$('#pkProg');if(e)e.textContent=m};
+  try{
+    const wantT=!!PK.test&&$('#pkT')?.checked,tn=String($('#pkTN')?.value||'').trim(),nv=+($('#pkTV')?.value||1);
+    if(wantT&&!tn){toast('Test nomini yozing',true);btn.disabled=false;return}
+    const urls=[...new Set(PK.items.flatMap(x=>[x.img,...x.o.map(v=>v.i)]).filter(u=>u&&String(u).startsWith('data:')))],map={};
+    for(let k=0;k<urls.length;k++){prog(`Rasmlar yuklanmoqda: ${k+1} / ${urls.length}`);map[urls[k]]=await mediaUp(dataBlob(urls[k]))}
+    const fix=x=>({grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
+    const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0;
+    for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup}
+    if(wantT){prog('Test tayyorlanmoqda…');const ord=Array.isArray(PK.test.items)?PK.test.items.map(i=>all[i]).filter(Boolean):all;
+      await api('bank.build',{name:tn,grade:PK.test.grade||ord[0].grade,qs:ord,nvar:nv,kind:'paket'})}
+    closeSheet();PBM=null;PBL=null;toast(`${added} ta misol qo’shildi${dup?`, ${dup} tasi bazada bor edi`:''}${wantT?'. Test Testlar bazasiga qo’shildi':''}`);await load()}
+  catch(e){toast(e.message,true);btn.disabled=false;prog('')}}
+
+// ---- test tuzish: mavzularni tanlang → sayt bazadan teradi → ko'rib chiqib almashtirasiz → saqlaysiz
+function tzNew(){TZ={grade:PBG,topics:[],n:20,nimg:6,items:null,name:'',nvar:2}}
+function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,groups=PBM.topics[g]||[],gs=Object.keys(PBM.topics).map(Number);
+  const sel=TZ.topics,cnt=(sel.length?sel:groups.flatMap(([,l])=>l.map(([c])=>c))).reduce((a,c)=>{const k=pbCnt(g,c);return {n:a.n+k.n,p:a.p+k.p}},{n:0,p:0});
+  const it=TZ.items;
+  return ['Test tuzish','Misollar bazasidan',`
+  <div class="seg">${gs.map(x=>`<button data-tzg="${x}" aria-pressed="${x===g}">${x}-sinf</button>`).join('')}</div>
+  <section class="sec"><p class="label">1. Qaysi mavzulardan?</p>
+  <p class="note" style="margin:0">${sel.length?`${sel.length} ta mavzu tanlandi`:'Hech narsa tanlanmasa — hamma mavzulardan olinadi'} · ularda <b>${cnt.n}</b> ta misol (${cnt.p} suratli)</p>
+  ${groups.map(([grp,l],gi)=>{const ns=l.filter(([c])=>sel.includes(c)).length;
+    return `<details class="card" data-tzog="${gi}"${ns||(TZ.og||[]).includes(gi)?' open':''}><summary class="row" style="cursor:pointer"><div class="m"><div class="n" style="white-space:normal">${esc(grp)}</div><div class="s">${ns?`${ns} ta tanlandi · `:''}${l.reduce((a,[c])=>a+pbCnt(g,c).n,0)} ta misol</div></div></summary>
+     <div style="padding:0 6px 8px"><button class="lnk" data-tzall="${gi}" style="padding:4px 8px">${ns===l.length?'Hammasini olib tashlash':'Hammasini tanlash'}</button>${l.map(([c,nm])=>{const k=pbCnt(g,c);return `<label class="check" style="padding:8px"><input type="checkbox" data-tzt="${c}" ${sel.includes(c)?'checked':''}><span style="flex:1">${esc(nm)}</span><span class="note">${k.n}${k.p?` · 🖼${k.p}`:''}</span></label>`}).join('')}</div></details>`}).join('')}</section>
+  <section class="sec"><p class="label">2. Nechta savol?</p><div class="card pad" style="flex-direction:row;gap:10px">
+   <label class="field" style="flex:1"><span class="label">Hammasi</span><input id="tzN" type="number" inputmode="numeric" min="5" max="50" value="${TZ.n}"></label>
+   <label class="field" style="flex:1"><span class="label">Shundan suratli</span><input id="tzP" type="number" inputmode="numeric" min="0" max="50" value="${TZ.nimg}"></label></div>
+   <button class="btn ${it?'sec':'pri'}" data-pb="tzPick">🎲 ${it?'Qaytadan tanlash':'Bazadan tanlash'}</button></section>
+  ${it?`<section class="sec"><p class="label">3. Ko’rib chiqing: ${it.length} ta savol · ${it.filter(pbPic).length} suratli</p>
+   <p class="note" style="margin:0">Yoqmagan misolni ↻ bilan shu mavzudagi boshqasiga almashtiring yoki ✕ bilan olib tashlang. Tartibi osondan qiyinga.</p>
+   ${it.map((p,i)=>probHtml(p,{n:i+1,topic:true,tools:`<div class="ptools"><button class="btn sec sm" data-tzup="${i}" aria-label="Yuqoriga"${i?'':' disabled'}>↑</button><button class="btn sec sm" data-tzdn="${i}" aria-label="Pastga"${i<it.length-1?'':' disabled'}>↓</button><button class="btn sec sm" data-tzsw="${i}">↻ Almashtirish</button><button class="btn sec sm" data-tzrm="${i}" style="color:var(--wrong)">✕</button></div>`})).join('')}
+   <button class="btn sec" data-pb="tzAdd">+ Yana bitta misol</button></section>
+  <section class="sec"><p class="label">4. Saqlash</p><div class="card pad">
+   <label class="field"><span class="label">Test nomi</span><input id="tzName" type="text" value="${esc(TZ.name)}" placeholder="Masalan: ${g}-sinf · 2-bosqich saralash"></label>
+   <span class="label">Nechta variant?</span><div class="seg">${[1,2,3,4].map(n=>`<button data-tzv="${n}" aria-pressed="${TZ.nvar===n}">${n} ta</button>`).join('')}</div>
+   <p class="note" style="margin:0">${TZ.nvar>1?`1-variant siz ko’rgan tartibda. Qolganlarida savollar va javoblar o’rni aralashtiriladi, har biriga alohida kalit va kitobcha chiqadi.`:'Hamma bolalarga bitta variant.'}</p>
+   <button class="btn pri" data-pb="tzSave"${it.length<5?' disabled':''}>💾 Testlar bazasiga saqlash · ${it.length} ta savol</button></div></section>`:''}`]}
+const tzRead=()=>{if(!TZ)return;const n=parseInt($('#tzN')?.value,10),p=parseInt($('#tzP')?.value,10);if(n)TZ.n=Math.min(50,Math.max(5,n));if(!isNaN(p))TZ.nimg=Math.min(TZ.n,Math.max(0,p));const nm=$('#tzName');if(nm)TZ.name=nm.value};
+async function tzPick(){tzRead();const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n:TZ.n,nimg:TZ.nimg});TZ.items=r.rows;
+  if(!r.rows.length)toast('Tanlangan mavzularda misol yo’q',true);else if(r.short>0)toast(`Bazada yetarli misol yo’q: ${r.rows.length} ta topildi`,true);render()}
+async function tzSwap(i){tzRead();const p=TZ.items[i],ex=TZ.items.map(x=>x.id);
+  let r=await api('pb.pick',{grade:TZ.grade,topics:[p.topic],n:1,nimg:p.pic?1:0,pic:p.pic?1:0,exclude:ex});
+  if(!r.rows.length)r=await api('pb.pick',{grade:TZ.grade,topics:[p.topic],n:1,exclude:ex});
+  if(!r.rows.length){toast('Bu mavzuda boshqa misol yo’q',true);return}TZ.items[i]=r.rows[0];render()}
+async function tzAdd(){tzRead();const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n:1,exclude:TZ.items.map(x=>x.id)});if(!r.rows.length){toast('Boshqa misol qolmadi',true);return}TZ.items.push(r.rows[0]);render()}
+async function tzSave(){tzRead();if(!TZ.name.trim()){toast('Test nomini yozing',true);$('#tzName')?.focus();return}
+  await api('bank.build',{name:TZ.name,grade:TZ.grade,nvar:TZ.nvar,kind:'baza',qs:TZ.items.map(p=>({q:p.q,img:p.img,o:p.o,a:p.a,fix:p.fix,pid:p.id}))});
+  toast('Test Testlar bazasiga saqlandi');TZ=null;stack=[];tab='imtihon';examView='bank';await load();scrollTo(0,0)}
+
+// ---- tayyor PDF test: kitobcha o'zi saqlanadi, savollar soni va kalit PDFdan o'qiladi (topilmasa — qo'lda belgilanadi)
+async function pdfScan(file){await loadLib(PDFJS,()=>window.pdfjsLib);pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJSW;
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;const pages=[];
+  for(let i=1;i<=doc.numPages;i++){const pg=await doc.getPage(i);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();pages.push({w:vp.width,items:tc.items.map(t=>({s:t.str,x:t.transform[4],y:t.transform[5]}))})}
+  return pdfDetect(pages)}
+function pdfDetect(pages){const cand={},txt=[];let hasE=false,chars=0;
+  pages.forEach(p=>{p.items.forEach(t=>{const s=String(t.s).trim();chars+=s.length;if(/^E\s*\)/.test(s)||/(^|\s)E\)\s*\S/.test(s))hasE=true;
+    // savol raqamlari odatda bitta ustunda turadi: eng ko'p raqam turgan ustun olinadi
+    const m=s.match(/^(\d{1,2})\s*[.)]?$/)||s.match(/^(\d{1,2})\s*[.)]\s+\S/);if(m&&t.x<p.w*.25)(cand[Math.round(t.x/6)]||=new Set()).add(+m[1])});
+    // qatorlarni tiklash: bir xil balandlikdagi bo'laklar ketma-ket
+    const rows={};p.items.forEach(t=>{const k=Math.round(t.y/3);(rows[k]||=[]).push(t)});Object.keys(rows).sort((a,b)=>b-a).forEach(k=>txt.push(rows[k].sort((a,b)=>a.x-b.x).map(t=>t.s).join(' ')))});
+  const run=st=>{let n=0;while(st.has(n+1))n++;return n};const cols=Object.keys(cand).map(Number);
+  let qn=0;for(const c of cols){const st=new Set([...(cand[c-1]||[]),...cand[c],...(cand[c+1]||[])]);qn=Math.max(qn,run(st))}
+  const all=txt.join('\n'),at=all.search(/kalit|javoblar\s*kaliti|to.?g.?ri\s+javoblar\s*(kaliti|:)?\s*\n|javob\s*kaliti/i),key=[];
+  if(at>=0){const re=/(\d{1,2})\s*[-–.):]?\s*([A-E])(?![A-Za-z])/g;let m;const tail=all.slice(at);while((m=re.exec(tail))){const i=+m[1]-1;if(i>=0&&i<50&&!key[i])key[i]=m[2]}}
+  const kn=key.filter(Boolean).length,kOk=kn>=5&&(!qn||kn>=qn*.8);if(kOk&&key.length>qn)qn=key.length;
+  return {qn:qn>=5?Math.min(50,qn):0,nopt:hasE||(kOk&&key.includes('E'))?5:4,key:kOk?Array.from({length:qn},(_,i)=>key[i]||''):[],noText:chars<40}}
+function openPdfUp(bankId){const b=bankId?(S.bank||[]).find(x=>x.id===bankId):null;
+  PU={bankId:b?.id||0,qn:b?.qn||0,nopt:b?.nopt||4,key:[],file:null,scan:null,v:b?VL('ABCD'[b.variants.length]):''};
+  openSheet(`<div class="sh-top"><div class="m"><h2>${b?`${PU.v}-variant qo’shish`:'Tayyor test (PDF)'}</h2><div class="s">${b?esc(b.name):'Testlar bazasiga'}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  ${b?'':`<label class="field"><span class="label">Test nomi</span><input id="puName" type="text" placeholder="Masalan: 3-sinf · 1-bosqich sinov testi"></label>
+  <label class="field"><span class="label">Qaysi sinf uchun?</span><select id="puG">${[2,3,4,1,5,6,7,8,9,10,11].map(g=>`<option value="${g}"${g===PBG?' selected':''}>${g}-sinf</option>`).join('')}</select></label>`}
+  <p class="note" style="margin:0">Test kitobchasining PDF faylini tanlang. Sayt savollar sonini va (PDF oxirida bo’lsa) kalitni o’zi o’qiydi. Topa olmasa — javoblarni o’zingiz belgilaysiz. Kitobcha keyin shu yerdan aynan shu ko’rinishda chop etiladi.</p>
+  <button class="btn sec" data-pb="puPick">📄 PDF faylni tanlash</button><div id="puRes"></div>`)}
+function puPick(){const i=document.createElement('input');i.type='file';i.accept='application/pdf,.pdf';
+  i.onchange=async()=>{const f=i.files[0];if(!f||!PU)return;if(f.size>9e6){toast('PDF juda katta (ko’pi bilan 9 MB)',true);return}
+    PU.file=f;PU.scan=null;const el=$('#puRes');if(el)el.innerHTML='<div class="card pad note">PDF o’qilmoqda…</div>';
+    try{PU.scan=await pdfScan(f)}catch(e){PU.scan={qn:0,nopt:4,key:[],err:true}}
+    const s=PU.scan;if(!PU.bankId){if(s.qn)PU.qn=s.qn;else if(!PU.qn)PU.qn=20;PU.nopt=s.nopt}
+    PU.key=s.key.length===PU.qn?s.key.slice():Array(PU.qn).fill('');puShow()};i.click()}
+function keyGrid(qn,nopt,key,attr){return `<div class="kgrid">${Array.from({length:qn},(_,i)=>`<div class="kr"><b>${i+1}</b>${'ABCDE'.slice(0,nopt).split('').map(L=>`<button ${attr}="${i}:${L}" class="${key[i]===L?'on':''}">${L}</button>`).join('')}</div>`).join('')}</div>`}
+function puShow(){const el=$('#puRes');if(!el||!PU)return;const s=PU.scan||{},filled=PU.key.filter(Boolean).length;
+  el.innerHTML=`<div class="card pad"><b>📄 ${esc(PU.file?.name||'')}</b>
+   <div class="note">${s.err?'PDF ichidagi matn o’qilmadi — savollar soni va javoblarni qo’lda kiriting.':s.noText?'Bu PDF rasm (skaner) ko’rinishida — matnini o’qib bo’lmadi. Savollar sonini va javoblarni qo’lda kiriting.':`${s.qn?`Savollar soni topildi: <b>${s.qn}</b>`:'Savollar soni topilmadi'} · ${s.key?.length?'<b style="color:var(--good)">Kalit PDFdan o’qildi ✓</b> — tekshirib chiqing':'Kalit PDFda yo’q — javoblarni belgilang'}`}</div></div>
+   ${PU.bankId?`<p class="note" style="margin:0">${PU.qn} ta savol · ${PU.nopt===5?'A–E':'A–D'} (1-variant bilan bir xil bo’lishi shart)</p>`:`<div class="card pad" style="flex-direction:row;gap:10px;align-items:flex-end">
+    <label class="field" style="flex:1"><span class="label">Savollar soni</span><input id="puQ" type="number" inputmode="numeric" min="5" max="50" value="${PU.qn}"></label>
+    <div style="flex:1"><span class="label">Javob harflari</span><div class="seg" style="margin-top:6px"><button data-pun="4" aria-pressed="${PU.nopt===4}">A–D</button><button data-pun="5" aria-pressed="${PU.nopt===5}">A–E</button></div></div></div>`}
+   <p class="label">Kalit: har savolning to’g’ri javobini bosing · ${filled} / ${PU.qn}</p>
+   ${keyGrid(PU.qn,PU.nopt,PU.key,'data-puk')}
+   <button class="btn pri" data-pb="puGo"${filled<PU.qn?' disabled':''}>${filled<PU.qn?`Yana ${PU.qn-filled} ta javob belgilang`:'Bazaga yuklash'}</button>`;
+  const q=$('#puQ');if(q)q.onchange=()=>{const n=Math.min(50,Math.max(5,parseInt(q.value,10)||20));PU.qn=n;PU.key=Array.from({length:n},(_,i)=>PU.key[i]||'');puShow()}}
+async function puGo(btn){if(!PU?.file)return;btn.disabled=true;btn.textContent='Yuklanmoqda…';
+  try{const name=val('puName'),g=+val('puG');if(!PU.bankId&&!name){toast('Test nomini yozing',true);btn.disabled=false;btn.textContent='Bazaga yuklash';$('#puName')?.focus();return}
+    const id=await mediaUp(PU.file);
+    const r=await api('bank.pdf',PU.bankId?{bank_id:PU.bankId,pdf:id,key:PU.key.join('')}:{name,grade:g,qn:PU.qn,nopt:PU.nopt,key:PU.key.join(''),pdf:id});
+    closeSheet();toast(PU.bankId?`${VL(r.variant)}-variant qo’shildi`:'Test Testlar bazasiga yuklandi');PU=null;await load()}
+  catch(e){toast(e.message,true);btn.disabled=false;btn.textContent='Bazaga yuklash'}}
+// PDF testning kalitini ko'rish va tuzatish (imtihonga berilmagan bo'lsa)
+async function openBankKey(id){const bk=await api('bank.get',{id});const vs=Object.keys(bk.keys);
+  PU={edit:id,v:vs[0],qn:bk.qn,nopt:bk.nopt,keys:bk.keys,key:bk.keys[vs[0]].split(''),used:bk.used};drawBankKey()}
+function drawBankKey(){const vs=Object.keys(PU.keys);
+  openSheet(`<div class="sh-top"><div class="m"><h2>Kalit</h2><div class="s">${PU.qn} ta savol</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  ${vs.length>1?`<div class="seg">${vs.map(v=>`<button data-pbkv="${v}" aria-pressed="${PU.v===v}">${VL(v)}-variant</button>`).join('')}</div>`:''}
+  ${PU.used?'<p class="note" style="margin:0">Bu test imtihonga berilgan — kalitni faqat ko’rish mumkin.</p>':''}
+  ${keyGrid(PU.qn,PU.nopt,PU.key,PU.used?'disabled data-x':'data-puk')}
+  ${PU.used?'':`<button class="btn pri" data-pb="bkSave">Kalitni saqlash</button>`}`)}
+
+// ---- kitobcha: PDF test — asl fayl; bazadan/paketdan tuzilgan test — rasmlari bilan yangi PDF
+async function saveMedia(id,name){const r=await fetch(mUrl(id),{credentials:'same-origin'});if(!r.ok)throw new Error('Fayl topilmadi');saveBlob(await r.blob(),name)}
+const IMGC={};
+async function pdfImg(id){if(IMGC[id])return IMGC[id];const r=await fetch(mUrl(id),{credentials:'same-origin'});if(!r.ok)throw new Error('Rasm yuklanmadi');
+  const u=URL.createObjectURL(await r.blob());try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('Rasm ochilmadi'));i.src=u});
+    const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0);
+    return IMGC[id]={d:c.toDataURL('image/jpeg',.92),w:c.width,h:c.height}}finally{URL.revokeObjectURL(u)}}
+async function bookPdf(bankId,only){
+  const bk=await api('bank.get',{id:bankId});const fn=v=>plain(`${bk.name}_${bk.grade}-sinf${v?'_'+VL(v)+'-variant':''}`).replace(/[^\w-]+/g,'_')+'.pdf';
+  if(bk.kind==='pdf'){const vs=Object.keys(bk.data);if(only||vs.length===1){const v=only||vs[0];toast('Yuklanmoqda…');await saveMedia(bk.data[v].pdf,fn(vs.length>1?v:''));return}
+    openSheet(`<div class="sh-top"><div class="m"><h2>Kitobcha</h2><div class="s">${esc(bk.name)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+     <div class="card list">${vs.map(v=>`<button class="row" data-pb="bookV" data-id="${bk.id}" data-v="${v}"><div class="m"><div class="n">📘 ${VL(v)}-variant</div><div class="s">PDF yuklab olish</div></div>${I.chev}</button>`).join('')}</div>`);return}
+  toast('Kitobcha tayyorlanmoqda…');await loadLib(JSPDF,()=>window.jspdf);
+  const rows=Object.entries(bk.data).map(([v,x])=>({variant:v,qs:x.qs}));
+  const ids=[...new Set(rows.flatMap(r=>r.qs.flatMap(q=>[q.img,...(q.oi||[])])).filter(Boolean))];
+  for(let k=0;k<ids.length;k++){try{await pdfImg(ids[k])}catch(e){}}
+  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});const X0=18,XW=174,YB=282,DPI=220,mm=px=>px*25.4/DPI;
+  rows.forEach((b,bi)=>{if(bi)pdf.addPage();let y=16;
+    const head=first=>{pdf.setTextColor(0);
+      if(first){pdf.setFont('helvetica','bold');pdf.setFontSize(13);pdf.text('YOSH XORAZMIYLAR',X0,y);pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.text(pdfTxt(bk.name),X0+XW,y,{align:'right'});y+=8;
+        pdf.setFont('helvetica','bold');pdf.setFontSize(16);pdf.text(`${bk.grade}-sinf · matematika`,X0,y);pdf.setLineWidth(.6);pdf.setDrawColor(0);pdf.rect(X0+XW-36,y-6.5,36,10);pdf.text(`${VL(b.variant)}-variant`,X0+XW-18,y+.6,{align:'center'});y+=7;
+        pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(60);pdf.text(pdfTxt(`${b.qs.length} ta savol · Har bir savolning faqat bitta to‘g‘ri javobi bor.`),X0,y);y+=5;
+        pdf.setFont('helvetica','bold');pdf.setTextColor(0);pdf.text(pdfTxt('Javobni TITUL VARAQQA belgilang.'),X0,y);y+=3;pdf.setDrawColor(180);pdf.setLineWidth(.3);pdf.line(X0,y,X0+XW,y);y+=7}
+      else{pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(120);pdf.text(pdfTxt(`${bk.grade}-sinf · ${VL(b.variant)}-variant · ${bk.name}`),X0,10);pdf.setTextColor(0);pdf.setFontSize(12.5);y=18}};
+    head(true);
+    b.qs.forEach((q,i)=>{pdf.setFontSize(12.5);pdf.setFont('helvetica','normal');
+      const ql=q.q?pdf.splitTextToSize(pdfTxt(q.q),XW-9):[];
+      let im=q.img&&IMGC[q.img];let iw=0,ih=0;if(im){iw=Math.min(XW-12,mm(im.w));ih=iw*im.h/im.w;if(ih>80){ih=80;iw=ih*im.w/im.h}}
+      const oi=q.oi||[],pics=oi.some(Boolean);let oh,opl;
+      if(pics){// rasmli javoblar: har biri harf + rasm (+ matn), qatorga sig'guncha
+        const cells=q.o.map((t,k)=>{const m=oi[k]&&IMGC[oi[k]];let w=0,h=0;if(m){h=Math.min(16,mm(m.h));w=h*m.w/m.h;if(w>60){w=60;h=w*m.h/m.w}}const tw=t?pdf.getTextWidth(pdfTxt(t))+2:0;return {k,t,m,w,h,cw:7+w+tw+8}});
+        const lines=[[]];let lw=0;cells.forEach(c=>{if(lw+c.cw>XW-12&&lines[lines.length-1].length){lines.push([]);lw=0}lines[lines.length-1].push(c);lw+=c.cw});
+        const per=Math.max(...lines.map(l=>l.length));opl={lines,cw:(XW-12)/per};oh=lines.reduce((a,l)=>a+Math.max(7,...l.map(c=>c.h+2)),0);
+      }else{const opts=q.o.map((o,k)=>`${'ABCDE'[k]})  ${pdfTxt(o)}`);const w=Math.max(...opts.map(o=>pdf.getTextWidth(o)))+6;const per=w*opts.length<=XW-9?opts.length:w*2<=XW-9?2:1;
+        const ol=per===1?opts.map(o=>pdf.splitTextToSize(o,XW-9)):opts.map(o=>[o]);opl={opts,per,ol};oh=(per===1?ol.reduce((a,x)=>a+x.length,0):Math.ceil(opts.length/per))*6}
+      const h=ql.length*5.6+(im?ih+4:0)+oh+6;
+      if(y+h>YB&&y>30){pdf.addPage();head(false)}
+      pdf.setFont('helvetica','bold');pdf.text(`${i+1}.`,X0+7,y,{align:'right'});pdf.setFont('helvetica','normal');
+      if(ql.length){pdf.text(ql,X0+9,y);y+=ql.length*5.6}else y+=1;
+      if(im){pdf.addImage(im.d,'JPEG',X0+12,y-2,iw,ih);y+=ih+3}
+      y+=1;
+      if(pics){opl.lines.forEach(l=>{const lh=Math.max(7,...l.map(c=>c.h+2));l.forEach((c,j)=>{const x=X0+12+j*opl.cw;pdf.setFont('helvetica','bold');pdf.text(`${'ABCDE'[c.k]})`,x,y+lh/2-1);pdf.setFont('helvetica','normal');
+          if(c.m)pdf.addImage(c.m.d,'JPEG',x+7,y-2,c.w,c.h);if(c.t)pdf.text(pdfTxt(c.t),x+7+c.w+(c.w?2:0),y+lh/2-1)});y+=lh})}
+      else if(opl.per===1)opl.ol.forEach(x=>{pdf.text(x,X0+12,y);y+=x.length*6});
+      else{const cw=(XW-9)/opl.per;opl.opts.forEach((o,k)=>{pdf.text(o,X0+12+(k%opl.per)*cw,y+Math.floor(k/opl.per)*6)});y+=Math.ceil(opl.opts.length/opl.per)*6}
+      y+=4});
+  });
+  pdf.save(fn(only||''));
+}
+
+// ---- hodisalar (asosiy switch'ga tegmasdan)
+document.addEventListener('click',async e=>{
+  const z=e.target.closest('img[data-zoom]');if(z){zoomImg(z.dataset.zoom);return}
+  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+  try{
+  if(d.pbg){PBG=+d.pbg;ls.set('pbg',PBG);render();return}
+  if(d.pbi!=null){PBPIC=+d.pbi;PBL=null;render();return}
+  if(d.tzg){tzRead();if(TZ.grade!==+d.tzg){TZ.grade=+d.tzg;TZ.topics=[];TZ.items=null}render();return}
+  if(d.tzall!=null){tzRead();const l=PBM.topics[TZ.grade][+d.tzall][1].map(([c])=>c),all=l.every(c=>TZ.topics.includes(c));TZ.topics=all?TZ.topics.filter(c=>!l.includes(c)):[...new Set([...TZ.topics,...l])];render();return}
+  if(d.tzv){tzRead();TZ.nvar=+d.tzv;render();return}
+  if(d.tzup!=null||d.tzdn!=null){tzRead();const i=+(d.tzup??d.tzdn),j=d.tzup!=null?i-1:i+1;const a=TZ.items;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];render();return}
+  if(d.tzrm!=null){tzRead();TZ.items.splice(+d.tzrm,1);render();return}
+  if(d.tzsw!=null){b.disabled=true;await tzSwap(+d.tzsw);return}
+  if(d.pun){PU.nopt=+d.pun;PU.key=PU.key.map(k=>'ABCDE'.indexOf(k)<PU.nopt?k:'');puShow();return}
+  if(d.puk){const [i,L]=d.puk.split(':');PU.key[+i]=PU.key[+i]===L?'':L;if(PU.edit){drawBankKey();return}puShow();return}
+  if(d.pbkv){PU.keys[PU.v]=PU.key.join('');PU.v=d.pbkv;PU.key=PU.keys[PU.v].split('');drawBankKey();return}
+  switch(d.pb){
+   case 'pkOpen':openPkt();break;
+   case 'pkPick':pkPick();break;
+   case 'pkGo':await pkGo(b);break;
+   case 'tzOpen':if(!TZ||TZ.grade!==PBG)tzNew();go('tuzish');break;
+   case 'tzPick':b.disabled=true;await tzPick();break;
+   case 'tzAdd':b.disabled=true;await tzAdd();break;
+   case 'tzSave':b.disabled=true;try{await tzSave()}finally{b.disabled=false}break;
+   case 'pbMore':b.disabled=true;await pbMore();break;
+   case 'pbSelNone':PBL.sel.clear();render();break;
+   case 'pbDel':{const n=PBL.sel.size;if(!n||!confirm(`${n} ta misol bazadan o’chirilsinmi?\n\n30 kun ichida “O’chirilganlar” bo’limidan qaytarish mumkin.`))break;
+     await api('pb.delete',{ids:[...PBL.sel]});toast(`${n} ta misol o’chirildi`);PBL=null;PBM=null;TRASH=null;render();break}
+   case 'pdfUp':openPdfUp(+d.id||0);break;
+   case 'puPick':puPick();break;
+   case 'puGo':await puGo(b);break;
+   case 'bankKey':await openBankKey(+d.id);break;
+   case 'bkSave':{PU.keys[PU.v]=PU.key.join('');for(const [v,k] of Object.entries(PU.keys)){if(k.length!==PU.qn||k.includes(' ')){toast(`${VL(v)}-variant kaliti to’liq emas`,true);return}}
+     for(const [v,k] of Object.entries(PU.keys))await api('bank.key',{id:PU.edit,variant:v,key:k});closeSheet();toast('Kalit saqlandi');PU=null;await load();break}
+   case 'bookV':closeSheet();await bookPdf(+d.id,d.v);break;
+  }}catch(err){toast(err.message,true)}
+});
+document.addEventListener('toggle',e=>{const t=e.target;if(t.dataset?.tzog!=null&&TZ){const i=+t.dataset.tzog;TZ.og=(TZ.og||[]).filter(x=>x!==i);if(t.open)TZ.og.push(i)}
+  if(t.dataset?.pbog){if(t.open)PBOG.delete(t.dataset.pbog);else PBOG.add(t.dataset.pbog)}},true);
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.pbsel&&PBL){const id=+t.dataset.pbsel;if(t.checked)PBL.sel.add(id);else PBL.sel.delete(id);const bar=$('#pbSelBar');if(bar)bar.innerHTML=pbSelBar();return}
+  if(t.dataset.pkon!=null&&PK){PK.items[+t.dataset.pkon].on=t.checked;const btn=document.querySelector('[data-pb="pkGo"]');if(btn)btn.textContent=`Yuklash · ${PK.items.filter(x=>x.on).length} ta misol bazaga${PK.test?' + test':''}`;return}
+  if(t.dataset.tzt&&TZ){tzRead();const c=t.dataset.tzt;TZ.topics=t.checked?[...new Set([...TZ.topics,c])]:TZ.topics.filter(x=>x!==c);render();return}
+});
+
 // ================================================================ routing
 const TABS={
-  team:()=>[['bosh','Bosh',I.home],['maktab','Maktablar',I.school],['imtihon','Imtihon',I.pen],['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['more','Ko’proq',I.more]],
+  team:()=>[['bosh','Bosh',I.home],['maktab','Maktablar',I.school],['imtihon','Imtihon',I.pen],...(canKey()?[['baza','Misollar',I.book]]:[]),['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['more','Ko’proq',I.more]],
   direktor:()=>[['bosh','Bosh',I.home],['ichki','Ichki sinov',I.pen],['tahlil','Tahlil',I.chart],['xabar','Xabarlar',I.chat,S.unread]],
   rahbar:()=>[['sinf','Sinfim',I.users],['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['tahlil','Tahlil',I.chart]],
   ota:()=>[['farzand','Farzandim',I.home],['mashq','Mashq',I.pen,S.exNew],['xabar','Ustoz',I.chat,S.unread]],
@@ -2046,21 +2320,21 @@ function screen(){
   if(top){const [k,v]=top.split(':');
     if(k==='itest')return scrItest(+v);
     if(k==='school')return scrSchool(+v); if(k==='class')return scrClass(+v); if(k==='stu')return scrStudent(+v);
-    if(k==='exam')return scrExam(+v); if(k==='entry')return v?scrClassEntry(+v):scrEntry();
+    if(k==='exam')return scrExam(+v); if(k==='pbt')return scrPBTopic(v); if(k==='tuzish')return scrTZ(); if(k==='entry')return v?scrClassEntry(+v):scrEntry();
     if(k==='tests')return scrTests(); if(k==='bank')return scrBank(); if(k==='pins')return scrPins(); if(k==='team')return scrTeam(); if(k==='history')return scrHistory();
     if(k==='savat')return scrTrash();
     if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='resimport')return scrResImport();
     if(k==='certs')return scrCerts(); if(k==='mashq')return scrExTeam(); if(k==='settings')return scrSettings(); if(k==='reyting')return scrRanking(); if(k==='yuqori')return scrTop();}
   const r=S.me.role;
   if(tab==='xabar')return scrMessages();
-  if(isTeam())return tab==='maktab'?scrSchools():tab==='imtihon'?scrExams():tab==='more'?scrMore():scrTeamHome();
+  if(isTeam())return tab==='baza'?scrPB():tab==='maktab'?scrSchools():tab==='imtihon'?scrExams():tab==='more'?scrMore():scrTeamHome();
   if(r==='direktor')return tab==='tahlil'?scrDirAnalysis():tab==='ichki'?scrItests():scrDirHome();
   if(r==='rahbar')return tab==='tahlil'?scrRahbarAnalysis():scrRahbar();
   return tab==='mashq'?scrExParent():scrParent();
 }
 
 // ---- atmosfera
-const THEME={ichki:'sand',bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',imtihon:'sand',exam:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
+const THEME={baza:'mint',ichki:'sand',bosh:'sky',sinf:'sky',farzand:'sky',maktab:'mint',kirit:'sand',imtihon:'sand',exam:'sand',xabar:'lilac',more:'rose',tahlil:'dusk',mashq:'sun'};
 (function atmo(){
   const tk=document.getElementById('tk'),dg=document.getElementById('dg'),gl=document.getElementById('gl');if(!gl)return;
   let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}if(tk)tk.innerHTML=t;
