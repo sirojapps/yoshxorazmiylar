@@ -84,6 +84,13 @@ CREATE TABLE IF NOT EXISTS tbank(id INTEGER PRIMARY KEY, name TEXT NOT NULL, gra
 CREATE TABLE IF NOT EXISTS tlinks(test_id INTEGER NOT NULL, grade INTEGER NOT NULL, bank_id INTEGER NOT NULL, by INTEGER, at TEXT, PRIMARY KEY(test_id,grade));`);
 try { db.exec("ALTER TABLE tests ADD COLUMN scope TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE results ADD COLUMN variant TEXT DEFAULT ''"); } catch (e) { }
+// 100 ballik tizim: score — ball (100 dan), qn — 100; ok — to'g'ri javoblar soni, nq — savollar soni
+try { db.exec("ALTER TABLE results ADD COLUMN ok INTEGER"); } catch (e) { }
+try { db.exec("ALTER TABLE results ADD COLUMN nq INTEGER"); } catch (e) { }
+try { db.exec("ALTER TABLE tbank ADD COLUMN w TEXT DEFAULT ''"); } catch (e) { }
+db.exec('CREATE TABLE IF NOT EXISTS wts(test_id INTEGER NOT NULL, grade INTEGER NOT NULL, w TEXT NOT NULL, PRIMARY KEY(test_id,grade))');
+// har imtihonning o'z ball tizimi: '100' — 100 ballik (savol og'irligi bo'yicha), boshqasi — eski (to'g'ri javoblar soni)
+try { db.exec("ALTER TABLE tests ADD COLUMN scoring TEXT DEFAULT ''"); } catch (e) { }
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -141,27 +148,63 @@ function varInfo(testId) {
   for (const l of all('SELECT l.grade,l.bank_id,b.name,b.nopt FROM tlinks l JOIN tbank b ON b.id=l.bank_id WHERE l.test_id=?', testId)) {
     const g = (o[l.grade] ||= { v: [], qn: 0, nopt: 4 }); g.bank = { id: l.bank_id, name: l.name }; g.nopt = Math.max(g.nopt, l.nopt || 4);
   }
-  for (const g of Object.keys(o)) o[g].locked = gradeLocked(testId, +g);
+  const t100 = is100(testId); for (const g of Object.keys(o)) { o[g].locked = gradeLocked(testId, +g); if (o[g].qn && t100) o[g].w = wFor(testId, +g, o[g].qn); }
   return o;
 }
 // imtihonda shu sinf bosqichiga birorta natija (kelmadi ham) kiritilgan bo'lsa, testi va kalitlari qulflanadi
 const gradeLocked = (testId, g) => !!one('SELECT 1 FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND c.grade=? LIMIT 1', testId, g);
+// Savol ballari: savollar osondan qiyinga, 5 tadan guruh; har guruh bali oshib boradi, jami har doim 100.
+const W_TABLE = { 20: [3.5, 4.5, 5.5, 6.5], 25: [3, 3.5, 4, 4.5, 5], 30: [2, 2.5, 3, 3.5, 4, 5] };
+const r2 = x => Math.round(x * 100) / 100;
+function defW(n) {
+  n = Math.max(1, Math.min(50, n | 0)); const sizes = []; for (let i = 0; i < n; i += 5) sizes.push(Math.min(5, n - i));
+  const k = sizes.length; let g;
+  if (W_TABLE[n]) g = W_TABLE[n].slice();
+  else {
+    const raw = sizes.map((_, i) => k > 1 ? 1 + 0.9 * i / (k - 1) : 1), tot = raw.reduce((a, x, i) => a + x * sizes[i], 0);
+    g = raw.map(x => Math.round(x * 100 / tot * 2) / 2);
+    let diff = 100 - g.reduce((a, x, i) => a + x * sizes[i], 0), i = k - 1, guard = 200;
+    while (Math.abs(diff) >= 0.5 * sizes[i] - 1e-9 && guard--) { const st = Math.sign(diff) * 0.5; g[i] += st; diff -= st * sizes[i]; i = i > 0 ? i - 1 : k - 1; }
+  }
+  const w = []; sizes.forEach((sz, i) => { for (let j = 0; j < sz; j++) w.push(g[i]); });
+  const rest = r2(100 - w.reduce((a, x) => a + x, 0)); if (rest) w[n - 1] = r2(w[n - 1] + rest);
+  return w;
+}
+const cleanW = (w, n) => Array.isArray(w) && w.length === n && w.every(x => typeof x === 'number' && x >= 0 && x <= 100) && Math.abs(w.reduce((a, x) => a + x, 0) - 100) < 0.01 ? w.map(r2) : null;
+function wFor(testId, grade, n) { const r = one('SELECT w FROM wts WHERE test_id=? AND grade=?', testId, grade); let w = null; try { w = r && cleanW(JSON.parse(r.w), n); } catch (e) { } return w || defW(n); }
+const is100 = testId => one('SELECT scoring FROM tests WHERE id=?', testId)?.scoring === '100';
 function score(testId, grade, mode, answers, bits, variant) {
   const key = keyFor(testId, grade, variant);
+  if (!is100(testId)) return scoreOld(key, mode, answers, bits);
+  const pts = b => { const w = wFor(testId, grade, b.length); return r2([...b].reduce((a, x, i) => a + (x === '1' ? w[i] : 0), 0)); };
   if (mode === 'harf') {
     const a = String(answers || '').toUpperCase().replace(/[^A-E-]/g, '-');
-    if (!key) return { answers: a, bits: '', score: null, qn: a.length || 20 };
+    if (!key) return { answers: a, bits: '', score: null, qn: 100, ok: null, nq: a.length || 20 };
     const b = [...key].map((k, i) => (a[i] && a[i] === k ? '1' : '0')).join('');
-    return { answers: a.padEnd(key.length, '-').slice(0, key.length), bits: b, score: [...b].filter(x => x === '1').length, qn: key.length };
+    return { answers: a.padEnd(key.length, '-').slice(0, key.length), bits: b, score: pts(b), qn: 100, ok: [...b].filter(x => x === '1').length, nq: key.length };
+  }
+  const n = key ? key.length : 20;
+  const b = String(bits || '').replace(/[^01]/g, '0').padEnd(n, '0').slice(0, n);
+  return { answers: '', bits: b, score: pts(b), qn: 100, ok: [...b].filter(x => x === '1').length, nq: n };
+}
+// eski tizim (100 ballik tizimdan oldingi imtihonlar): ball = to'g'ri javoblar soni
+function scoreOld(key, mode, answers, bits) {
+  if (mode === 'harf') {
+    const a = String(answers || '').toUpperCase().replace(/[^A-E-]/g, '-');
+    if (!key) return { answers: a, bits: '', score: null, qn: a.length || 20, ok: null, nq: null };
+    const b = [...key].map((k, i) => (a[i] && a[i] === k ? '1' : '0')).join(''); const n = [...b].filter(x => x === '1').length;
+    return { answers: a.padEnd(key.length, '-').slice(0, key.length), bits: b, score: n, qn: key.length, ok: n, nq: key.length };
   }
   const qn = key ? key.length : 20;
-  const b = String(bits || '').replace(/[^01]/g, '0').padEnd(qn, '0').slice(0, qn);
-  return { answers: '', bits: b, score: [...b].filter(x => x === '1').length, qn };
+  const b = String(bits || '').replace(/[^01]/g, '0').padEnd(qn, '0').slice(0, qn); const n = [...b].filter(x => x === '1').length;
+  return { answers: '', bits: b, score: n, qn, ok: n, nq: qn };
 }
+// faqat umumiy son ma'lum bo'lsa (qaysi savol to'g'riligi noma'lum) — ball ulush bo'yicha
+const ballOfCount = (ok, n) => Math.round(ok / n * 200) / 2;
 function rescoreTest(testId) {
   const rows = all(`SELECT r.id,r.mode,r.answers,r.bits,r.variant,c.grade FROM results r JOIN students s ON s.id=r.student_id
     JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND r.absent=0 AND r.mode!='ball'`, testId);
-  for (const r of rows) { const s = score(testId, r.grade, r.mode, r.answers, r.bits, r.variant); run('UPDATE results SET bits=?,score=?,qn=? WHERE id=?', s.bits, s.score, s.qn, r.id); }
+  for (const r of rows) { const s = score(testId, r.grade, r.mode, r.answers, r.bits, r.variant); run('UPDATE results SET bits=?,score=?,qn=?,ok=?,nq=? WHERE id=?', s.bits, s.score, s.qn, s.ok, s.nq, r.id); }
   return rows.length;
 }
 
@@ -187,7 +230,7 @@ function state(u) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
     out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
-    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant FROM results');
+    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq FROM results');
     out.vinfo = Object.fromEntries(tests.map(t => [t.id, varInfo(t.id)]));
     out.bank = bankList();
     out.keys = {};
@@ -399,7 +442,7 @@ function dropStudents(ids) {
   for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults']) run(`DELETE FROM ${t} WHERE student_id IN (${L})`, ...ids);
   run(`DELETE FROM students WHERE id IN (${L})`, ...ids);
 }
-const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults'];
+const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'wts', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults'];
 function putBack(d) {
   for (const t of ORDER) for (const r of d[t] || []) { const k = Object.keys(r); run(`INSERT INTO ${t}(${k.join(',')}) VALUES(${k.map(() => '?').join(',')})`, ...k.map(x => r[x])); }
   if ((d.users || []).length) run(`UPDATE users SET active=1 WHERE id IN (${inList(d.users)})`, ...d.users);
@@ -447,8 +490,8 @@ A['test.delete'] = (u, b) => {
   if (String(b.confirm || '').trim().toLowerCase() !== 'o‘chirish' && String(b.confirm || '').trim().toLowerCase().replace(/['`’ʻ]/g, '‘') !== 'o‘chirish') bad('Tasdiqlash uchun “o‘chirish” deb yozing');
   return tx(() => {
     const d = { tests: [t] };
-    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'approvals', 'announcements', 'certificates']) d[x] = all(`SELECT * FROM ${x} WHERE test_id=?`, t.id);
-    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'approvals', 'announcements', 'certificates']) run(`DELETE FROM ${x} WHERE test_id=?`, t.id);
+    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'wts', 'approvals', 'announcements', 'certificates']) d[x] = all(`SELECT * FROM ${x} WHERE test_id=?`, t.id);
+    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'wts', 'approvals', 'announcements', 'certificates']) run(`DELETE FROM ${x} WHERE test_id=?`, t.id);
     run('DELETE FROM tests WHERE id=?', t.id);
     toTrash(u, 'test', t.id, t.name, `${d.results.length} ta natija`, null, d);
     log(u.id, 'sinov.ochirish', { name: t.name, natija: d.results.length }); return {};
@@ -523,7 +566,7 @@ A['test.save'] = (u, b) => {
     if (b.id) run('UPDATE tests SET scope=? WHERE id=?', js, b.id); else b._scope = js;
   }
   if (b.id) { const old = one('SELECT * FROM tests WHERE id=?', b.id); if (st === 'yakunlandi' && !finished(b.id)) bad('Sinovni yakunlash uchun avval “Yakunlash”ni tasdiqlang'); run('UPDATE tests SET name=?,date=?,status=?,gifted_top=?,gifted_min=? WHERE id=?', ...f, b.id); log(u.id, 'sinov.tahrir', { old, new: f }); return { id: b.id }; }
-  const r = run('INSERT INTO tests(name,date,status,gifted_top,gifted_min,created_at,scope) VALUES(?,?,?,?,?,?,?)', ...f, now(), b._scope || '');
+  const r = run('INSERT INTO tests(name,date,status,gifted_top,gifted_min,created_at,scope,scoring) VALUES(?,?,?,?,?,?,?,?)', ...f, now(), b._scope || '', '100');
   log(u.id, 'sinov.qoshish', { name }); return { id: Number(r.lastInsertRowid) };
 };
 const canKey = u => u.role === 'ceo' || (can(u, 'maktab') && can(u, 'kalit'));
@@ -590,7 +633,7 @@ A['bank.upload'] = (u, b) => {
 };
 function bankList() {
   const used = {}; for (const l of all('SELECT l.bank_id,l.test_id,t.name FROM tlinks l JOIN tests t ON t.id=l.test_id')) (used[l.bank_id] ||= []).push({ id: l.test_id, name: l.name });
-  return all('SELECT id,name,grade,qn,nopt,keys,at,kind FROM tbank ORDER BY grade,id DESC').map(r => ({ id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, kind: r.kind || 'matn', variants: Object.keys(JSON.parse(r.keys)), at: r.at, used: used[r.id] || [] }));
+  return all('SELECT id,name,grade,qn,nopt,keys,at,kind,w FROM tbank ORDER BY grade,id DESC').map(r => ({ id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, kind: r.kind || 'matn', w: (() => { try { return cleanW(JSON.parse(r.w || 'null'), r.qn); } catch (e) { return null; } })() || defW(r.qn), variants: Object.keys(JSON.parse(r.keys)), at: r.at, used: used[r.id] || [] }));
 }
 // test savollari (kitobcha uchun) — kalit kabi maxfiy
 A['bank.get'] = (u, b) => {
@@ -614,8 +657,8 @@ A['test.useBank'] = (u, b) => {
   if (b.bank_id && !bk) bad('Test topilmadi'); if (bk && bk.grade !== g) bad(`Bu test ${bk.grade}-sinf uchun`);
   const old = one('SELECT bank_id FROM tlinks WHERE test_id=? AND grade=?', t.id, g);
   return tx(() => {
-    run('DELETE FROM vkeys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM keys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM tlinks WHERE test_id=? AND grade=?', t.id, g);
-    if (bk) {
+    run('DELETE FROM vkeys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM keys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM tlinks WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM wts WHERE test_id=? AND grade=?', t.id, g);
+    if (bk) { let w = null; try { w = cleanW(JSON.parse(bk.w || 'null'), bk.qn); } catch (e) { } run('INSERT INTO wts(test_id,grade,w) VALUES(?,?,?)', t.id, g, JSON.stringify(w || defW(bk.qn)));
       for (const [v, key] of Object.entries(JSON.parse(bk.keys))) putKey(t.id, g, v, key);
       run('INSERT INTO tlinks(test_id,grade,bank_id,by,at) VALUES(?,?,?,?,?)', t.id, g, bk.id, u.id, now());
     }
@@ -668,7 +711,7 @@ const PB_TOPICS = {
     ['Kattaliklar', [['4G1', 'Uzunlik, massa birliklari va ularni almashtirish'], ['4G2', 'Yuza birliklari: sm², dm², m², ar, gektar'], ['4G3', 'Vaqt: asr, yil, oy, sutka; vaqtni hisoblash'], ['4G4', 'Ismli sonlar ustida amallar']]],
     ['Geometriya', [['4H1', 'Murakkab shakllar perimetri va yuzi'], ['4H2', 'To‘g‘ri burchakli parallelepiped va kub, hajm'], ['4H3', 'Burchaklar, uchburchaklar, chizmalar'], ['4H4', 'Masshtab va plan']]],
     ['Ma’lumotlar', [['4I1', 'Jadval va diagrammalar'], ['4I2', 'Grafik va ma’lumotlarni tahlil qilish']]],
-    ['Mantiq va olimpiada (darslikdan tashqari)', [['4J01', 'Sonli qonuniyatlar'], ['4J02', 'Shaklli qonuniyatlar'], ['4J03', 'Shakllarni sanash'], ['4J04', 'Gugurt cho‘plari bilan masalalar'], ['4J05', 'Sehrli kvadrat va raqamli jumboqlar'], ['4J06', 'Mantiqiy masalalar: rost-yolg‘on, jadval usuli'], ['4J07', 'Yosh masalalari'], ['4J08', 'Kesish, ustun va oraliqlar'], ['4J09', 'Kalendar jumboqlari'], ['4J10', 'Fazoviy tasavvur: kub, yoyilma, ko‘rinishlar'], ['4J11', 'Kombinatorika va oddiy ehtimollik'], ['4J12', 'Tarozi, quyish va o‘lchash jumboqlari'], ['4J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['4J14', 'Bo‘linish belgilari va sonlar xossalari'], ['4J15', 'Raqamlar yig‘indisi, raqamli jumboqlar'], ['4J16', 'Eng katta / eng kichik qiymat'], ['4J17', 'Simmetriya, burish, oynadagi aks']]],
+    ['Mantiq va olimpiada (darslikdan tashqari)', [['4J01', 'Sonli qonuniyatlar'], ['4J02', 'Shaklli qonuniyatlar'], ['4J03', 'Shakllarni sanash'], ['4J04', 'Gugurt cho‘plari bilan masalalar'], ['4J05', 'Sehrli kvadrat va raqamli jumboqlar'], ['4J06', 'Mantiqiy masalalar: rost-yolg‘on, jadval usuli'], ['4J07', 'Yosh masalalari'], ['4J08', 'Kesish, ustun va oraliqlar'], ['4J09', 'Kalendar jumboqlari'], ['4J10', 'Fazoviy tasavvur: kub, yoyilma, ko‘rinishlar'], ['4J11', 'Kombinatorika va oddiy ehtimollik'], ['4J12', 'Tarozi, quyish va o‘lchash jumboqlari'], ['4J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['4J14', 'Bo‘linish belgilari va sonlar xossalari'], ['4J15', 'Raqamlar yig‘indisi, raqamli jumboqlar'], ['4J16', 'Eng katta / eng kichik qiymat'], ['4J17', 'Simmetriya, burish, oynadagi aks'], ['4J18', 'Labirint, yo‘l va xarita']]],
   ],
 };
 const PB_TOPIC = {}; // kod -> {g, group, name}
@@ -784,7 +827,7 @@ A['pb.pick'] = (u, b) => {
 
 // ---- variantlar: savollar to'rtta blok ichida aralashadi (osondan qiyinga tartib saqlanadi), javoblar o'rni ham almashadi
 function makeVariant(qs, seed) {
-  const r = rnd(seed), n = qs.length, B = Math.max(1, Math.ceil(n / 4)), order = [];
+  const r = rnd(seed), n = qs.length, B = 5, order = []; // ball guruhlari ichida aralashadi — har savol bali hamma variantda bir xil
   for (let s = 0; s < n; s += B) order.push(...shuffle(Array.from({ length: Math.min(B, n - s) }, (_, i) => i + s), r));
   return order.map(i => {
     const q = qs[i]; if (q.fix || q.o.length < 2) return { ...q };
@@ -840,6 +883,13 @@ A['bank.pdf'] = (u, b) => {
   log(u.id, 'test.bazaga', { name, grade: g, savol: qn, turi: 'pdf' });
   return { id: Number(r.lastInsertRowid) };
 };
+A['bank.weights'] = (u, b) => {
+  need(canKey(u), 'Ballarni faqat CEO yoki kalit huquqi bor a‘zo o‘zgartiradi');
+  const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi');
+  if (bankUsed(r.id)) bad('Bu test imtihonga berilgan. Ballarni o‘zgartirish uchun avval imtihondan olib tashlang');
+  const w = b.reset ? defW(r.qn) : cleanW((Array.isArray(b.w) ? b.w : []).map(Number), r.qn); if (!w) bad('Ballar yig‘indisi 100 bo‘lishi kerak');
+  run('UPDATE tbank SET w=? WHERE id=?', JSON.stringify(w), r.id); log(u.id, 'test.ballar', { name: r.name, w }); return { w };
+};
 A['bank.key'] = (u, b) => {
   need(canKey(u), 'Kalitni faqat CEO yoki kalit huquqi bor a‘zo o‘zgartiradi');
   const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi'); if (r.kind !== 'pdf') bad('Bu testning kaliti savollardan olinadi');
@@ -861,19 +911,20 @@ A['result.save'] = (u, b) => {
   const variant = varOf(b.variant);
   if (variant && variant !== 'A' && !keyFor(t.id, s.grade, variant)) bad(`${s.grade}-sinf uchun ${variant} variant kaliti yo‘q`);
   let sc;
-  if (absent) sc = { answers: '', bits: '', score: 0, qn: 20 };
-  else if (mode === 'ball') { // faqat umumiy ball (qo'lda hisoblangan varaqlar)
+  const t100 = t.scoring === '100';
+  if (absent) sc = { answers: '', bits: '', score: 0, qn: t100 ? 100 : 20, ok: null, nq: null };
+  else if (mode === 'ball') { // faqat to'g'ri javoblar soni ma'lum (qo'lda hisoblangan varaqlar) — 100 ballikda ball ulush bo'yicha
     const qn = keyFor(t.id, s.grade, variant)?.length || 20; const v = parseInt(b.score, 10);
-    if (!(v >= 0 && v <= qn)) bad(`Ball 0 dan ${qn} gacha bo‘lishi kerak`);
-    sc = { answers: '', bits: '', score: v, qn };
+    if (!(v >= 0 && v <= qn)) bad(`To‘g‘ri javoblar soni 0 dan ${qn} gacha bo‘lishi kerak`);
+    sc = t100 ? { answers: '', bits: '', score: ballOfCount(v, qn), qn: 100, ok: v, nq: qn } : { answers: '', bits: '', score: v, qn, ok: v, nq: qn };
   } else sc = score(t.id, s.grade, mode, b.answers, b.bits, variant);
-  run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+  run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(test_id,student_id) DO UPDATE SET absent=excluded.absent,mode=excluded.mode,answers=excluded.answers,bits=excluded.bits,
-    score=excluded.score,qn=excluded.qn,entered_by=excluded.entered_by,at=excluded.at,variant=excluded.variant`,
-    t.id, s.id, absent, mode, sc.answers, sc.bits, sc.score, sc.qn, u.id, now(), absent ? '' : variant);
+    score=excluded.score,qn=excluded.qn,entered_by=excluded.entered_by,at=excluded.at,variant=excluded.variant,ok=excluded.ok,nq=excluded.nq`,
+    t.id, s.id, absent, mode, sc.answers, sc.bits, sc.score, sc.qn, u.id, now(), absent ? '' : variant, sc.ok ?? null, sc.nq ?? null);
   if (old) log(u.id, 'natija.tuzatish', { student_id: s.id, test_id: t.id, old: { absent: old.absent, score: old.score, bits: old.bits, answers: old.answers }, new: { absent, ...sc } });
   else log(u.id, 'natija.kiritish', { student_id: s.id, test_id: t.id, absent, score: sc.score, ...(b.src === 'skaner' ? { skaner: 1 } : {}) });
-  return { score: sc.score, qn: sc.qn };
+  return { score: sc.score, qn: sc.qn, ok: sc.ok ?? null };
 };
 // Maktab yoki sinfda natijasi hali kiritilmagan hamma bolani bir bosishda "kelmadi" qilish
 A['results.absentRest'] = (u, b) => {
@@ -1686,4 +1737,17 @@ try {
   });
   if (fixed) console.log('Ismlar yozuvi bir xillashtirildi:', fixed);
 } catch (e) { console.error('Ismlarni bir xillashtirib bo‘lmadi:', e.message); }
+// ---- bir martalik: shu yangilanishgacha bo'lgan imtihonlar eski tizimda qoladi (natijalari o'zgarmaydi).
+// Agar oldingi versiya natijalarni 100 ballikka o'tkazgan bo'lsa — ular asl holiga qaytariladi (to'g'ri javoblar soni saqlangan).
+if (getSet('scoring_v2') !== '1') {
+  tx(() => {
+    run("UPDATE tests SET scoring='eski' WHERE scoring IS NULL OR scoring=''");
+    let n = 0;
+    if (getSet('ball100') === '1') {
+      n += Number(run('UPDATE results SET score=ok, qn=nq WHERE qn=100 AND absent=0 AND ok IS NOT NULL AND nq IS NOT NULL').changes);
+      run('UPDATE results SET qn=COALESCE(nq,20) WHERE qn=100 AND (absent=1 OR score IS NULL)');
+    }
+    setSet('scoring_v2', '1'); log(null, 'ball_tizimi.eski_imtihonlar', { qaytarilgan_natijalar: n });
+  });
+}
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));
