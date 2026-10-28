@@ -75,6 +75,15 @@ db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT 
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
+// tug'ilgan yil va manzil endi yig'ilmaydi — avval kiritilganlari ham o'chiriladi
+db.exec("UPDATE students SET birth_year=NULL, address='' WHERE birth_year IS NOT NULL OR address<>''");
+db.exec("DELETE FROM audit WHERE action='oquvchi.malumot'");
+// test olish: variantlar (B, C, D kalitlari; A kaliti keys jadvalida), yuklangan test savollari, natijadagi variant
+db.exec(`CREATE TABLE IF NOT EXISTS vkeys(test_id INTEGER NOT NULL, grade INTEGER NOT NULL, variant TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(test_id,grade,variant));
+CREATE TABLE IF NOT EXISTS tbank(id INTEGER PRIMARY KEY, name TEXT NOT NULL, grade INTEGER NOT NULL, qn INTEGER NOT NULL, nopt INTEGER DEFAULT 4, data TEXT NOT NULL, keys TEXT NOT NULL, by INTEGER, at TEXT);
+CREATE TABLE IF NOT EXISTS tlinks(test_id INTEGER NOT NULL, grade INTEGER NOT NULL, bank_id INTEGER NOT NULL, by INTEGER, at TEXT, PRIMARY KEY(test_id,grade));`);
+try { db.exec("ALTER TABLE tests ADD COLUMN scope TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE results ADD COLUMN variant TEXT DEFAULT ''"); } catch (e) { }
 
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
@@ -118,9 +127,27 @@ if (!one("SELECT 1 FROM users WHERE role='ceo'")) {
 }
 
 // ---------------------------------------------------------------- scoring
-function keyFor(testId, grade) { return one('SELECT key FROM keys WHERE test_id=? AND grade=?', testId, grade)?.key || ''; }
-function score(testId, grade, mode, answers, bits) {
-  const key = keyFor(testId, grade);
+const VARS = ['A', 'B', 'C', 'D'];
+const varOf = v => VARS.includes(String(v || '').toUpperCase()) ? String(v).toUpperCase() : '';
+function keyFor(testId, grade, variant) {
+  if (variant && variant !== 'A') return one('SELECT key FROM vkeys WHERE test_id=? AND grade=? AND variant=?', testId, grade, variant)?.key || '';
+  return one('SELECT key FROM keys WHERE test_id=? AND grade=?', testId, grade)?.key || '';
+}
+// sinf bosqichi bo'yicha variantlar va savollar soni (titul va skaner uchun; kalitlarning o'zi emas)
+function varInfo(testId) {
+  const o = {};
+  for (const k of all('SELECT grade,key FROM keys WHERE test_id=?', testId)) o[k.grade] = { v: ['A'], qn: k.key.length, nopt: k.key.includes('E') ? 5 : 4 };
+  for (const k of all('SELECT grade,variant,key FROM vkeys WHERE test_id=? ORDER BY variant', testId)) { const g = (o[k.grade] ||= { v: [], qn: k.key.length, nopt: 4 }); g.v.push(k.variant); if (k.key.includes('E')) g.nopt = 5; }
+  for (const l of all('SELECT l.grade,l.bank_id,b.name,b.nopt FROM tlinks l JOIN tbank b ON b.id=l.bank_id WHERE l.test_id=?', testId)) {
+    const g = (o[l.grade] ||= { v: [], qn: 0, nopt: 4 }); g.bank = { id: l.bank_id, name: l.name }; g.nopt = Math.max(g.nopt, l.nopt || 4);
+  }
+  for (const g of Object.keys(o)) o[g].locked = gradeLocked(testId, +g);
+  return o;
+}
+// imtihonda shu sinf bosqichiga birorta natija (kelmadi ham) kiritilgan bo'lsa, testi va kalitlari qulflanadi
+const gradeLocked = (testId, g) => !!one('SELECT 1 FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND c.grade=? LIMIT 1', testId, g);
+function score(testId, grade, mode, answers, bits, variant) {
+  const key = keyFor(testId, grade, variant);
   if (mode === 'harf') {
     const a = String(answers || '').toUpperCase().replace(/[^A-E-]/g, '-');
     if (!key) return { answers: a, bits: '', score: null, qn: a.length || 20 };
@@ -132,9 +159,9 @@ function score(testId, grade, mode, answers, bits) {
   return { answers: '', bits: b, score: [...b].filter(x => x === '1').length, qn };
 }
 function rescoreTest(testId) {
-  const rows = all(`SELECT r.id,r.mode,r.answers,r.bits,c.grade FROM results r JOIN students s ON s.id=r.student_id
+  const rows = all(`SELECT r.id,r.mode,r.answers,r.bits,r.variant,c.grade FROM results r JOIN students s ON s.id=r.student_id
     JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND r.absent=0 AND r.mode!='ball'`, testId);
-  for (const r of rows) { const s = score(testId, r.grade, r.mode, r.answers, r.bits); run('UPDATE results SET bits=?,score=?,qn=? WHERE id=?', s.bits, s.score, s.qn, r.id); }
+  for (const r of rows) { const s = score(testId, r.grade, r.mode, r.answers, r.bits, r.variant); run('UPDATE results SET bits=?,score=?,qn=? WHERE id=?', s.bits, s.score, s.qn, r.id); }
   return rows.length;
 }
 
@@ -159,13 +186,16 @@ function state(u) {
   if (isTeam(u)) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
-    out.students = all('SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
-    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at FROM results');
+    out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
+    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant FROM results');
+    out.vinfo = Object.fromEntries(tests.map(t => [t.id, varInfo(t.id)]));
+    out.bank = bankList();
     out.keys = {};
     for (const t of tests) {
       const visible = P.ceo || (P.kalit && ['tekshiruv', 'yakunlandi'].includes(t.status));
       out.keys[t.id] = visible ? Object.fromEntries(all('SELECT grade,key FROM keys WHERE test_id=?', t.id).map(k => [k.grade, k.key]))
         : Object.fromEntries(all('SELECT grade,length(key) n FROM keys WHERE test_id=?', t.id).map(k => [k.grade, '?'.repeat(k.n)]));
+      if (visible) { const vk = {}; for (const k of all('SELECT grade,variant,key FROM vkeys WHERE test_id=?', t.id)) (vk[k.grade] ||= {})[k.variant] = k.key; (out.vkeys ||= {})[t.id] = vk; }
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
@@ -188,12 +218,12 @@ function state(u) {
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
-  let studs = all(`SELECT id,class_id,name,phone,birth_year,address,avatar FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  let studs = all(`SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, birth_year: s.birth_year, address: s.address, avatar: kidPh(s.avatar),
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, avatar: kidPh(s.avatar),
     ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
@@ -221,11 +251,19 @@ function state(u) {
   out.gifted = [];
   for (const t of out.tests) {
     if (!t.finished) continue;
-    const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
+    const rows = all(`SELECT r.student_id,r.score,r.qn,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
       WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL`, t.id);
     for (const g of [...new Set(rows.map(r => r.grade))]) {
       const gr = rows.filter(r => r.grade === g).sort((a, b) => b.score - a.score);
       out.district[t.id + ':' + g] = Math.round(gr.reduce((a, r) => a + r.score / r.qn, 0) / gr.length * 100);
+      // sinf rahbari: o'z maktabining shu sinf bosqichi o'rtachasi (solishtirish uchun)
+      if (u.role === 'rahbar') { const my = gr.filter(r => r.school_id === schoolIds[0]); if (my.length) out.district[t.id + ':school:' + g] = Math.round(my.reduce((a, r) => a + r.score / r.qn, 0) / my.length * 100); }
+      // direktor: o'z maktabining tumandagi o'rni (boshqa maktablar nomi va bolalari ko'rsatilmaydi)
+      if (u.role === 'direktor') {
+        const by = {}; for (const r of gr) (by[r.school_id] ||= []).push(r.score / r.qn);
+        const avgs = Object.entries(by).map(([k, v]) => [+k, v.reduce((a, b) => a + b, 0) / v.length]).sort((a, b) => b[1] - a[1]);
+        const i = avgs.findIndex(x => x[0] === u.school_id); if (i >= 0) out.district[t.id + ':srank:' + g] = [avgs.filter(x => x[1] > avgs[i][1]).length + 1, avgs.length];
+      }
       if (u.role === 'ota') for (const kid of out.children) { const i = gr.findIndex(r => r.student_id === kid); if (i >= 0) out.district[t.id + ':rank:' + kid] = [gr.filter(r => r.score > gr[i].score).length + 1, gr.length]; }
     }
   }
@@ -256,13 +294,10 @@ function cleanAvatar(v, allowPhoto) {
   if (allowPhoto && /^data:image\/(png|jpeg|webp);base64,/.test(s) && s.length <= 160000) return s;
   bad('Rasm juda katta yoki noto‘g‘ri');
 }
-A['me.avatar'] = (u, b) => { run('UPDATE users SET avatar=? WHERE id=?', cleanAvatar(b.avatar, true), u.id); return {}; };
-A['student.avatar'] = (u, b) => {
-  const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
-  need(ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id)));
-  const v = cleanAvatar(b.avatar, true); if (v.startsWith('p:')) bad('Faqat surat yuklanadi');
-  run('UPDATE students SET avatar=? WHERE id=?', v, s.id); return { v: v ? v.length : 0 };
-};
+// profil suratlari maxfiylik uchun o'chirilgan (28.10.2026 qarori): faqat ism bosh harflari ko'rinadi
+db.exec("UPDATE users SET avatar='' WHERE avatar<>''"); db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
+A['me.avatar'] = () => bad('Profil surati qo‘yish o‘chirilgan');
+A['student.avatar'] = () => bad('Profil surati qo‘yish o‘chirilgan');
 A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.id); log(u.id, 'rozilik', {}); return {}; };
 
 A['school.save'] = (u, b) => {
@@ -294,7 +329,6 @@ A['student.save'] = (u, b) => {
   if (dir) need(ownsSchool(u, schoolOfClass(b.class_id)) && (!b.id || ownsSchool(u, schoolOfStudent(b.id))));
   else need(can(u, 'maktab') || can(u, 'kiritish'));
   const name = fixName(b.name, 120); if (name.split(' ').length < 2) bad('Familiya va ismni yozing');
-  const by = b.birth_year ? parseInt(b.birth_year, 10) || null : null;
   checkPhone(phone9(b.phone), b.id ? +b.id : 0);
   // bir sinfda bir xil familiya-ism ikki marta bo'lmasin
   const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1 AND id<>?', b.class_id, +b.id || 0).find(x => nameKey(x.name) === nameKey(name));
@@ -303,25 +337,12 @@ A['student.save'] = (u, b) => {
   if (b.id) {
     if (!dir) need(can(u, 'maktab'));
     const old = one('SELECT * FROM students WHERE id=?', b.id);
-    run('UPDATE students SET class_id=?,name=?,phone=?,birth_year=?,address=? WHERE id=?', b.class_id, name, phone9(b.phone), by, str(b.address), b.id);
-    log(u.id, 'oquvchi.tahrir', { id: b.id, old, new: { class_id: b.class_id, name, phone: phone9(b.phone), birth_year: by, address: str(b.address) } });
+    run('UPDATE students SET class_id=?,name=?,phone=? WHERE id=?', b.class_id, name, phone9(b.phone), b.id);
+    log(u.id, 'oquvchi.tahrir', { id: b.id, old, new: { class_id: b.class_id, name, phone: phone9(b.phone) } });
     return { id: b.id };
   }
-  const r = run('INSERT INTO students(class_id,name,phone,birth_year,address,created_at) VALUES(?,?,?,?,?,?)', b.class_id, name, phone9(b.phone), by, str(b.address), now());
+  const r = run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', b.class_id, name, phone9(b.phone), now());
   log(u.id, 'oquvchi.qoshish', { id: Number(r.lastInsertRowid), name, class_id: b.class_id }); return { id: Number(r.lastInsertRowid) };
-};
-// tug'ilgan yil va manzilni ota-ona (o'z farzandi) yoki sinf rahbari (o'z sinfi) kiritadi
-A['student.info'] = (u, b) => {
-  const s = one('SELECT * FROM students WHERE id=? AND active=1', +b.id); if (!s) bad('O‘quvchi topilmadi');
-  const ok = ownsSchool(u, schoolOfStudent(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id));
-  need(ok);
-  const y = String(b.birth_year || '').trim(); const by = y ? parseInt(y, 10) : null;
-  const max = new Date().getFullYear() - 4;
-  if (y && !(by >= 2005 && by <= max)) bad('Tug‘ilgan yilni to‘g‘ri yozing (masalan, 2018)');
-  const addr = str(b.address, 200);
-  run('UPDATE students SET birth_year=?,address=? WHERE id=?', by, addr, s.id);
-  log(u.id, 'oquvchi.malumot', { id: s.id, old: { birth_year: s.birth_year, address: s.address }, new: { birth_year: by, address: addr } });
-  return {};
 };
 // boshqa sinfga ko'chirish: jamoa (maktab huquqi) istalgan sinfga; sinf rahbari o'z sinfidan shu maktabdagi parallel sinfga
 A['student.move'] = (u, b) => {
@@ -346,10 +367,10 @@ A['students.merge'] = (u, b) => {
       if (!k || !d || k.id === d.id || k.class_id !== d.class_id || nameKey(k.name) !== nameKey(d.name)) continue;
       if (!ownsSchool(u, schoolOfClass(k.class_id))) continue;
       const kr = all('SELECT test_id FROM results WHERE student_id=? AND absent=0', d.id); if (kr.length) continue; // ikkinchisida ham ball bo'lsa, qo'lda hal qilinadi
-      run('UPDATE students SET phone=CASE WHEN phone IS NULL OR phone=\'\' THEN ? ELSE phone END, birth_year=COALESCE(birth_year,?), address=CASE WHEN address IS NULL OR address=\'\' THEN ? ELSE address END WHERE id=?', d.phone || '', d.birth_year, d.address || '', k.id);
+      run('UPDATE students SET phone=CASE WHEN phone IS NULL OR phone=\'\' THEN ? ELSE phone END WHERE id=?', d.phone || '', k.id);
       run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', k.id, d.id);
       run('INSERT OR IGNORE INTO phone_hints(student_id,phone) SELECT ?,phone FROM phone_hints WHERE student_id=?', k.id, d.id);
-      run('INSERT OR IGNORE INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) SELECT test_id,?,absent,mode,answers,bits,score,qn,entered_by,at FROM results WHERE student_id=?', k.id, d.id);
+      run('INSERT OR IGNORE INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant) SELECT test_id,?,absent,mode,answers,bits,score,qn,entered_by,at,variant FROM results WHERE student_id=?', k.id, d.id);
       run('DELETE FROM results WHERE student_id=?', d.id); run('DELETE FROM phone_hints WHERE student_id=?', d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
       run('UPDATE students SET active=0 WHERE id=?', d.id);
       log(u.id, 'oquvchi.birlashtirish', { keep: k.id, drop: d.id, name: k.name }); n++;
@@ -378,7 +399,7 @@ function dropStudents(ids) {
   for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults']) run(`DELETE FROM ${t} WHERE student_id IN (${L})`, ...ids);
   run(`DELETE FROM students WHERE id IN (${L})`, ...ids);
 }
-const ORDER = ['schools', 'tests', 'classes', 'students', 'keys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults'];
+const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults'];
 function putBack(d) {
   for (const t of ORDER) for (const r of d[t] || []) { const k = Object.keys(r); run(`INSERT INTO ${t}(${k.join(',')}) VALUES(${k.map(() => '?').join(',')})`, ...k.map(x => r[x])); }
   if ((d.users || []).length) run(`UPDATE users SET active=1 WHERE id IN (${inList(d.users)})`, ...d.users);
@@ -426,8 +447,8 @@ A['test.delete'] = (u, b) => {
   if (String(b.confirm || '').trim().toLowerCase() !== 'o‘chirish' && String(b.confirm || '').trim().toLowerCase().replace(/['`’ʻ]/g, '‘') !== 'o‘chirish') bad('Tasdiqlash uchun “o‘chirish” deb yozing');
   return tx(() => {
     const d = { tests: [t] };
-    for (const x of ['results', 'keys', 'approvals', 'announcements', 'certificates']) d[x] = all(`SELECT * FROM ${x} WHERE test_id=?`, t.id);
-    for (const x of ['results', 'keys', 'approvals', 'announcements', 'certificates']) run(`DELETE FROM ${x} WHERE test_id=?`, t.id);
+    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'approvals', 'announcements', 'certificates']) d[x] = all(`SELECT * FROM ${x} WHERE test_id=?`, t.id);
+    for (const x of ['results', 'keys', 'vkeys', 'tlinks', 'approvals', 'announcements', 'certificates']) run(`DELETE FROM ${x} WHERE test_id=?`, t.id);
     run('DELETE FROM tests WHERE id=?', t.id);
     toTrash(u, 'test', t.id, t.name, `${d.results.length} ta natija`, null, d);
     log(u.id, 'sinov.ochirish', { name: t.name, natija: d.results.length }); return {};
@@ -493,24 +514,113 @@ A['test.save'] = (u, b) => {
   const name = str(b.name); if (!name) bad('Sinov nomini yozing');
   const st = ['tayyor', 'otkazildi', 'tekshiruv', 'yakunlandi'].includes(b.status) ? b.status : 'tayyor';
   const f = [name, str(b.date, 20), st, Math.min(100, Math.max(1, +b.gifted_top || 10)), Math.min(100, Math.max(0, +b.gifted_min || 70))];
+  // qamrov: qaysi maktab/sinflarda o'tadi ({s:[maktab], c:[sinf]}; bo'sh — hamma maktablar)
+  if (b.scope !== undefined) {
+    const sc = b.scope || {}, ss = [...new Set((sc.s || []).map(Number).filter(x => one('SELECT 1 FROM schools WHERE id=?', x)))], cc = [...new Set((sc.c || []).map(Number).filter(x => one('SELECT 1 FROM classes WHERE id=?', x)))];
+    const js = ss.length || cc.length ? JSON.stringify({ s: ss, c: cc }) : '';
+    if (b.id) run('UPDATE tests SET scope=? WHERE id=?', js, b.id); else b._scope = js;
+  }
   if (b.id) { const old = one('SELECT * FROM tests WHERE id=?', b.id); if (st === 'yakunlandi' && !finished(b.id)) bad('Sinovni yakunlash uchun avval “Yakunlash”ni tasdiqlang'); run('UPDATE tests SET name=?,date=?,status=?,gifted_top=?,gifted_min=? WHERE id=?', ...f, b.id); log(u.id, 'sinov.tahrir', { old, new: f }); return { id: b.id }; }
-  const r = run('INSERT INTO tests(name,date,status,gifted_top,gifted_min,created_at) VALUES(?,?,?,?,?,?)', ...f, now());
+  const r = run('INSERT INTO tests(name,date,status,gifted_top,gifted_min,created_at,scope) VALUES(?,?,?,?,?,?,?)', ...f, now(), b._scope || '');
   log(u.id, 'sinov.qoshish', { name }); return { id: Number(r.lastInsertRowid) };
 };
+const canKey = u => u.role === 'ceo' || (can(u, 'maktab') && can(u, 'kalit'));
+function putKey(testId, g, v, key) {
+  if (v && v !== 'A') run('INSERT INTO vkeys(test_id,grade,variant,key) VALUES(?,?,?,?) ON CONFLICT(test_id,grade,variant) DO UPDATE SET key=excluded.key', testId, g, v, key);
+  else run('INSERT INTO keys(test_id,grade,key) VALUES(?,?,?) ON CONFLICT(test_id,grade) DO UPDATE SET key=excluded.key', testId, g, key);
+}
 A['key.save'] = (u, b) => {
-  need(u.role === 'ceo' || (can(u, 'maktab') && can(u, 'kalit')), 'Kalitni faqat CEO yoki ruxsati bor a‘zo kiritadi');
+  need(canKey(u), 'Kalitni faqat CEO yoki ruxsati bor a‘zo kiritadi');
   const key = String(b.key || '').toUpperCase().replace(/[^A-E]/g, '');
   const g = parseInt(b.grade, 10); if (!g) bad('Sinfni tanlang');
+  const v = varOf(b.variant) || 'A';
   if (key.length < 5) bad('Kalit to‘liq emas');
-  const old = keyFor(b.test_id, g);
+  if (v !== 'A' && !keyFor(b.test_id, g, 'A')) bad('Avval A variant kalitini kiriting');
+  if (one('SELECT 1 FROM tlinks WHERE test_id=? AND grade=?', b.test_id, g)) bad('Bu sinfning kaliti bazadagi testdan olingan. Testni almashtirish uchun “Test tanlash”dan foydalaning');
+  const old = keyFor(b.test_id, g, v);
   return tx(() => {
-    run('INSERT INTO keys(test_id,grade,key) VALUES(?,?,?) ON CONFLICT(test_id,grade) DO UPDATE SET key=excluded.key', b.test_id, g, key);
+    putKey(b.test_id, g, v, key);
     const n = rescoreTest(b.test_id);
-    log(u.id, old ? 'kalit.tuzatish' : 'kalit.kiritish', { test_id: b.test_id, grade: g, old, new: key, qayta_hisoblandi: n });
+    log(u.id, old ? 'kalit.tuzatish' : 'kalit.kiritish', { test_id: b.test_id, grade: g, variant: v, old, new: key, qayta_hisoblandi: n });
     return { rescored: n };
   });
 };
-
+// ---------------- testlar bazasi: test nomi bilan saqlanadi, hech bir imtihonga o'zi tegmaydi
+function cleanSections(secs) {
+  const clean = [];
+  for (const sec of secs) {
+    const g = parseInt(sec.grade, 10), v = varOf(sec.variant);
+    if (!(g >= 1 && g <= 11)) bad('Sinf noto‘g‘ri: ' + sec.grade); if (!v) bad(`${g}-sinf: variant harfi noto‘g‘ri`);
+    if (clean.some(x => x.g === g && x.v === v)) bad(`${g}-sinf ${v} variant faylda ikki marta bor`);
+    const qs = (Array.isArray(sec.qs) ? sec.qs : []).map((q, i) => {
+      const o = (Array.isArray(q.o) ? q.o : []).map(x => str(x, 300));
+      const a = String(q.a || '').toUpperCase();
+      if (!str(q.q, 2000)) bad(`${g}-sinf ${v}: ${i + 1}-savol matni yo‘q`);
+      if (o.length < 2 || o.length > 5 || o.some(x => !x)) bad(`${g}-sinf ${v}: ${i + 1}-savolda javob variantlari to‘liq emas`);
+      const ai = 'ABCDE'.indexOf(a); if (ai < 0 || ai >= o.length) bad(`${g}-sinf ${v}: ${i + 1}-savolning to‘g‘ri javobi ko‘rsatilmagan`);
+      return { q: String(q.q).trim().slice(0, 2000), o, a };
+    });
+    if (qs.length < 5 || qs.length > 50) bad(`${g}-sinf ${v}: savollar soni 5 tadan 50 tagacha bo‘lishi kerak (${qs.length} ta)`);
+    clean.push({ g, v, qs });
+  }
+  for (const g of new Set(clean.map(x => x.g))) {
+    const vs = clean.filter(x => x.g === g); if (!vs.some(x => x.v === 'A')) bad(`${g}-sinf: A variant bo‘lishi shart`);
+    if (new Set(vs.map(x => x.qs.length)).size > 1) bad(`${g}-sinf: hamma variantlarda savollar soni bir xil bo‘lishi kerak`);
+  }
+  return clean;
+}
+A['bank.upload'] = (u, b) => {
+  need(canKey(u), 'Testni faqat CEO yoki kalit huquqi bor a‘zo yuklaydi');
+  const name = str(b.name, 120); if (!name) bad('Test nomini yozing');
+  const clean = cleanSections(Array.isArray(b.sections) ? b.sections : []); if (!clean.length) bad('Faylda test topilmadi');
+  return tx(() => {
+    const ids = [];
+    for (const g of [...new Set(clean.map(x => x.g))].sort((a, c) => a - c)) {
+      const vs = clean.filter(x => x.g === g).sort((a, c) => a.v.localeCompare(c.v));
+      const data = Object.fromEntries(vs.map(x => [x.v, { qs: x.qs }])), keys = Object.fromEntries(vs.map(x => [x.v, x.qs.map(q => q.a).join('')]));
+      const nopt = Math.max(4, ...vs.flatMap(x => x.qs.map(q => q.o.length)));
+      const r = run('INSERT INTO tbank(name,grade,qn,nopt,data,keys,by,at) VALUES(?,?,?,?,?,?,?,?)', name, g, vs[0].qs.length, nopt, JSON.stringify(data), JSON.stringify(keys), u.id, now());
+      ids.push({ id: Number(r.lastInsertRowid), grade: g, variants: vs.map(x => x.v), qn: vs[0].qs.length });
+      log(u.id, 'test.bazaga', { name, grade: g, variantlar: vs.map(x => x.v).join(','), savol: vs[0].qs.length });
+    }
+    return { ok: ids };
+  });
+};
+function bankList() {
+  const used = {}; for (const l of all('SELECT l.bank_id,l.test_id,t.name FROM tlinks l JOIN tests t ON t.id=l.test_id')) (used[l.bank_id] ||= []).push({ id: l.test_id, name: l.name });
+  return all('SELECT id,name,grade,qn,nopt,keys,at FROM tbank ORDER BY grade,id DESC').map(r => ({ id: r.id, name: r.name, grade: r.grade, qn: r.qn, nopt: r.nopt, variants: Object.keys(JSON.parse(r.keys)), at: r.at, used: used[r.id] || [] }));
+}
+// test savollari (kitobcha uchun) — kalit kabi maxfiy
+A['bank.get'] = (u, b) => {
+  need(canKey(u), 'Test savollarini faqat CEO yoki kalit huquqi bor a‘zo ko‘radi');
+  const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi');
+  return { id: r.id, name: r.name, grade: r.grade, qn: r.qn, data: JSON.parse(r.data) };
+};
+A['bank.delete'] = (u, b) => {
+  need(canKey(u));
+  const r = one('SELECT * FROM tbank WHERE id=?', +b.id); if (!r) bad('Test topilmadi');
+  if (one('SELECT 1 FROM tlinks WHERE bank_id=?', r.id)) bad('Bu test imtihonga berilgan. Avval imtihondan olib tashlang');
+  return tx(() => { run('DELETE FROM tbank WHERE id=?', r.id); toTrash(u, 'bank', r.id, r.name, `${r.grade}-sinf · ${r.qn} savol`, null, { tbank: [r] }); log(u.id, 'test.bazadan_ochirish', { name: r.name, grade: r.grade }); return {}; });
+};
+// imtihonga bazadan test berish: kalitlar shu imtihonga yoziladi. Natija kiritilgan bo'lsa — qulf, hech narsa o'zgarmaydi
+A['test.useBank'] = (u, b) => {
+  need(canKey(u), 'Testni faqat CEO yoki kalit huquqi bor a‘zo tanlaydi');
+  const t = one('SELECT * FROM tests WHERE id=?', +b.test_id); if (!t) bad('Imtihon topilmadi');
+  const g = parseInt(b.grade, 10); if (!(g >= 1 && g <= 11)) bad('Sinfni tanlang');
+  if (gradeLocked(t.id, g)) bad(`Bu imtihonda ${g}-sinf natijalari kiritilgan — testi qulflangan, almashtirib bo‘lmaydi`);
+  const bk = b.bank_id ? one('SELECT * FROM tbank WHERE id=?', +b.bank_id) : null;
+  if (b.bank_id && !bk) bad('Test topilmadi'); if (bk && bk.grade !== g) bad(`Bu test ${bk.grade}-sinf uchun`);
+  const old = one('SELECT bank_id FROM tlinks WHERE test_id=? AND grade=?', t.id, g);
+  return tx(() => {
+    run('DELETE FROM vkeys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM keys WHERE test_id=? AND grade=?', t.id, g); run('DELETE FROM tlinks WHERE test_id=? AND grade=?', t.id, g);
+    if (bk) {
+      for (const [v, key] of Object.entries(JSON.parse(bk.keys))) putKey(t.id, g, v, key);
+      run('INSERT INTO tlinks(test_id,grade,bank_id,by,at) VALUES(?,?,?,?,?)', t.id, g, bk.id, u.id, now());
+    }
+    log(u.id, 'imtihon.test', { test_id: t.id, imtihon: t.name, grade: g, eski: old?.bank_id || null, yangi: bk ? bk.name : null });
+    return {};
+  });
+};
 A['result.save'] = (u, b) => {
   need(can(u, 'kiritish'));
   const t = one('SELECT * FROM tests WHERE id=?', b.test_id); if (!t) bad('Sinov topilmadi');
@@ -520,19 +630,21 @@ A['result.save'] = (u, b) => {
   if (announced(t.id, s.school_id)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
   const absent = b.absent ? 1 : 0;
   const mode = ['harf', 'ball'].includes(b.mode) ? b.mode : 'belgi';
+  const variant = varOf(b.variant);
+  if (variant && variant !== 'A' && !keyFor(t.id, s.grade, variant)) bad(`${s.grade}-sinf uchun ${variant} variant kaliti yo‘q`);
   let sc;
   if (absent) sc = { answers: '', bits: '', score: 0, qn: 20 };
   else if (mode === 'ball') { // faqat umumiy ball (qo'lda hisoblangan varaqlar)
-    const qn = keyFor(t.id, s.grade)?.length || 20; const v = parseInt(b.score, 10);
+    const qn = keyFor(t.id, s.grade, variant)?.length || 20; const v = parseInt(b.score, 10);
     if (!(v >= 0 && v <= qn)) bad(`Ball 0 dan ${qn} gacha bo‘lishi kerak`);
     sc = { answers: '', bits: '', score: v, qn };
-  } else sc = score(t.id, s.grade, mode, b.answers, b.bits);
-  run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) VALUES(?,?,?,?,?,?,?,?,?,?)
+  } else sc = score(t.id, s.grade, mode, b.answers, b.bits, variant);
+  run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant) VALUES(?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(test_id,student_id) DO UPDATE SET absent=excluded.absent,mode=excluded.mode,answers=excluded.answers,bits=excluded.bits,
-    score=excluded.score,qn=excluded.qn,entered_by=excluded.entered_by,at=excluded.at`,
-    t.id, s.id, absent, mode, sc.answers, sc.bits, sc.score, sc.qn, u.id, now());
+    score=excluded.score,qn=excluded.qn,entered_by=excluded.entered_by,at=excluded.at,variant=excluded.variant`,
+    t.id, s.id, absent, mode, sc.answers, sc.bits, sc.score, sc.qn, u.id, now(), absent ? '' : variant);
   if (old) log(u.id, 'natija.tuzatish', { student_id: s.id, test_id: t.id, old: { absent: old.absent, score: old.score, bits: old.bits, answers: old.answers }, new: { absent, ...sc } });
-  else log(u.id, 'natija.kiritish', { student_id: s.id, test_id: t.id, absent, score: sc.score });
+  else log(u.id, 'natija.kiritish', { student_id: s.id, test_id: t.id, absent, score: sc.score, ...(b.src === 'skaner' ? { skaner: 1 } : {}) });
   return { score: sc.score, qn: sc.qn };
 };
 // Maktab yoki sinfda natijasi hali kiritilmagan hamma bolani bir bosishda "kelmadi" qilish
@@ -540,9 +652,11 @@ A['results.absentRest'] = (u, b) => {
   need(can(u, 'kiritish'));
   const t = one('SELECT * FROM tests WHERE id=?', b.test_id); if (!t) bad('Sinov topilmadi');
   const cid = +b.class_id || 0, sid = +b.school_id || 0; if (!cid && !sid) bad('Maktab yoki sinf tanlanmagan');
-  const list = all(`SELECT s.id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id
+  let sc = null; try { sc = t.scope ? JSON.parse(t.scope) : null; } catch (e) { }
+  const list = all(`SELECT s.id,c.school_id,c.id cid FROM students s JOIN classes c ON c.id=s.class_id
     WHERE s.active=1 AND ${cid ? 'c.id=?' : 'c.school_id=?'}
-    AND NOT EXISTS (SELECT 1 FROM results r WHERE r.test_id=? AND r.student_id=s.id)`, cid || sid, t.id);
+    AND NOT EXISTS (SELECT 1 FROM results r WHERE r.test_id=? AND r.student_id=s.id)`, cid || sid, t.id)
+    .filter(x => !sc || sc.s.includes(x.school_id) || sc.c.includes(x.cid)); // imtihon qamrovidan tashqaridagilar "kelmadi" bo'lmaydi
   if (!list.length) return { n: 0 };
   if (announced(t.id, list[0].school_id)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
   tx(() => {
