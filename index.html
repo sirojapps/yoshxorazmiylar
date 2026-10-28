@@ -455,7 +455,7 @@ async function load(auto){
       if(S)return;
     }
   }
-  if(S){if(!S.tests.some(t=>t.id===testId))testId=S.tests[0]?.id??null;}
+  if(S){if(!S.tests.some(t=>t.id===testId))testId=S.tests[S.tests.length-1]?.id??null;} // yangi telefonda birinchi (eng eski) imtihon ochiladi, keyingilariga odam o'zi o'tadi
   render();
 }
 // --- indexes
