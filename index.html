@@ -2228,46 +2228,80 @@ async function pdfImg(id){if(IMGC[id])return IMGC[id];const r=await fetch(mUrl(i
   const u=URL.createObjectURL(await r.blob());try{const im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('Rasm ochilmadi'));i.src=u});
     const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0);
     return IMGC[id]={d:c.toDataURL('image/jpeg',.92),w:c.width,h:c.height}}finally{URL.revokeObjectURL(u)}}
+// shrift: o'zbekcha harflar va matematik belgilar (⊗, ², −, ×) PDFda to'g'ri chiqishi uchun — faqat kitobcha chiqarishda yuklanadi
+let YXF=null;
+async function yxFonts(){if(YXF)return YXF;
+  const g=async u=>{const r=await fetch(u,{credentials:'same-origin'});if(!r.ok)throw new Error('shrift');const b=new Uint8Array(await r.arrayBuffer());let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)};
+  try{YXF={r:await g('/f/r.ttf'),b:await g('/f/b.ttf')}}catch(e){YXF={}}return YXF}
+// kitobcha: A4, ikki ustun, savol bo'linmaydi; shrift o'zi tanlanadi — betlar soni juft (bitta varaq orqa-oldi)
 async function bookPdf(bankId,only){
   const bk=await api('bank.get',{id:bankId});const fn=v=>plain(`${bk.name}_${bk.grade}-sinf${v?'_'+VL(v)+'-variant':''}`).replace(/[^\w-]+/g,'_')+'.pdf';
   if(bk.kind==='pdf'){const vs=Object.keys(bk.data);if(only||vs.length===1){const v=only||vs[0];toast('Yuklanmoqda…');await saveMedia(bk.data[v].pdf,fn(vs.length>1?v:''));return}
     openSheet(`<div class="sh-top"><div class="m"><h2>Kitobcha</h2><div class="s">${esc(bk.name)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
      <div class="card list">${vs.map(v=>`<button class="row" data-pb="bookV" data-id="${bk.id}" data-v="${v}"><div class="m"><div class="n">📘 ${VL(v)}-variant</div><div class="s">PDF yuklab olish</div></div>${I.chev}</button>`).join('')}</div>`);return}
   toast('Kitobcha tayyorlanmoqda…');await loadLib(JSPDF,()=>window.jspdf);
-  const rows=Object.entries(bk.data).map(([v,x])=>({variant:v,qs:x.qs}));
+  const rows=Object.entries(bk.data).filter(([v])=>!only||v===only).map(([v,x])=>({variant:v,qs:x.qs}));
   const ids=[...new Set(rows.flatMap(r=>r.qs.flatMap(q=>[q.img,...(q.oi||[])])).filter(Boolean))];
   for(let k=0;k<ids.length;k++){try{await pdfImg(ids[k])}catch(e){}}
-  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});const X0=18,XW=174,YB=282,DPI=220,mm=px=>px*25.4/DPI;
-  rows.forEach((b,bi)=>{if(bi)pdf.addPage();let y=16;
-    const head=first=>{pdf.setTextColor(0);
-      if(first){pdf.setFont('helvetica','bold');pdf.setFontSize(13);pdf.text('YOSH XORAZMIYLAR',X0,y);pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.text(pdfTxt(bk.name),X0+XW,y,{align:'right'});y+=8;
-        pdf.setFont('helvetica','bold');pdf.setFontSize(16);pdf.text(`${bk.grade}-sinf · matematika`,X0,y);pdf.setLineWidth(.6);pdf.setDrawColor(0);pdf.rect(X0+XW-36,y-6.5,36,10);pdf.text(`${VL(b.variant)}-variant`,X0+XW-18,y+.6,{align:'center'});y+=7;
-        pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(60);pdf.text(pdfTxt(`${b.qs.length} ta savol · Har bir savolning faqat bitta to‘g‘ri javobi bor.`),X0,y);y+=5;
-        pdf.setFont('helvetica','bold');pdf.setTextColor(0);pdf.text(pdfTxt('Javobni TITUL VARAQQA belgilang.'),X0,y);y+=3;pdf.setDrawColor(180);pdf.setLineWidth(.3);pdf.line(X0,y,X0+XW,y);y+=7}
-      else{pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(120);pdf.text(pdfTxt(`${bk.grade}-sinf · ${VL(b.variant)}-variant · ${bk.name}`),X0,10);pdf.setTextColor(0);pdf.setFontSize(12.5);y=18}};
-    head(true);
-    b.qs.forEach((q,i)=>{pdf.setFontSize(12.5);pdf.setFont('helvetica','normal');
-      const ql=q.q?pdf.splitTextToSize(pdfTxt(q.q),XW-9):[];
-      let im=q.img&&IMGC[q.img];let iw=0,ih=0;if(im){iw=Math.min(XW-12,mm(im.w));ih=iw*im.h/im.w;if(ih>80){ih=80;iw=ih*im.w/im.h}}
-      const oi=q.oi||[],pics=oi.some(Boolean);let oh,opl;
-      if(pics){// rasmli javoblar: har biri harf + rasm (+ matn), qatorga sig'guncha
-        const cells=q.o.map((t,k)=>{const m=oi[k]&&IMGC[oi[k]];let w=0,h=0;if(m){h=Math.min(16,mm(m.h));w=h*m.w/m.h;if(w>60){w=60;h=w*m.h/m.w}}const tw=t?pdf.getTextWidth(pdfTxt(t))+2:0;return {k,t,m,w,h,cw:7+w+tw+8}});
-        const lines=[[]];let lw=0;cells.forEach(c=>{if(lw+c.cw>XW-12&&lines[lines.length-1].length){lines.push([]);lw=0}lines[lines.length-1].push(c);lw+=c.cw});
-        const per=Math.max(...lines.map(l=>l.length));opl={lines,cw:(XW-12)/per};oh=lines.reduce((a,l)=>a+Math.max(7,...l.map(c=>c.h+2)),0);
-      }else{const opts=q.o.map((o,k)=>`${'ABCDE'[k]})  ${pdfTxt(o)}`);const w=Math.max(...opts.map(o=>pdf.getTextWidth(o)))+6;const per=w*opts.length<=XW-9?opts.length:w*2<=XW-9?2:1;
-        const ol=per===1?opts.map(o=>pdf.splitTextToSize(o,XW-9)):opts.map(o=>[o]);opl={opts,per,ol};oh=(per===1?ol.reduce((a,x)=>a+x.length,0):Math.ceil(opts.length/per))*6}
-      const h=ql.length*5.6+(im?ih+4:0)+oh+6;
-      if(y+h>YB&&y>30){pdf.addPage();head(false)}
-      pdf.setFont('helvetica','bold');pdf.text(`${i+1}.`,X0+7,y,{align:'right'});pdf.setFont('helvetica','normal');
-      if(ql.length){pdf.text(ql,X0+9,y);y+=ql.length*5.6}else y+=1;
-      if(im){pdf.addImage(im.d,'JPEG',X0+12,y-2,iw,ih);y+=ih+3}
-      y+=1;
-      if(pics){opl.lines.forEach(l=>{const lh=Math.max(7,...l.map(c=>c.h+2));l.forEach((c,j)=>{const x=X0+12+j*opl.cw;pdf.setFont('helvetica','bold');pdf.text(`${'ABCDE'[c.k]})`,x,y+lh/2-1);pdf.setFont('helvetica','normal');
-          if(c.m)pdf.addImage(c.m.d,'JPEG',x+7,y-2,c.w,c.h);if(c.t)pdf.text(pdfTxt(c.t),x+7+c.w+(c.w?2:0),y+lh/2-1)});y+=lh})}
-      else if(opl.per===1)opl.ol.forEach(x=>{pdf.text(x,X0+12,y);y+=x.length*6});
-      else{const cw=(XW-9)/opl.per;opl.opts.forEach((o,k)=>{pdf.text(o,X0+12+(k%opl.per)*cw,y+Math.floor(k/opl.per)*6)});y+=Math.ceil(opl.opts.length/opl.per)*6}
-      y+=4});
-  });
+  const fo=await yxFonts(),uni=!!fo.r;
+  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});
+  if(uni){pdf.addFileToVFS('yx-r.ttf',fo.r);pdf.addFont('yx-r.ttf','yx','normal');pdf.addFileToVFS('yx-b.ttf',fo.b);pdf.addFont('yx-b.ttf','yx','bold')}
+  const FN=uni?'yx':'helvetica',T=s=>uni?String(s??'').replace(/[ʻ`´]/g,'‘').replace(/ʼ/g,'’').replace(/\t/g,' '):pdfTxt(s);
+  const F=(b,sz,c)=>{pdf.setFont(FN,b?'bold':'normal');if(sz)pdf.setFontSize(sz);Array.isArray(c)?pdf.setTextColor(...c):pdf.setTextColor(c==null?0:c)};
+  const W=(s,b,sz)=>{F(b,sz);return pdf.getTextWidth(s)};
+  const bw=(S.bank||[]).find(x=>x.id===bk.id)?.w||null;   // har savol bali (variantlarda ham joyi bir xil)
+  const PW=210,M=11,GAP=7,CW=(PW-2*M-GAP)/2,YB=284,NI=6.5,TW=CW-NI,DPI=220,mm=px=>px*25.4/DPI;
+  const TOP1=31,TOPN=17;
+  // so'zlab qatorga bo'lish: birinchi qator ball yozuvi uchun qisqaroq
+  const wrap=(txt,w0,w,sz)=>{F(false,sz);const out=[];T(txt).split('\n').forEach(par=>{let line='';par.split(/ +/).forEach(wd=>{const lim=out.length?w:w0,t=line?line+' '+wd:wd;
+      if(pdf.getTextWidth(t)<=lim||!line)line=t;else{out.push(line);line=wd}});out.push(line)});return out};
+  // bitta savolning o'lchami (va kerak bo'lsa chizish)
+  function block(q,i,fs,x,y,draw){const s=fs/11,lh=fs*.43,sm=Math.max(6.5,fs*.68);
+    const bl=bw&&bw[i]!=null?`${num(bw[i])} ball`:'',blw=bl?W(bl,false,sm)+2:0;
+    const ql=q.q?wrap(q.q,TW-blw,TW,fs):[];
+    const im=q.img&&IMGC[q.img];let iw=0,ih=0;if(im){iw=Math.min(TW,mm(im.w)*s);ih=iw*im.h/im.w;const mh=68*s;if(ih>mh){ih=mh;iw=ih*im.w/im.h}}
+    const oi=q.oi||[],pics=oi.some(Boolean);let oh=0,lay=null;
+    if(pics){const cells=q.o.map((t,k)=>{const m=oi[k]&&IMGC[oi[k]];let w=0,h=0;if(m){h=Math.min(9*s,mm(m.h)*.8);w=h*m.w/m.h;if(w>TW/2){w=TW/2;h=w*m.h/m.w}}return {k,t:t?T(t):'',m,w,h,cw:W('E)',true,fs)+1.5+w+(t?W(T(t),false,fs)+1.5:0)+3}});
+      const mx=Math.max(...cells.map(c=>c.cw));const per=[5,3,2,1].find(p=>mx*p<=TW)||1;const rws=[];cells.forEach((c,k)=>{(rws[Math.floor(k/per)]||=[]).push(c)});
+      lay={pics,per,rws};oh=rws.reduce((a,r)=>a+Math.max(lh,...r.map(c=>c.h+1.5)),0)}
+    else{const op=q.o.map((t,k)=>({L:'ABCDE'[k]+')',t:T(t)}));const lw=W('E)',true,fs)+1.2;const mx=Math.max(...op.map(o=>lw+W(o.t,false,fs)))+3;
+      const per=[5,3,2].find(p=>mx*p<=TW&&(p>=op.length||p<5))||1;
+      const ol=per===1?op.map(o=>({...o,ls:wrap(o.t,TW-lw,TW-lw,fs)})):op;lay={per,ol,lw};
+      oh=per===1?ol.reduce((a,o)=>a+o.ls.length*lh,0):Math.ceil(op.length/per)*lh*1.05}
+    const h=Math.max(1,ql.length)*lh+(im?ih+2.5:0)+1.2+oh+3.2*s;
+    if(!draw)return h;
+    let yy=y;F(true,fs);pdf.text(`${i+1}.`,x+NI-1.2,yy,{align:'right'});
+    if(bl){F(false,sm,120);pdf.text(bl,x+CW,yy-.2,{align:'right'})}
+    F(false,fs);if(ql.length)pdf.text(ql,x+NI,yy,{lineHeightFactor:1.1});yy+=Math.max(1,ql.length)*lh;
+    if(im){pdf.addImage(im.d,'JPEG',x+NI+(TW-iw)/2,yy-lh*.55,iw,ih);yy+=ih+2.5}
+    yy+=1.2;
+    if(lay.pics){const cw=TW/lay.per;lay.rws.forEach(r=>{const rh=Math.max(lh,...r.map(c=>c.h+1.5));r.forEach((c,j)=>{const cx=x+NI+j*cw,ty=yy+rh/2-lh*.5;F(true,fs,[30,90,160]);pdf.text(`${'ABCDE'[c.k]})`,cx,ty);let ox=cx+W('E)',true,fs)+1.5;
+        if(c.m){pdf.addImage(c.m.d,'JPEG',ox,ty-c.h/2-lh*.3,c.w,c.h);ox+=c.w+1.5}if(c.t){F(false,fs);pdf.text(c.t,ox,ty)}});yy+=rh})}
+    else if(lay.per===1)lay.ol.forEach(o=>{F(true,fs,[30,90,160]);pdf.text(o.L,x+NI,yy);F(false,fs);pdf.text(o.ls,x+NI+lay.lw,yy,{lineHeightFactor:1.1});yy+=o.ls.length*lh});
+    else{const cw=TW/lay.per;lay.ol.forEach((o,k)=>{const cx=x+NI+(k%lay.per)*cw,cy=yy+Math.floor(k/lay.per)*lh*1.05;F(true,fs,[30,90,160]);pdf.text(o.L,cx,cy);F(false,fs);pdf.text(o.t,cx+lay.lw,cy)})}
+    return h}
+  // joylash: chap ustun → o'ng ustun → keyingi bet
+  function place(qs,fs){const pos=[];let pg=0,col=0,y=TOP1;
+    qs.forEach((q,i)=>{const h=block(q,i,fs,0,0,false);if(y+h>YB+2&&y>(pg?TOPN:TOP1)+1){if(col===0){col=1;y=pg?TOPN:TOP1}else{pg++;col=0;y=TOPN}}pos.push({pg,col,y,h});y+=h});return {pos,pages:pg+1}}
+  const FS=[12.5,12,11.5,11,10.5,10,9.5];
+  const need=fs=>Math.max(...rows.map(r=>place(r.qs,fs).pages));
+  const min=need(FS[FS.length-1]),target=Math.max(2,min+(min%2));const fs=FS.find(f=>need(f)<=target)||FS[FS.length-1];
+  const head=(b,p,tot)=>{const vv=`${VL(b.variant)}-variant`;
+    if(p===0){F(true,13,[31,52,94]);pdf.text('YOSH XORAZMIYLAR',M,13.5);F(false,9.5,90);pdf.text(T(`${bk.grade}-sinf · Matematika · ${bk.name}`),M,19);
+      pdf.setDrawColor(31,52,94);pdf.setLineWidth(.6);pdf.roundedRect(PW-M-32,8,32,12,2,2);F(true,14,[31,52,94]);pdf.text(vv,PW-M-16,16.2,{align:'center'});
+      F(false,8.5,90);pdf.text(T(`${b.qs.length} ta savol${bw?' · jami 100 ball':''} · Har bir savolning bitta to‘g‘ri javobi bor · Javobni TITUL varaqqa belgilang`),M,25);
+      pdf.setDrawColor(31,52,94);pdf.setLineWidth(.4);pdf.line(M,27,PW-M,27)}
+    else{F(false,8,120);pdf.text(T(`YOSH XORAZMIYLAR · ${bk.grade}-sinf · ${bk.name}`),M,10);F(true,9,[31,52,94]);pdf.text(vv,PW-M,10,{align:'right'});pdf.setDrawColor(190);pdf.setLineWidth(.2);pdf.line(M,12,PW-M,12)}
+    pdf.setDrawColor(205);pdf.setLineWidth(.2);pdf.line(PW/2,p?TOPN-4:TOP1-3,PW/2,YB+3);
+    F(false,8,130);pdf.text(T(`${bk.grade}-sinf · ${vv} · ${p+1} / ${tot}-bet`),PW/2,292,{align:'center'})};
+  let first=true;
+  rows.forEach(b=>{const L=place(b.qs,fs);
+    if(!first){if(pdf.getNumberOfPages()%2)pdf.addPage();pdf.addPage()}first=false;   // har variant yangi varaqdan
+    for(let p=0;p<L.pages;p++){if(p)pdf.addPage();head(b,p,L.pages)}
+    const base=pdf.getNumberOfPages()-L.pages;
+    b.qs.forEach((q,i)=>{const o=L.pos[i];pdf.setPage(base+o.pg+1);const x=o.col?M+CW+GAP:M;block(q,i,fs,x,o.y+fs*.3,true);
+      const nx=L.pos[i+1];if(nx&&nx.pg===o.pg&&nx.col===o.col){pdf.setDrawColor(225);pdf.setLineWidth(.2);pdf.line(x+NI,o.y+o.h-1.2,x+CW,o.y+o.h-1.2)}});
+    pdf.setPage(pdf.getNumberOfPages())});
   pdf.save(fn(only||''));
 }
 
