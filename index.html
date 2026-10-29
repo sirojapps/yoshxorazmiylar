@@ -659,7 +659,7 @@ function annBox(t){
   const showFin=f.done||f.by?.length||(['tekshiruv','yakunlandi'].includes(t.status)&&allAnn);
   return `<section class="sec"><p class="label">E’lon qilish</p><div class="card list">${rows}
    ${showFin?`<div class="row"><div class="m"><div class="n">Sinovni yakunlash</div><div class="s">Tuman o’rtachasi va reyting ota-onalar va direktorlarga ochiladi</div></div>
-   ${f.done?`<span class="pill ok">yakunlandi</span>`:canAp&&!f.by?.includes(S.me.id)?`<button class="btn pri sm" data-act="approve" data-s="0">Tasdiqlash</button>`:`<span class="pill gray">${f.ceo?'CEO ✓':'CEO'} · ${f.hasSardor?(f.sardor?'Sardor ✓':'Sardor'):'—'}</span>`}</div>`:''}</div>
+   ${f.done?`<span class="pill ok">yakunlandi</span>`:canAp&&!f.by?.includes(S.me.id)?`<button class="btn pri sm" data-act="approve" data-s="0">Tasdiqlash</button>`:`<span class="pill gray">${f.ceo?'CEO ✓':'CEO'} · ${f.hasSardor?(f.sardor?'Sardor ✓':'Sardor'):'—'}</span>`}${canAp&&f.by?.includes(S.me.id)&&(S.me.role==='ceo'||!f.done)?`<button class="btn sec sm" data-act="unapprove" data-s="0">Bekor</button>`:''}</div>`:''}</div>
    <p class="note">Maktab natijasi CEO va jamoa sardori ikkalasi tasdiqlagach ota-onalar, sinf rahbarlari va direktorga ko’rinadi.</p></section>`}
 
 function scrSchools(){
