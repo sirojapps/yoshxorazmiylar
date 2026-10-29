@@ -1364,13 +1364,26 @@ A['tg.approve'] = async (u, b) => {
 
 // ---------------------------------------------------------------- settings (CEO)
 const SET_KEYS = ['bot_token', 'logo', 'imzo', 'muhr', 'signer', 'signer_role', 'tabrik_ota', 'tabrik_rahbar', 'tabrik_direktor', 'ceo_phone', 'site_url',
-  'sch_name', 'sch_about', 'sch_address', 'sch_phone', 'sch_telegram', 'sch_instagram', 'sch_facebook', 'sch_youtube', 'sch_site'];
+  'sch_name', 'sch_about', 'sch_address', 'sch_phone', 'sch_telegram', 'sch_instagram', 'sch_facebook', 'sch_youtube', 'sch_site',
+  'cert_top', 'cert_title', 'cert_ribbon', 'cert_award', 'cert_body', 'cert_tuman'];
+// sertifikat matnlari: bo'sh qoldirilsa, shu asl matnlar ishlatiladi
+const CERT_DEF = {
+  cert_top: 'KARAKUL INTERNATIONAL SCHOOL  ·  “YOSH XORAZMIYLAR” LOYIHASI',
+  cert_title: 'SERTIFIKAT',
+  cert_ribbon: '“YOSH XORAZMIY” UNVONI',
+  cert_award: 'Ushbu sertifikat bilan taqdirlanadi',
+  cert_body: '{tuman} {maktab}-maktabning {sinf} sinf o‘quvchisi «{sinov}» matematika sinovida {natija}, iqtidorli o‘quvchilar qatoridan joy olgani uchun.',
+  cert_tuman: 'Qorako‘l tumani',
+};
+const certTexts = () => Object.fromEntries(Object.keys(CERT_DEF).map(k => [k, getSet(k) || CERT_DEF[k]]));
 A['settings.get'] = u => {
   need(u.role === 'ceo');
   const o = {}; for (const k of SET_KEYS) o[k] = k === 'bot_token' ? (getSet(k) ? '••••••' + getSet(k).slice(-4) : '') : getSet(k);
   o.sch_name ||= 'KARAKUL INTERNATIONAL SCHOOL'; o.sch_address ||= 'Qorako‘l tumani, Buxoro viloyati';
   o.signer ||= 'Abdurashidov G‘ulom O‘ktamovich'; o.signer_role ||= 'Loyiha rahbari';
   for (const k in DEFAULT_TEXTS) o[k] ||= DEFAULT_TEXTS[k];
+  for (const k in CERT_DEF) o[k] ||= CERT_DEF[k];
+  o.cert_def = CERT_DEF;
   o.bot_username = getSet('bot_username'); o.bot_error = getSet('bot_error');
   o.tg_users = one('SELECT count(*) n FROM tg_users').n;
   return o;
@@ -1393,7 +1406,7 @@ A['settings.save'] = async (u, b) => {
   log(u.id, 'sozlama', { key: b.key });
   return { ok: true, bot_username: getSet('bot_username') };
 };
-A['cert.assets'] = () => ({ logo: getSet('logo'), imzo: getSet('imzo'), muhr: getSet('muhr'), signer: getSet('signer') || 'Abdurashidov G‘ulom O‘ktamovich', signer_role: getSet('signer_role') || 'Loyiha rahbari', site: siteUrl() });
+A['cert.assets'] = () => ({ logo: getSet('logo'), imzo: getSet('imzo'), muhr: getSet('muhr'), signer: getSet('signer') || 'Abdurashidov G‘ulom O‘ktamovich', signer_role: getSet('signer_role') || 'Loyiha rahbari', site: siteUrl(), ...certTexts() });
 
 // ---------------------------------------------------------------- certificates
 function assignCerts(testId, schoolId) {

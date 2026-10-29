@@ -1292,19 +1292,20 @@ async function drawCert(c){
   // 6. tepada logotip oltin halqa ichida
   let y=200;
   if(logo){const h=190,w=logo.width*h/logo.height;g.beginPath();g.arc(W/2,y+h/2,h/2+16,0,7);g.lineWidth=8;g.strokeStyle=gold(W/2-110,y,W/2+110,y+h);g.stroke();g.drawImage(logo,W/2-w/2,y,w,h);y+=h+75}else y+=80;
-  ctr('KARAKUL INTERNATIONAL SCHOOL  ·  “YOSH XORAZMIYLAR” LOYIHASI',y,`600 30px ${SANS}`,MUTE,7);y+=150;
+  ctr(a.cert_top||'',y,`600 30px ${SANS}`,MUTE,7);y+=150;
   // 7. SERTIFIKAT: oltin yaltiroq harflar, ko'k soyali
   g.save();g.font=`700 156px ${SERIF}`;g.textAlign='center';if('letterSpacing' in g)g.letterSpacing='22px';
-  g.fillStyle='rgba(19,36,79,.35)';g.fillText('SERTIFIKAT',W/2+11+4,y+5);
-  g.fillStyle=gold(W/2-650,y-130,W/2+650,y);g.fillText('SERTIFIKAT',W/2+11,y);
-  g.lineWidth=1.5;g.strokeStyle='#7a5414';g.strokeText('SERTIFIKAT',W/2+11,y);g.restore();y+=40;
+  const TT=a.cert_title||'SERTIFIKAT';let tf=156;while(g.measureText(TT).width>W-500&&tf>80){tf-=6;g.font=`700 ${tf}px ${SERIF}`}
+  g.fillStyle='rgba(19,36,79,.35)';g.fillText(TT,W/2+11+4,y+5);
+  g.fillStyle=gold(W/2-650,y-130,W/2+650,y);g.fillText(TT,W/2+11,y);
+  g.lineWidth=1.5;g.strokeStyle='#7a5414';g.strokeText(TT,W/2+11,y);g.restore();y+=40;
   // 8. lenta
-  const rw=1000,rh=92,ry=y;
+  g.font=`700 44px ${SANS}`;const rw=Math.max(1000,Math.min(1700,g.measureText(a.cert_ribbon||'').width+(a.cert_ribbon||'').length*6+140)),rh=92,ry=y;
   const tail=d=>{const x0=W/2+d*rw/2;g.beginPath();g.moveTo(x0-d*20,ry+18);g.lineTo(x0+d*90,ry+18);g.lineTo(x0+d*55,ry+18+rh/2);g.lineTo(x0+d*90,ry+18+rh);g.lineTo(x0-d*20,ry+18+rh);g.closePath();g.fillStyle='#8f6219';g.fill()};tail(-1);tail(1);
   const lg=g.createLinearGradient(0,ry,0,ry+rh);lg.addColorStop(0,NAVY2);lg.addColorStop(1,NAVY);g.fillStyle=lg;g.fillRect(W/2-rw/2,ry,rw,rh);
   g.strokeStyle=gold(W/2-rw/2,ry,W/2+rw/2,ry+rh);g.lineWidth=5;g.strokeRect(W/2-rw/2+10,ry+10,rw-20,rh-20);
-  ctr('“YOSH XORAZMIY” UNVONI',ry+62,`700 44px ${SANS}`,'#f3d98c',6);y=ry+rh+110;
-  ctr('Ushbu sertifikat bilan taqdirlanadi',y,`italic 400 50px ${SERIF}`,MUTE);y+=140;
+  ctr(a.cert_ribbon||'',ry+62,`700 44px ${SANS}`,'#f3d98c',6);y=ry+rh+110;
+  ctr(a.cert_award||'',y,`italic 400 50px ${SERIF}`,MUTE);y+=140;
   // 9. ism, ikki yonida dafna shoxlari
   let fs=124;g.font=`700 ${fs}px ${SERIF}`;while(g.measureText(s.name).width>W-900&&fs>70){fs-=6;g.font=`700 ${fs}px ${SERIF}`}
   const nw=g.measureText(s.name).width;ctr(s.name,y,`700 ${fs}px ${SERIF}`,NAVY);
@@ -1312,9 +1313,13 @@ async function drawCert(c){
     for(let k=1;k<=8;k++){const tt=k/9,px=-len*tt,py=-len*.45*tt*tt;g.save();g.translate(px,py);g.rotate(-.5-tt*.6);g.fillStyle=gold(-30,-12,30,12);g.beginPath();g.ellipse(0,-16,30,11,-.5,0,7);g.fill();g.beginPath();g.ellipse(4,16,30,11,.5,0,7);g.fill();g.restore()}g.restore()};
   laurel(W/2-nw/2-40,y-20,1,230);laurel(W/2+nw/2+40,y-20,-1,230);y+=48;
   g.strokeStyle=gold(W/2-600,y,W/2+600,y);g.lineWidth=4;g.beginPath();g.moveTo(W/2-600,y);g.lineTo(W/2-40,y);g.moveTo(W/2+40,y);g.lineTo(W/2+600,y);g.stroke();star(W/2,y,24,8,.5,gold(W/2-24,y-24,W/2+24,y+24));y+=86;
-  const line1=`${s.num}-maktab ${s.cls} sinf o‘quvchisi “${t.name||''}” matematika sinovida`;
-  const line2=`${r&&!r.absent?`${is100(r)?num(r.score)+' ball':`${r.score}/${r.qn} (${pf(pct(r))}%)`} natija ko‘rsatib, `:''}iqtidorli o‘quvchi deb topildi.`;
-  ctr(line1,y,`400 44px ${SANS}`,INK);ctr(line2,y+62,`400 44px ${SANS}`,INK);
+  // asosiy matn: sozlamalardagi andoza, {o'rinlar}ni sayt o'zi to'ldiradi, qatorlarga o'zi bo'linadi
+  const natija=r&&!r.absent?(is100(r)?`100 balldan ${num(r.score)} ball to‘plab`:`${r.qn} ta savoldan ${r.score} tasini to‘g‘ri yechib (${pf(pct(r))}%)`):'yuqori natija ko‘rsatib';
+  const sinov=String(t.name||'').replace(/^(\d{4})\s*[-–]\s*(\d{4})\s*[.·,]?\s*/,'$1–$2 · ');
+  const body=String(a.cert_body||'').replace(/\{(\w+)\}/g,(m,k)=>({tuman:a.cert_tuman||'',maktab:s.num,sinf:s.cls,sinov,natija,ism:s.name}[k]??m)).replace(/\s+/g,' ').trim();
+  let bf=44,lines=[];const wrap=()=>{g.font=`400 ${bf}px ${SANS}`;lines=[];let cur='';for(const w of body.split(' ')){const tr=cur?cur+' '+w:w;if(g.measureText(tr).width>1750&&cur){lines.push(cur);cur=w}else cur=tr}if(cur)lines.push(cur)};
+  wrap();while(lines.length>3&&bf>32){bf-=2;wrap()}
+  lines.forEach((ln,i)=>ctr(ln,y+i*bf*1.42,`400 ${bf}px ${SANS}`,INK));
   // 10. pastki qism
   const by=H-330;
   // imzo va uning ustiga qisman urilgan muhr
@@ -1340,16 +1345,23 @@ async function drawCert(c){
   g.fillStyle='#fff';g.fillRect(qx-18,qy-18,qs+36,qs+36);g.strokeStyle=gold(qx,qy,qx+qs,qy+qs);g.lineWidth=4;g.strokeRect(qx-18,qy-18,qs+36,qs+36);g.fillStyle=NAVY;
   for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(qr.isDark(i,j))g.fillRect(qx+j*cell,qy+i*cell,cell,cell);
   g.textAlign='center';g.fillStyle=INK;g.font=`700 32px ${SANS}`;g.fillText('№ '+c.code,qx+qs/2,qy+qs+64);
-  g.fillStyle=MUTE;g.font=`400 26px ${SANS}`;g.fillText('Tekshirish uchun skanerlang',qx+qs/2,qy+qs+100);
-  const dt=(t.date||'').split('-').reverse().join('.');if(dt)g.fillText(dt,qx+qs/2,qy+qs+134);
+  const dt=(t.date||'').split('-').reverse().join('.');if(dt){g.fillStyle=INK;g.font=`600 30px ${SANS}`;g.fillText('Berilgan sana: '+dt,qx+qs/2,qy+qs+104)}
+  g.fillStyle=MUTE;g.font=`400 24px ${SANS}`;g.fillText('Tekshirish uchun skanerlang',qx+qs/2,qy+qs+(dt?140:100));
   return cv;
 }
 // sozlamalardagi "Namunani ko'rish": o'ylab topilgan bola bilan sertifikat ko'rinishi
 async function certDemo(){toast('Tayyorlanmoqda…');CA=null;
-  const cv=await drawCert({code:'NAMUNA',demo:{s:{name:'Namunaviy O’quvchi',num:1,cls:'3-A'},t:{name:curTest()?.name||'2026–2027 · 1-bosqich'},r:{score:19,qn:20,absent:0}}});
+  const cv=await drawCert({code:'NAMUNA',demo:{s:{name:'Namunaviy O’quvchi',num:1,cls:'3-A'},t:{name:curTest()?.name||'2026–2027 · 1-bosqich',date:new Date().toISOString().slice(0,10)},r:{score:19,qn:20,absent:0}}});
   openSheet(`<div class="sh-top"><div class="m"><h2>Sertifikat namunasi</h2><div class="s">Bola ismi va ball o’rniga namunaviy ma’lumot</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    <img src="${cv.toDataURL('image/jpeg',.85)}" alt="Sertifikat namunasi" style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd)">
    <p class="note">Imzo yoki muhr yoqmasa, shu sahifada “Almashtirish” orqali boshqa rasm yuklang va qayta ko’ring.</p>`)}
+// sertifikatni yuklab olmasdan shu yerning o'zida ochib ko'rish
+async function certView(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;toast('Ochilmoqda…');
+  const cv=await drawCert(c);const nm=(X.st.find(x=>x.id===c.student_id)||{}).name||'';
+  openSheet(`<div class="sh-top"><div class="m"><h2>${esc(nm)}</h2><div class="s">№ ${esc(code)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+   <img src="${cv.toDataURL('image/jpeg',.88)}" alt="Sertifikat" data-zoom style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd);cursor:zoom-in">
+   <p class="note" style="margin:0">Kattalashtirish uchun rasmni bosing.</p>
+   <button class="btn pri" data-act="certPng" data-c="${esc(code)}">⬇ Yuklab olish</button>`)}
 async function certPng(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;toast('Tayyorlanmoqda…');
   const cv=await drawCert(c);cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`Sertifikat-${code}.png`;document.body.appendChild(a);a.click();a.remove()},'image/png')}
 async function certPdf(list,label=''){
@@ -1530,7 +1542,7 @@ function scrCerts(){
   ${grades.length>1?seg('g',cfGrade,grades.map(g=>[g,g+'-sinflar']),'Hamma sinflar'):''}
   ${classes.length>1?seg('c',cfClass,classes.map(c=>[c.id,c.name]),`Barcha ${cfGrade}-sinflar`):''}
   ${l.length?`<button class="btn pri" data-act="certPdf">⬇ ${l.length>1?`Hammasini PDF qilib yuklab olish (${l.length} ta)`:'PDF qilib yuklab olish'}</button><p class="note" style="margin:0">${esc(certLabel())}${certLabel()?' · ':''}har bir sertifikat alohida A4 sahifada, chop etishga tayyor.</p>`:''}
-  <div class="card list">${l.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certPng" data-c="${c.code}">Yuklab olish</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
+  <div class="card list">${l.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certView" data-c="${c.code}">👁 Ko’rish</button><button class="btn sec sm" data-act="certPng" data-c="${c.code}" aria-label="Yuklab olish">⬇</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
 function tabrikCard(role){
   const t=S.tests.find(x=>(S.gifted||[]).some(k=>+k.split(':')[0]===x.id)); if(!t)return'';
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
@@ -1595,7 +1607,12 @@ function scrSettings(){
    <p class="note">Imzo va muhrni oq qog’ozda rasmga oling. Qog’oz foni sertifikatda o’zi olib tashlanadi.</p>
    <button class="btn sec" data-act="certDemo">👁 Sertifikat namunasini ko’rish</button>
    <div class="card pad"><label class="field"><span class="label">Imzo qo’yuvchi</span><input id="stSig" value="${esc(SET.signer)}"></label><label class="field"><span class="label">Lavozimi</span><input id="stRole" value="${esc(SET.signer_role)}"></label>
-   <button class="btn sec sm" data-act="setSig" style="align-self:flex-start">Saqlash</button></div></section>
+   <button class="btn sec sm" data-act="setSig" style="align-self:flex-start">Saqlash</button></div>
+   <div class="card pad"><b>Sertifikat matnlari</b>
+   ${[['cert_top','Eng tepadagi yozuv'],['cert_title','Katta sarlavha'],['cert_ribbon','Lentadagi yozuv'],['cert_award','Ism ustidagi yozuv'],['cert_tuman','Tuman nomi']].map(([k,l])=>`<label class="field"><span class="label">${l}</span><input id="st_${k}" value="${esc(SET[k]||'')}"></label>`).join('')}
+   <label class="field"><span class="label">Asosiy matn (ism ostida)</span><textarea id="st_cert_body" rows="4">${esc(SET.cert_body||'')}</textarea></label>
+   <p class="note" style="margin:0">Sayt o’zi qo’yadi: <b>{tuman}</b> — tuman nomi, <b>{maktab}</b> — maktab raqami, <b>{sinf}</b> — 2-A kabi, <b>{sinov}</b> — sinov nomi, <b>{natija}</b> — “20 ta savoldan 14 tasini to‘g‘ri yechib (70%)” yoki “100 balldan 72,5 ball to‘plab”, <b>{ism}</b> — bola ismi. Bo’sh qoldirilgan qatorga asl matn qo’yiladi.</p>
+   <div class="qa"><button class="btn pri sm" data-act="setCert">Saqlash</button><button class="btn sec sm" data-act="setCertReset">Asl matnga qaytarish</button></div></div></section>
   <section class="sec"><p class="label">Tabrik matnlari</p><p class="note">{ism}, {ball}, {foiz}, {soni} o’rniga sayt o’zi qo’yadi.</p>
    ${[['tabrik_ota','Ota-onaga'],['tabrik_rahbar','Sinf rahbariga'],['tabrik_direktor','Direktorga']].map(([k,l])=>`<div class="card pad"><label class="field"><span class="label">${l}</span><textarea id="st_${k}">${esc(SET[k])}</textarea></label><button class="btn sec sm" data-act="setSave" data-k="${k}" data-src="st_${k}" style="align-self:flex-start">Saqlash</button></div>`).join('')}</section>`]}
 
@@ -1644,6 +1661,7 @@ document.addEventListener('click',async e=>{
    case 'dl':dlOpen(d.k,+d.id);break;
    case 'dlGo':await dlGo(d.f);break;
    case 'certDemo':await certDemo();break;
+   case 'certView':await certView(d.c);break;
    case 'certPdf':await certPdf(certFiltered().l,certLabel());break;
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
@@ -1651,6 +1669,8 @@ document.addEventListener('click',async e=>{
    case 'exDel':await api('ex.delete',{id:+d.id});closeSheet();toast('O’chirildi');EXL=null;render();break;
    case 'setSave':{const v=val(d.src);if(d.k==='bot_token'&&!v){toast('Kalitni kiriting',true);break}const r=await api('settings.save',{key:d.k,value:v});toast(d.k==='bot_token'?`Bot ulandi: @${r.bot_username}`:'Saqlandi');SET=null;await load();break}
    case 'setSch':for(const k of ['sch_name','sch_about','sch_address','sch_phone','sch_telegram','sch_instagram','sch_facebook','sch_youtube','sch_site'])await api('settings.save',{key:k,value:val('st_'+k)});SET=null;toast('Saqlandi');await load();break;
+   case 'setCert':for(const k of ['cert_top','cert_title','cert_ribbon','cert_award','cert_tuman','cert_body'])await api('settings.save',{key:k,value:val('st_'+k)});CA=null;toast('Saqlandi. Namunani ko’rib chiqing');SET=null;render();break;
+   case 'setCertReset':if(!confirm('Sertifikat matnlari asl holiga qaytarilsinmi?'))break;for(const k of ['cert_top','cert_title','cert_ribbon','cert_award','cert_tuman','cert_body'])await api('settings.save',{key:k,value:''});CA=null;toast('Asl matnga qaytarildi');SET=null;render();break;
    case 'setSig':await api('settings.save',{key:'signer',value:val('stSig')});await api('settings.save',{key:'signer_role',value:val('stRole')});CA=null;toast('Saqlandi');SET=null;render();break;
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
