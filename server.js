@@ -100,7 +100,11 @@ const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); re
 const log = (uid, action, detail) => run('INSERT INTO audit(at,user_id,action,detail) VALUES(?,?,?,?)', now(), uid, action, JSON.stringify(detail ?? {}));
 
 // ---------------------------------------------------------------- helpers
-const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq'];
+const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash'];
+// kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
+const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor'];
+const KUZ_READ = new Set(['state', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar']);
+const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
   for (;;) { const p = String(crypto.randomInt(100000, 1000000)); if (!one('SELECT 1 FROM users WHERE pin=?', p)) return p; }
@@ -108,8 +112,11 @@ function newPin() {
 function perms(u) {
   if (u.role === 'ceo') return Object.fromEntries(PERMS.map(k => [k, true]).concat([['sardor', true], ['ceo', true]]));
   if (u.role !== 'jamoa') return {};
-  try { return JSON.parse(u.perms || '{}'); } catch { return {}; }
+  let p; try { p = JSON.parse(u.perms || '{}'); } catch { p = {}; }
+  if (p.kuzatuvchi) for (const k of KUZ_OFF) p[k] = false;
+  return p;
 }
+const isKuz = u => u.role === 'jamoa' && !!perms(u).kuzatuvchi;
 const isTeam = u => u.role === 'ceo' || u.role === 'jamoa';
 function can(u, k) { return !!perms(u)[k]; }
 // direktor o'z maktabini boshqaradi (sinf rahbarlari, o'quvchilar, telefonlar, maktab ma'lumotlari)
@@ -1045,7 +1052,7 @@ A['pin.revoke'] = (u, b) => {
 A['team.save'] = (u, b) => {
   need(u.role === 'ceo', 'Jamoani faqat CEO boshqaradi');
   const name = fixName(b.name, 80); if (!name) bad('Ismni yozing');
-  const p = {}; for (const k of PERMS) p[k] = !!b.perms?.[k]; p.sardor = !!b.perms?.sardor;
+  const p = {}; for (const k of PERMS) p[k] = !!b.perms?.[k]; p.sardor = !!b.perms?.sardor; p.kuzatuvchi = !!b.perms?.kuzatuvchi; if (p.kuzatuvchi) for (const k of KUZ_OFF) p[k] = false;
   if (b.id) { const old = one('SELECT * FROM users WHERE id=? AND role=\'jamoa\'', b.id); run('UPDATE users SET name=?,phone=?,perms=? WHERE id=?', name, phone9(b.phone), JSON.stringify(p), b.id); log(u.id, 'jamoa.huquq', { name, old: old && JSON.parse(old.perms), new: p }); return { id: b.id }; }
   const pin = newPin();
   const r = run("INSERT INTO users(role,name,phone,perms,pin,pin_at,created_at) VALUES('jamoa',?,?,?,?,?,?)", name, phone9(b.phone), JSON.stringify(p), pin, now(), now());
@@ -1711,6 +1718,7 @@ const server = http.createServer(async (req, res) => {
       }
       const act = url.pathname.slice(5); const fn = A[act];
       if (!fn || req.method !== 'POST') return send(res, 404, { error: 'Topilmadi' });
+      if (isKuz(u) && !KUZ_READ.has(act) && !(KUZ_MSG.has(act) && can(u, 'xabar'))) return send(res, 403, { error: 'Kuzatuvchi faqat ko‘radi — o‘zgartira olmaydi' });
       const b = JSON.parse(await readBody(req) || '{}');
       return send(res, 200, (await fn(u, b)) || {});
     }
