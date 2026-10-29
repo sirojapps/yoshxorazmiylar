@@ -768,6 +768,13 @@ function scrRanking(){
      ${part.length?`<details class="sec"><summary class="label" style="cursor:pointer">Hammasiga qatnashmaganlar (${part.length})</summary><p class="note">Tanlangan imtihonlardan biriga kelmagan bolalar o’rin olmaydi.</p><div class="card list">${part.map(s=>row(s,null)).join('')}</div></details>`:''}`}
   else if(rMode==='maktab'){const r=S.schools.filter(sc=>!rSchool||sc.id===rSchool).map(sc=>({sc,a:rankAvg(st.filter(s=>s.school_id===sc.id))})).filter(x=>x.a).sort((a,b)=>b.a.v-a.a.v);
     body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="school:${x.sc.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${x.sc.num}-maktab</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
+  else if(rMode==='iqt'){ // butun tuman (yoki tanlangan maktab) iqtidorlilari — hamma sinflar bitta sahifada
+    if(!one)body=`<div class="card empty">Iqtidorlilar bitta imtihon bo’yicha aniqlanadi. Yuqoridan bitta imtihonni tanlang.</div>`;
+    else{const tid=rSel[0];const all=X.st.filter(s=>gifted.has(s.id)&&(!rSchool||s.school_id===rSchool));
+     const byG=grades.map(g=>[g,all.filter(s=>s.grade===g)]).filter(x=>x[1].length);
+     body=`<div class="card hero"><p class="label">${rSchool?X.sc[rSchool].num+'-maktab':'Butun tuman'} · jami iqtidorlilar</p><div class="big">${all.length}<small> ta</small></div><p class="note">${byG.map(([g,l])=>`${g}-sinf: <b>${l.length}</b>`).join(' · ')||'Bu imtihonda hali iqtidorli yo’q'}</p></div>
+     ${byG.map(([g,l])=>{const so=[...l].sort((a,b)=>resCmp(R(a.id,tid),R(b.id,tid)));const pl=[];so.forEach((s,i)=>{pl[i]=i&&resCmp(R(so[i-1].id,tid),R(s.id,tid))===0?pl[i-1]:i+1});
+      return `<section class="sec"><div class="sec-h"><p class="label">${g}-sinf</p><span class="pill gold">${l.length} ta</span></div><div class="card list">${so.map((s,i)=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${pl[i]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${s.num}-maktab · ${esc(s.cls)}</div></div><div class="num">${blSm(R(s.id,tid))}</div></button>`).join('')}</div></section>`}).join('')}`}}
   else{const r=S.classes.filter(c=>c.grade===rGrade&&(!rSchool||c.school_id===rSchool)).map(c=>({c,a:rankAvg(st.filter(s=>s.class_id===c.id))})).filter(x=>x.a).sort((a,b)=>b.a.v-a.a.v);
     body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="class:${x.c.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${X.sc[x.c.school_id].num}-maktab · ${esc(x.c.name)}</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
   const t1=one?S.tests.find(t=>t.id===rSel[0]):null;
@@ -775,8 +782,8 @@ function scrRanking(){
   <div class="card pad"><p class="label" style="margin:0">Qaysi bosqich yoki imtihonlar bo’yicha?</p><div class="chips">${ok.map(t=>`<button class="chip" data-rt="${t.id}" aria-pressed="${rSel.includes(t.id)}">${rSel.includes(t.id)?'✓ ':''}${esc(t.name)}</button>`).join('')||'<span class="note">Hali natija yo’q</span>'}</div>
    <p class="note" style="margin:0">${one?'Bittasini tanlasangiz — shu imtihon bo’yicha. Bir nechtasini belgilasangiz — birgalikda (o’rtacha foiz) hisoblanadi.':'Birgalikda: tanlangan imtihonlardagi foizlarning o’rtachasi. Hammasiga qatnashgan bolalargina o’rin oladi.'}</p></div>
   <div class="seg"><button data-rsc="0" aria-pressed="${!rSchool}">Butun tuman</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-rsc="${sc.id}" aria-pressed="${rSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>
-  <div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>
-  <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
+  ${rMode==='iqt'?'':`<div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>`}
+  <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar'],['iqt','★ Iqtidorlilar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
   ${one&&t1&&present(X.st,t1.id).length?`<button class="btn sec" data-act="rankDl" data-id="${t1.id}">⬇ Natijalarni yuklab olish</button>`:''}
   ${body}${one&&t1?`<p class="note">★ iqtidorli: o’z maktabida, o’z sinf bosqichida eng yaxshi ${t1.gifted_top??10}% ichida va kamida ${t1.gifted_min??70}%.</p>`:''}
   <p class="note">Viloyat reytingi boshqa tumanlar qo’shilganda shu yerda chiqadi.</p>`]}
