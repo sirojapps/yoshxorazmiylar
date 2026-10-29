@@ -678,11 +678,17 @@ function stuListSec(l,cls){if(!l.length)return'';const gs=[...new Set(cls.map(c=
    ${gcl.length>1?`<div class="seg"><button data-scl="0" aria-pressed="${!schClass}">Barcha ${schGrade}-sinflar</button>${gcl.map(c=>`<button data-scl="${c.id}" aria-pressed="${schClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
    ${sortSeg()}
    <div class="card list">${ll.map((x,i)=>stuRow(x,i,{rank:sortBy==='ball',sub:x=>x.cls,gifted})).join('')}</div></section>`}
+// qaysi imtihon ko'rsatilayotgani — har doim ko'rinib tursin; natija boshqa imtihonda bo'lsa ogohlantiradi
+function examBar(l){if(!isTeam()||!S.tests.length)return'';const t=curTest();const has=tid=>l.some(s=>X.res[tid]?.[s.id]);
+  const other=t&&has(t.id)?[]:S.tests.filter(x=>x.id!==t?.id&&has(x.id));
+  return `<div class="card pad${other.length?' warnc':''}" style="gap:8px"><div class="sec-h" style="margin:0"><div><div class="note" style="margin:0">Ko’rsatilayotgan imtihon</div><div style="font-weight:600">${t?esc(t.name):'Tanlanmagan'}</div></div>${S.tests.length>1?`<button class="btn sec sm" data-act="pickTest">Almashtirish</button>`:''}</div>
+   ${other.length?`<p class="note" style="margin:0;color:var(--wrong)">⚠ Bu imtihonda natija yo’q, lekin quyidagi imtihonda bor:</p>${other.map(x=>`<button class="btn pri sm" data-act="setTest" data-id="${x.id}">${esc(x.name)} → o’tish</button>`).join('')}`:''}</div>`}
 function scrSchool(id){
   const sc=X.sc[id]; if(!sc)return ['Topilmadi','',''];
   const cls=S.classes.filter(c=>c.school_id===id); const l=X.st.filter(s=>s.school_id===id);
   return [`${sc.num}-maktab`,`${cls.length} sinf · ${l.length} o’quvchi`,`
   <div class="card list"><div class="row"><div class="m"><div class="s">Direktor</div><div class="n">${esc(sc.director_name)||'—'}</div><div class="s">${ph(sc.director_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="schoolEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>
+  ${examBar(l)}
   ${dupBox(l)}
   ${curTest()?stageBox(curTest(),id):''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%','o’rtacha']])}
@@ -702,6 +708,7 @@ function scrClass(id,mode){
   const top=mode==='rahbar'?[`${c.name} sinf`,`${X.sc[c.school_id]?.num}-maktab`]:[`${X.sc[c.school_id]?.num}-maktab · ${c.name}`,`${l.length} o’quvchi`];
   return [...top,`
   ${isTeam()||isDir()?`<div class="card list"><div class="row"><div class="m"><div class="s">Sinf rahbari</div><div class="n">${esc(c.teacher_name)||'—'}</div><div class="s">${ph(c.teacher_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="classEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>`:''}
+  ${mode!=='rahbar'?examBar(l):''}
   ${p.length?`<div class="card hero"><p class="label">Sinf o’rtachasi</p><div class="big">${pf(avgPct(l))}<small>%</small></div><p class="note">${p.length} ta bola qatnashdi${abs.length?`, ${abs.length} ta kelmadi`:''}.</p></div>`:(curTest()||mode?`<div class="card empty">${isTeam()?'Bu sinf natijalari hali kiritilmagan.':'Natijalar hali e’lon qilinmagan.'}</div>`:'')}
   ${dupBox(l)}
   ${isTeam()&&p.length&&notIn.length&&P('kiritish')?`<div class="card pad"><p class="note" style="margin:0"><b>${notIn.length}</b> ta bola hali kiritilmagan.</p>${absBtn('class',id,notIn.length)}</div>`:''}
