@@ -796,16 +796,33 @@ A['pb.add'] = (u, b) => {
   const items = Array.isArray(b.items) ? b.items : []; if (!items.length) bad('Misol yo‘q'); if (items.length > 40) bad('Bir martada 40 tadan ko‘p emas');
   const clean = items.map(cleanProb);
   return tx(() => {
-    const out = []; let added = 0, dup = 0;
-    for (const p of clean) {
+    const out = []; let added = 0, dup = 0, updated = 0;
+    for (const [k, p] of clean.entries()) {
+      const pid = parseInt(items[k].id, 10); // yuklab olingan bazadan kelgan misol: eskisining o'rniga yoziladi
+      if (pid && one('SELECT 1 FROM probs WHERE id=?', pid)) {
+        const sig = probSig(p); const other = one('SELECT id FROM probs WHERE sig=? AND id!=?', sig, pid);
+        if (other) { dup++; out.push({ id: other.id, dup: true }); continue; }
+        run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, pid);
+        updated++; out.push({ id: pid, dup: false }); continue;
+      }
       const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
       if (ex) { if (!ex.active) { run('UPDATE probs SET active=1,topic=?,kind=?,level=?,a=?,fix=?,sol=? WHERE id=?', p.topic, p.kind, p.level, p.a, p.fix, p.sol, ex.id); added++; out.push({ id: ex.id, dup: false }); } else { dup++; out.push({ id: ex.id, dup: true }); } continue; }
       const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, u.id, now());
       added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
     }
-    if (added) log(u.id, 'misol.qoshish', { soni: added, takror: dup });
-    return { added, dup, ids: out };
+    if (added || updated) log(u.id, 'misol.qoshish', { soni: added, yangilandi: updated, takror: dup });
+    return { added, dup, updated, ids: out };
   });
+};
+// butun bazani paket (.json) qilib yuklab olish — rasmlari ichida; o'zgartirib qayta yuklansa, misollar id bo'yicha yangilanadi
+A['pb.export'] = (u) => {
+  need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
+  const cache = {};
+  const inl = id => { if (!id) return ''; if (!(id in cache)) { const m = one('SELECT type,data FROM media WHERE id=?', id); cache[id] = m ? `data:${m.type};base64,${Buffer.from(m.data).toString('base64')}` : ''; } return cache[id]; };
+  const items = all('SELECT * FROM probs WHERE active=1 ORDER BY grade,topic,id').map(probRow)
+    .map(p => ({ id: p.id, grade: p.grade, topic: p.topic, kind: p.kind, level: p.level, q: p.q, img: inl(p.img), o: p.o.map(v => ({ t: v.t, i: inl(v.i) })), a: p.a, fix: p.fix, sol: p.sol, src: p.src }));
+  log(u.id, 'misol.yuklab_olish', { soni: items.length });
+  return { yx: 'paket', at: now(), items };
 };
 A['pb.delete'] = (u, b) => {
   need(canKey(u), 'Misol o‘chirish uchun kalit huquqi kerak');

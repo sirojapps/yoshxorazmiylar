@@ -2091,7 +2091,7 @@ function scrPB(){const w=pbNeed();if(w)return w;
   const g=PBG,groups=PBM.topics[g],cn=PBM.counts[g]||{};const tot=Object.values(cn).reduce((a,x)=>a+x.n,0),pic=Object.values(cn).reduce((a,x)=>a+x.p,0);
   return ['Misollar bazasi',`${PBM.total} ta misol`,`
   <div class="seg">${gs.map(x=>`<button data-pbg="${x}" aria-pressed="${x===g}">${x}-sinf</button>`).join('')}</div>
-  <div class="qa"><button class="btn pri" data-pb="pkOpen">📦 Paket yuklash</button><button class="btn sec" data-pb="tzOpen">🧩 Test tuzish</button></div>
+  <div class="qa"><button class="btn pri" data-pb="pkOpen">📦 Paket yuklash</button><button class="btn sec" data-pb="tzOpen">🧩 Test tuzish</button></div><button class="btn sec" data-pb="pbExport">⬇️ Bazani yuklab olish (.json)</button>
   <div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div style="font-weight:700">${g}-sinf: ${tot} ta misol</div><div class="note">${pic} tasi suratli · ${groups.reduce((a,[,l])=>a+l.length,0)} ta mavzu</div></div></div>
   <div class="seg"><button data-pbi="0" aria-pressed="${!PBPIC}">Hamma misollar</button><button data-pbi="1" aria-pressed="${!!PBPIC}">🖼 Faqat suratli</button></div>
   ${groups.map(([grp,l])=>{const n=l.reduce((a,[c])=>a+(PBPIC?pbCnt(g,c).p:pbCnt(g,c).n),0);
@@ -2142,12 +2142,12 @@ async function pkGo(btn){if(!PK)return;btn.disabled=true;const prog=m=>{const e=
     if(wantT&&!tn){toast('Test nomini yozing',true);btn.disabled=false;return}
     const urls=[...new Set(PK.items.flatMap(x=>[x.img,...x.o.map(v=>v.i)]).filter(u=>u&&String(u).startsWith('data:')))],map={};
     for(let k=0;k<urls.length;k++){prog(`Rasmlar yuklanmoqda: ${k+1} / ${urls.length}`);map[urls[k]]=await mediaUp(dataBlob(urls[k]))}
-    const fix=x=>({grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
-    const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0;
-    for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup}
+    const fix=x=>({id:x.id||undefined,grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
+    const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0,upd=0;
+    for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup;upd+=r.updated||0}
     if(wantT){prog('Test tayyorlanmoqda…');const ord=Array.isArray(PK.test.items)?PK.test.items.map(i=>all[i]).filter(Boolean):all;
       await api('bank.build',{name:tn,grade:PK.test.grade||ord[0].grade,qs:ord,nvar:nv,kind:'paket'})}
-    closeSheet();PBM=null;PBL=null;toast(`${added} ta misol qo’shildi${dup?`, ${dup} tasi bazada bor edi`:''}${wantT?'. Test Testlar bazasiga qo’shildi':''}`);await load()}
+    closeSheet();PBM=null;PBL=null;toast(`${added} ta misol qo’shildi${upd?`, ${upd} tasi yangilandi`:''}${dup?`, ${dup} tasi bazada bor edi`:''}${wantT?'. Test Testlar bazasiga qo’shildi':''}`);await load()}
   catch(e){toast(e.message,true);btn.disabled=false;prog('')}}
 
 // ---- test tuzish: mavzularni tanlang → sayt bazadan teradi → ko'rib chiqib almashtirasiz → saqlaysiz
@@ -2380,6 +2380,7 @@ document.addEventListener('click',async e=>{
   if(d.pbkv){PU.keys[PU.v]=PU.key.join('');PU.v=d.pbkv;PU.key=PU.keys[PU.v].split('');drawBankKey();return}
   switch(d.pb){
    case 'pkOpen':openPkt();break;
+   case 'pbExport':{b.disabled=true;try{const r=await api('pb.export');saveBlob(new Blob([JSON.stringify(r)],{type:'application/json'}),`Misollar_bazasi_${new Date().toISOString().slice(0,10)}.json`);toast(`${r.items.length} ta misol yuklab olindi`)}catch(e){toast(e.message,true)}b.disabled=false;break}
    case 'pkPick':pkPick();break;
    case 'pkGo':await pkGo(b);break;
    case 'tzOpen':if(!TZ||TZ.grade!==PBG)tzNew();go('tuzish');break;
