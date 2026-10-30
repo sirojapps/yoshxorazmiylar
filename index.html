@@ -2176,7 +2176,7 @@ async function pkGo(btn){if(!PK)return;btn.disabled=true;const prog=m=>{const e=
     if(wantT&&!tn){toast('Test nomini yozing',true);btn.disabled=false;return}
     const urls=[...new Set(PK.items.flatMap(x=>[x.img,...x.o.map(v=>v.i)]).filter(u=>u&&String(u).startsWith('data:')))],map={};
     for(let k=0;k<urls.length;k++){prog(`Rasmlar yuklanmoqda: ${k+1} / ${urls.length}`);map[urls[k]]=await mediaUp(dataBlob(urls[k]))}
-    const fix=x=>({id:x.id||undefined,grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
+    const fix=x=>({id:x.id||undefined,rep:x.rep?1:undefined,grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
     const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0,upd=0;
     for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup;upd+=r.updated||0}
     if(wantT){prog('Test tayyorlanmoqda…');const ord=Array.isArray(PK.test.items)?PK.test.items.map(i=>all[i]).filter(Boolean):all;
