@@ -1902,10 +1902,11 @@ function omrWarpQR(G,H,qr){const N=200,m=qr.s*.22,x0=qr.x-m,y0=qr.y-m,sz=qr.s+2*
   const r=jsQR(d,N,N,{inversionAttempts:'dontInvert'});return r&&/^Y[XZ]:/.test(r.data)?r.data:null}
 async function omrQR(cv,G){
   if('BarcodeDetector' in window){try{if(!omrQR.bd)omrQR.bd=new BarcodeDetector({formats:['qr_code']});const r=await omrQR.bd.detect(cv);
-    const c=r.find(x=>/^Y[XZ]:/.test(x.rawValue));if(c){const p=c.cornerPoints;return {t:c.rawValue,x:p.reduce((a,q)=>a+q.x,0)/p.length,y:p.reduce((a,q)=>a+q.y,0)/p.length}}}catch(e){omrQR.bd=null}}
+    // kadrda bir nechta titul bo'lishi mumkin (bitta A4 da 2 ta) — hamma QR olinadi
+    const all=r.filter(x=>/^Y[XZ]:/.test(x.rawValue)).map(c=>{const p=c.cornerPoints;return {t:c.rawValue,x:p.reduce((a,q)=>a+q.x,0)/p.length,y:p.reduce((a,q)=>a+q.y,0)/p.length}});if(all.length)return all}catch(e){omrQR.bd=null}}
   if(window.jsQR){const r=jsQR(G.id.data,G.w,G.h,{inversionAttempts:'dontInvert'});if(r&&/^Y[XZ]:/.test(r.data)){const l=r.location;
-    return {t:r.data,x:(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4}}}
-  return null}
+    return [{t:r.data,x:(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4}]}}
+  return []}
 function parseQR(t){const a=String(t).split(':');if(a.length<6)return null;const o={spare:a[0]==='YZ',tid:+a[1],id:+a[2],v:a[3],qn:+a[4],nopt:+a[5],k:+a[6]||0};
   return o.tid&&o.id&&/^[A-D]$/.test(o.v)&&o.qn>0&&o.qn<=50&&o.nopt>=2&&o.nopt<=5?o:null}
 // kameradan yoki rasmdan bitta kadr: {err} yoki {qr,H,ans,marks,...}
@@ -1914,22 +1915,28 @@ async function omrRead(src){
   const k=Math.min(1,1280/Math.max(sw,shh)),cv=omrRead.cv||(omrRead.cv=document.createElement('canvas'));cv.width=Math.round(sw*k);cv.height=Math.round(shh*k);
   cv.getContext('2d',{willReadFrequently:true}).drawImage(src,0,0,cv.width,cv.height);
   const G=omrGray(cv);const quads=omrQuads(omrBlobs(omrBin(G),G.w,G.h));if(!quads.length)return {err:'marker'};
-  let qr=await omrQR(cv,G);
-  if(!qr&&window.jsQR)for(const qd of quads.slice(0,3)){const xs=qd.p.map(p=>p.x),ys=qd.p.map(p=>p.y),pw=(Math.max(...xs)-Math.min(...xs))*.06,ph_=(Math.max(...ys)-Math.min(...ys))*.06;
+  const qrs=await omrQR(cv,G);
+  if(window.jsQR)for(const qd of quads.slice(0,4)){const xs=qd.p.map(p=>p.x),ys=qd.p.map(p=>p.y),pw=(Math.max(...xs)-Math.min(...xs))*.06,ph_=(Math.max(...ys)-Math.min(...ys))*.06;
     const x0=Math.max(0,Math.floor(Math.min(...xs)-pw)),y0=Math.max(0,Math.floor(Math.min(...ys)-ph_)),x1=Math.min(G.w,Math.ceil(Math.max(...xs)+pw)),y1=Math.min(G.h,Math.ceil(Math.max(...ys)+ph_));
     if(x1-x0<40||y1-y0<40)continue;const d=cv.getContext('2d').getImageData(x0,y0,x1-x0,y1-y0);const r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
-    if(r&&/^Y[XZ]:/.test(r.data)){const l=r.location;qr={t:r.data,x:x0+(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:y0+(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4};break}}
+    if(r&&/^Y[XZ]:/.test(r.data)){const l=r.location,q={t:r.data,x:x0+(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:y0+(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4};
+      if(!qrs.some(o=>Math.hypot(o.x-q.x,o.y-q.y)<20))qrs.push(q)}}
   // Qiyshiq/burilgan titul: 4 burchakdan to'g'rilangan (perspektivasi tuzatilgan) rasm olib, QR shundan o'qiladi
-  let pre=null;
-  if(!qr&&window.jsQR){const L0=tLayout(20,4),qc0=[L0.qr.x+L0.qr.s/2,L0.qr.y+L0.qr.s/2];
+  let pre=null,qr=null;
+  if(!qrs.length&&window.jsQR){const L0=tLayout(20,4),qc0=[L0.qr.x+L0.qr.s/2,L0.qr.y+L0.qr.s/2];
     outer:for(const qd of quads.slice(0,3))for(let r=0;r<4;r++){const H=homog(L0.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
       const t=omrWarpQR(G,H,L0.qr);if(t){const [ux,uy]=hmap(H,...qc0);qr={t,x:ux,y:uy};pre={H,qd};break outer}}}
-  if(!qr)return {err:'qr',quads};const info=parseQR(qr.t);if(!info)return {err:'qr',quads};
-  const L=tLayout(info.qn,info.nopt),qc=[L.qr.x+L.qr.s/2,L.qr.y+L.qr.s/2];let best=null;
-  for(const qd of quads)for(let r=0;r<4;r++){const H=homog(L.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
-    const [ux,uy]=hmap(H,...qc),[ax,ay]=hmap(H,L.qr.x,L.qr.y),[bx,by]=hmap(H,L.qr.x+L.qr.s,L.qr.y),dist=Math.hypot(ux-qr.x,uy-qr.y),tol=Math.hypot(bx-ax,by-ay)*.35;
-    if(dist<tol&&(!best||dist<best.dist))best={H,dist,qd}}
-  if(!best&&pre)best={H:pre.H,dist:0,qd:pre.qd};
+  if(qr)qrs.push(qr);if(!qrs.length)return {err:'qr',quads};
+  // Har bir QR uchun o'zining 4 burchagini izlaymiz. Kadrga 2 ta titul tushsa (bitta A4 dagi ikkalasi), 4 burchagi
+  // to'liq ko'ringan va ramka markaziga eng yaqin titul olinadi — ikkinchisi xalaqit bermaydi.
+  let best=null,info=null,L=null;const fcx=cv.width/2,fcy=cv.height/2,diag=Math.hypot(cv.width,cv.height);
+  for(const q of qrs){const inf=parseQR(q.t);if(!inf)continue;const LL=tLayout(inf.qn,inf.nopt),qc=[LL.qr.x+LL.qr.s/2,LL.qr.y+LL.qr.s/2];
+    for(const qd of quads)for(let r=0;r<4;r++){const H=homog(LL.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
+      const [ux,uy]=hmap(H,...qc),[ax,ay]=hmap(H,LL.qr.x,LL.qr.y),[bx,by]=hmap(H,LL.qr.x+LL.qr.s,LL.qr.y),dist=Math.hypot(ux-q.x,uy-q.y),tol=Math.hypot(bx-ax,by-ay)*.35;
+      if(dist>=tol)continue;const cx=qd.p.reduce((a,p)=>a+p.x,0)/4,cy=qd.p.reduce((a,p)=>a+p.y,0)/4,sc=dist/tol+3*Math.hypot(cx-fcx,cy-fcy)/diag;
+      if(!best||sc<best.sc){best={H,dist,qd,sc};info=inf;L=LL;qr=q}}}
+  if(!best&&pre){qr=qrs[0];info=parseQR(qr.t);if(info){L=tLayout(info.qn,info.nopt);best={H:pre.H,dist:0,qd:pre.qd}}}
+  if(!info){info=parseQR(qrs[0].t);if(!info)return {err:'qr',quads};L=tLayout(info.qn,info.nopt)}
   if(!best)return {err:'one',quads};
   const H=best.H,g=G.g,w=G.w,h=G.h;
   const mean=(x,y,r)=>{let s=0,n=0;const r2=r*r;for(let yy=Math.max(0,Math.floor(y-r));yy<=Math.min(h-1,Math.ceil(y+r));yy++)for(let xx=Math.max(0,Math.floor(x-r));xx<=Math.min(w-1,Math.ceil(x+r));xx++){const dx=xx-x,dy=yy-y;if(dx*dx+dy*dy<=r2){s+=g[yy*w+xx];n++}}return n?s/n:255};
