@@ -687,6 +687,9 @@ CREATE TABLE IF NOT EXISTS probs(id INTEGER PRIMARY KEY, grade INTEGER NOT NULL,
 CREATE INDEX IF NOT EXISTS probs_gt ON probs(grade,topic,active);
 CREATE UNIQUE INDEX IF NOT EXISTS probs_sig ON probs(sig);`);
 try { db.exec("ALTER TABLE tbank ADD COLUMN kind TEXT DEFAULT 'matn'"); } catch (e) { }
+// o'xshash misollar (raqamlari yoki variantlari boshqacha, lekin matni bir xil) uchun ikkinchi imzo
+try { db.exec("ALTER TABLE probs ADD COLUMN nsig TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("CREATE INDEX IF NOT EXISTS probs_nsig ON probs(nsig)"); } catch (e) { }
 
 // Mavzular daraxti: darslik mavzulari + darslikdan tashqari, lekin shu yoshdagi bolalarga kerakli mavzular.
 // Kodlar o'zgarmaydi (yangi mavzu guruh oxiriga yangi kod bilan qo'shiladi), shuning uchun misollar o'z joyida qoladi.
@@ -766,6 +769,13 @@ function cleanProb(x, i) {
 }
 const probSig = p => crypto.createHash('sha1').update([p.grade, String(p.q).toLowerCase().replace(/\s+/g, ' ').replace(/[`'‘’ʻʼ]/g, "'"), p.img, p.o.map(v => v.t.toLowerCase() + '#' + v.i).join('|')].join('§')).digest('hex');
 const hasImg = p => !!p.img || p.o.some(v => v.i);
+// O'xshashlik imzosi: matndan raqamlar, tinish belgilari va qisqa so'zlar olib tashlanadi, harflar bir xillashtiriladi.
+// Faqat yetarlicha uzun matnli misollar (6+ so'z) uchun ishlaydi: "5+3=?" kabi hisoblash misollari bir-biriga o'xshab ketmasligi uchun.
+const probNorm = q => String(q || '').toLowerCase().replace(/[`'‘’ʻʼ]/g, "'").replace(/o'/g, 'ö').replace(/g'/g, 'ğ').replace(/[0-9]+([.,][0-9]+)?/g, '#')
+  .replace(/[^a-zöğ#\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 || w === '#');
+const probNsig = p => { const w = probNorm(p.q); if (w.filter(x => x !== '#').length < 6) return ''; return crypto.createHash('sha1').update(w.join(' ') + '§' + (p.img ? 'img' : '')).digest('hex'); };
+// bazadagi eski misollarga ham imzo qo'yiladi (bir marta)
+try { for (const r of all("SELECT id,q,img FROM probs WHERE nsig IS NULL OR nsig=''")) { const ns = probNsig({ q: r.q, img: r.img }); if (ns) run('UPDATE probs SET nsig=? WHERE id=?', ns, r.id); } } catch (e) { }
 function probRow(r) { const o = JSON.parse(r.o); return { id: r.id, grade: r.grade, topic: r.topic, kind: r.kind, level: r.level, q: r.q, img: r.img, o, a: r.a, fix: !!r.fix, sol: r.sol, src: r.src, at: r.at, pic: !!r.img || o.some(v => v.i) }; }
 
 A['pb.meta'] = u => {
@@ -796,7 +806,7 @@ A['pb.add'] = (u, b) => {
   const items = Array.isArray(b.items) ? b.items : []; if (!items.length) bad('Misol yo‘q'); if (items.length > 40) bad('Bir martada 40 tadan ko‘p emas');
   const clean = items.map(cleanProb);
   return tx(() => {
-    const out = []; let added = 0, dup = 0, updated = 0;
+    const out = []; let added = 0, dup = 0, updated = 0, nearDup = 0; const seen = new Map();
     for (const [k, p] of clean.entries()) {
       const pid = parseInt(items[k].id, 10); // yuklab olingan bazadan kelgan misol: eskisining o'rniga yoziladi
       // yangilash paketi (rep): id yo'q, lekin manbasi (src) bir xil misol bazada bo'lsa — o'sha misol o'rniga yoziladi
@@ -806,16 +816,24 @@ A['pb.add'] = (u, b) => {
         const pid = pid2;
         const sig = probSig(p); const other = one('SELECT id FROM probs WHERE sig=? AND id!=?', sig, pid);
         if (other) { dup++; out.push({ id: other.id, dup: true }); continue; }
-        run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, pid);
+        const nsig = probNsig(p); const near = nsig ? one('SELECT id FROM probs WHERE nsig=? AND active=1 AND id!=?', nsig, pid) : null;
+        if (near) { dup++; nearDup++; out.push({ id: near.id, dup: true, near: true }); continue; }
+        run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,nsig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, pid);
         updated++; out.push({ id: pid, dup: false }); continue;
       }
       const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
       if (ex) { if (!ex.active) { run('UPDATE probs SET active=1,topic=?,kind=?,level=?,a=?,fix=?,sol=? WHERE id=?', p.topic, p.kind, p.level, p.a, p.fix, p.sol, ex.id); added++; out.push({ id: ex.id, dup: false }); } else { dup++; out.push({ id: ex.id, dup: true }); } continue; }
-      const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, u.id, now());
+      // o'xshash misol (matni bir xil, faqat raqamlari/variantlari boshqacha) — takror hisoblanadi
+      const nsig = probNsig(p); const near = nsig ? one('SELECT id FROM probs WHERE nsig=? AND active=1', nsig) : null;
+      if (near) { dup++; nearDup++; out.push({ id: near.id, dup: true, near: true }); continue; }
+      // bir paketning ichida ham takror bo'lmasin
+      if (nsig && seen.has(nsig)) { dup++; nearDup++; out.push({ id: seen.get(nsig), dup: true, near: true }); continue; }
+      const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,nsig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, u.id, now());
+      if (nsig) seen.set(nsig, Number(r.lastInsertRowid));
       added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
     }
-    if (added || updated) log(u.id, 'misol.qoshish', { soni: added, yangilandi: updated, takror: dup });
-    return { added, dup, updated, ids: out };
+    if (added || updated) log(u.id, 'misol.qoshish', { soni: added, yangilandi: updated, takror: dup, oxshash: nearDup });
+    return { added, dup, updated, near: nearDup, ids: out };
   });
 };
 // butun bazani paket (.json) qilib yuklab olish — rasmlari ichida; o'zgartirib qayta yuklansa, misollar id bo'yicha yangilanadi
