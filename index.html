@@ -429,6 +429,8 @@ let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola'
 // sahifa yangilanganda (refresh) o'sha sahifada qolish uchun joriy holatni eslab qolamiz
 const NAV={get(){try{return JSON.parse(sessionStorage.getItem('yx_nav')||'null')}catch(e){return null}},set(v){try{sessionStorage.setItem('yx_nav',JSON.stringify(v))}catch(e){}}};
 (function(){const n=NAV.get();if(n){if(typeof n.tab==='string')tab=n.tab;if(Array.isArray(n.stack))stack=n.stack.filter(x=>typeof x==='string').slice(-20);if(n.hs!=null)window.__hs=n.hs}})();
+// scroll joyi: brauzer yangilanganda ham odam turgan joyiga qaytadi
+let __y=(NAV.get()||{}).y||0,__yT=0;addEventListener('scroll',()=>{clearTimeout(__yT);__yT=setTimeout(()=>{const n=NAV.get()||{};n.y=scrollY;NAV.set(n)},150)},{passive:true});
 let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
 const isDir=()=>S?.me?.role==='direktor';
@@ -1891,6 +1893,13 @@ function solve8(A,b){const n=8;for(let c=0;c<n;c++){let m=c;for(let r=c+1;r<n;r+
 function homog(src,dst){const A=[],b=[];for(let i=0;i<4;i++){const [x,y]=src[i],[u,v]=dst[i];A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v)}
   const h=solve8(A,b);return h?[...h,1]:null}
 const hmap=(H,x,y)=>{const w=H[6]*x+H[7]*y+1;return [(H[0]*x+H[1]*y+H[2])/w,(H[3]*x+H[4]*y+H[5])/w]};
+// titulning QR qismini (mm) to'g'rilangan kvadrat rasmga aylantirib, jsQR bilan o'qish — qiyshiqlik va soya xalaqit bermaydi
+function omrWarpQR(G,H,qr){const N=200,m=qr.s*.22,x0=qr.x-m,y0=qr.y-m,sz=qr.s+2*m,d=new Uint8ClampedArray(N*N*4),{g,w,h}=G;
+  let lo=255,hi=0;const v=new Uint8Array(N*N);
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const [px,py]=hmap(H,x0+(i+.5)/N*sz,y0+(j+.5)/N*sz);const xx=Math.round(px),yy=Math.round(py);const c=xx<0||yy<0||xx>=w||yy>=h?255:g[yy*w+xx];v[j*N+i]=c;if(c<lo)lo=c;if(c>hi)hi=c}
+  const k=hi>lo?255/(hi-lo):1; // soyada ham kontrastni tiklash
+  for(let i=0;i<N*N;i++){const c=Math.max(0,Math.min(255,(v[i]-lo)*k));d[i*4]=d[i*4+1]=d[i*4+2]=c;d[i*4+3]=255}
+  const r=jsQR(d,N,N,{inversionAttempts:'dontInvert'});return r&&/^Y[XZ]:/.test(r.data)?r.data:null}
 async function omrQR(cv,G){
   if('BarcodeDetector' in window){try{if(!omrQR.bd)omrQR.bd=new BarcodeDetector({formats:['qr_code']});const r=await omrQR.bd.detect(cv);
     const c=r.find(x=>/^Y[XZ]:/.test(x.rawValue));if(c){const p=c.cornerPoints;return {t:c.rawValue,x:p.reduce((a,q)=>a+q.x,0)/p.length,y:p.reduce((a,q)=>a+q.y,0)/p.length}}}catch(e){omrQR.bd=null}}
@@ -1910,11 +1919,17 @@ async function omrRead(src){
     const x0=Math.max(0,Math.floor(Math.min(...xs)-pw)),y0=Math.max(0,Math.floor(Math.min(...ys)-ph_)),x1=Math.min(G.w,Math.ceil(Math.max(...xs)+pw)),y1=Math.min(G.h,Math.ceil(Math.max(...ys)+ph_));
     if(x1-x0<40||y1-y0<40)continue;const d=cv.getContext('2d').getImageData(x0,y0,x1-x0,y1-y0);const r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
     if(r&&/^Y[XZ]:/.test(r.data)){const l=r.location;qr={t:r.data,x:x0+(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:y0+(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4};break}}
+  // Qiyshiq/burilgan titul: 4 burchakdan to'g'rilangan (perspektivasi tuzatilgan) rasm olib, QR shundan o'qiladi
+  let pre=null;
+  if(!qr&&window.jsQR){const L0=tLayout(20,4),qc0=[L0.qr.x+L0.qr.s/2,L0.qr.y+L0.qr.s/2];
+    outer:for(const qd of quads.slice(0,3))for(let r=0;r<4;r++){const H=homog(L0.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
+      const t=omrWarpQR(G,H,L0.qr);if(t){const [ux,uy]=hmap(H,...qc0);qr={t,x:ux,y:uy};pre={H,qd};break outer}}}
   if(!qr)return {err:'qr',quads};const info=parseQR(qr.t);if(!info)return {err:'qr',quads};
   const L=tLayout(info.qn,info.nopt),qc=[L.qr.x+L.qr.s/2,L.qr.y+L.qr.s/2];let best=null;
   for(const qd of quads)for(let r=0;r<4;r++){const H=homog(L.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
     const [ux,uy]=hmap(H,...qc),[ax,ay]=hmap(H,L.qr.x,L.qr.y),[bx,by]=hmap(H,L.qr.x+L.qr.s,L.qr.y),dist=Math.hypot(ux-qr.x,uy-qr.y),tol=Math.hypot(bx-ax,by-ay)*.35;
     if(dist<tol&&(!best||dist<best.dist))best={H,dist,qd}}
+  if(!best&&pre)best={H:pre.H,dist:0,qd:pre.qd};
   if(!best)return {err:'one',quads};
   const H=best.H,g=G.g,w=G.w,h=G.h;
   const mean=(x,y,r)=>{let s=0,n=0;const r2=r*r;for(let yy=Math.max(0,Math.floor(y-r));yy<=Math.min(h-1,Math.ceil(y+r));yy++)for(let xx=Math.max(0,Math.floor(x-r));xx<=Math.min(w-1,Math.ceil(x+r));xx++){const dx=xx-x,dy=yy-y;if(dx*dx+dy*dy<=r2){s+=g[yy*w+xx];n++}}return n?s/n:255};
@@ -1950,12 +1965,17 @@ async function scanStart(){
   if(!SC){return}const v=$('#scanV');if(v){v.srcObject=SC.stream;try{await v.play()}catch(e){}}SC.msg='Titulni ramkaga sig’diring: 4 ta qora kvadrat va QR kod ko’rinsin';scanDraw(true);scanLoop()}
 function scanLoop(){if(!SC)return;clearTimeout(SC.timer);SC.timer=setTimeout(async()=>{if(!SC)return;
   if(SC.view==='live'&&!SC.busy){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
-  scanLoop()},280)}
-const SC_ERR={kamera:'Kamera tayyorlanmoqda…',marker:'Titulni ramkaga to’liq sig’diring — 4 ta qora kvadrat ko’rinsin',qr:'Burchaklar topildi. QR kod o’qilmayapti — yorug’roq joyda, qimirlatmay tuting',one:'Bir vaqtda faqat bitta titulni tuting'};
+  scanLoop()},160)}
+const SC_ERR={kamera:'Kamera tayyorlanmoqda…',marker:'Titulni ramkaga sig’diring',qr:'4 burchak topildi, QR o’qilmoqda — bir soniya kuting',one:'Bir vaqtda faqat bitta titulni tuting'};
+function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;const cv=r&&r.cv;const qd=r&&(r.quad||r.quads?.[0]?.p);
+  if(!cv||!qd){ov.width=ov.width;return}if(ov.width!==cv.width||ov.height!==cv.height){ov.width=cv.width;ov.height=cv.height}
+  const g=ov.getContext('2d');g.clearRect(0,0,ov.width,ov.height);g.strokeStyle=r.err?'#ffd54f':'#3ddc84';g.lineWidth=Math.max(3,ov.width/220);g.beginPath();qd.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();g.stroke();
+  g.fillStyle=g.strokeStyle;qd.forEach(p=>{g.beginPath();g.arc(p.x,p.y,ov.width/70,0,7);g.fill()})}
 async function scanHandle(r,still){
+  if(!still)scanOverlay(r);
   if(r.err){if(still){toast(SC_ERR[r.err]==null?'O’qib bo’lmadi':SC_ERR[r.err].replace('Titulni ramkaga','Rasmda titulni'),true)}SC.same=0;scanMsg(SC_ERR[r.err]);return}
   const q=r.qr;if(q.tid!==SC.tid){const o=S.tests.find(x=>x.id===q.tid);scanMsg(o?`Bu titul «${o.name}» uchun chiqarilgan. Bu yerda «${S.tests.find(x=>x.id===SC.tid)?.name}» tekshirilyapti`:'Bu titul boshqa imtihon uchun chiqarilgan');return}
-  const key=r.raw+'|'+r.ans;if(!still){if(key!==SC.last){SC.last=key;SC.same=1;scanMsg('O’qilmoqda… qimirlatmang');return}if(++SC.same<3)return}
+  const key=r.raw+'|'+r.ans;if(!still){if(key!==SC.last){SC.last=key;SC.same=1;scanMsg('O’qilmoqda… qimirlatmang');return}if(++SC.same<2)return}
   const st=q.spare?null:X.st.find(s=>s.id===q.id);
   if(!q.spare&&!st){scanMsg('Bu bola ro’yxatda topilmadi (o’chirilgan bo’lishi mumkin)');return}
   const old=st?R(st.id,SC.tid):null;
@@ -1991,7 +2011,7 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const c=X.cl[SC.c
   const top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${esc(c?.name||'')} sinf · ${esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
   if(SC.view==='live'){
     if(keepVideo&&$('#scanV')){el.querySelector('.scan-top').outerHTML=top;const ok=$('#scanOk');if(ok)ok.outerHTML=scanOkHtml();$('#scanMsg').textContent=SC.msg;return}
-    el.innerHTML=`${top}<div class="scan-cam"><video id="scanV" playsinline muted autoplay></video><div class="scan-guide"><i></i><i></i><i></i><i></i></div></div>
+    el.innerHTML=`${top}<div class="scan-cam"><video id="scanV" playsinline muted autoplay></video><canvas id="scanOv" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none"></canvas><div class="scan-guide"><i></i><i></i><i></i><i></i></div></div>
     ${scanOkHtml()}<div class="scan-msg" id="scanMsg">${esc(SC.msg)}</div>
     <div class="scan-bot"><button class="btn sec" data-sa="photo">📸 Rasmdan</button></div>`;
     if(SC.stream){const v=$('#scanV');v.srcObject=SC.stream;v.play().catch(()=>{})}return}
@@ -2177,11 +2197,11 @@ async function pkGo(btn){if(!PK)return;btn.disabled=true;const prog=m=>{const e=
     const urls=[...new Set(PK.items.flatMap(x=>[x.img,...x.o.map(v=>v.i)]).filter(u=>u&&String(u).startsWith('data:')))],map={};
     for(let k=0;k<urls.length;k++){prog(`Rasmlar yuklanmoqda: ${k+1} / ${urls.length}`);map[urls[k]]=await mediaUp(dataBlob(urls[k]))}
     const fix=x=>({id:x.id||undefined,rep:x.rep?1:undefined,grade:x.grade,topic:x.topic,kind:x.kind,level:x.level,q:x.q||'',img:map[x.img]||x.img||'',o:x.o.map(v=>({t:v.t||'',i:map[v.i]||v.i||''})),a:x.a,fix:!!x.fix,sol:x.sol||'',src:x.src||PK.name});
-    const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0,upd=0;
-    for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup;upd+=r.updated||0}
+    const all=PK.items.map(fix),on=all.filter((_,i)=>PK.items[i].on);let added=0,dup=0,upd=0,near=0;
+    for(let k=0;k<on.length;k+=25){prog(`Misollar bazaga yozilmoqda: ${Math.min(k+25,on.length)} / ${on.length}`);const r=await api('pb.add',{items:on.slice(k,k+25)});added+=r.added;dup+=r.dup;upd+=r.updated||0;near+=r.near||0}
     if(wantT){prog('Test tayyorlanmoqda…');const ord=Array.isArray(PK.test.items)?PK.test.items.map(i=>all[i]).filter(Boolean):all;
       await api('bank.build',{name:tn,grade:PK.test.grade||ord[0].grade,qs:ord,nvar:nv,kind:'paket'})}
-    closeSheet();PBM=null;PBL=null;toast(`${added} ta misol qo’shildi${upd?`, ${upd} tasi yangilandi`:''}${dup?`, ${dup} tasi bazada bor edi`:''}${wantT?'. Test Testlar bazasiga qo’shildi':''}`);await load()}
+    closeSheet();PBM=null;PBL=null;toast(`${added} ta misol qo’shildi${upd?`, ${upd} tasi yangilandi`:''}${dup-near?`, ${dup-near} tasi bazada bor edi`:''}${near?`, ${near} tasi bazadagi misolga o’xshash (qo’shilmadi)`:''}${wantT?'. Test Testlar bazasiga qo’shildi':''}`);await load()}
   catch(e){toast(e.message,true);btn.disabled=false;prog('')}}
 
 // ---- test tuzish: mavzularni tanlang → sayt bazadan teradi → ko'rib chiqib almashtirasiz → saqlaysiz
@@ -2495,7 +2515,7 @@ function render(){
   X=idx();
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
-  NAV.set({tab,stack,hs:histStudent??null});
+  NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
@@ -2509,6 +2529,7 @@ function render(){
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
   navSync();
+  if(__y){const y=__y;__y=0;requestAnimationFrame(()=>scrollTo(0,y))}
 }
 let lpEdit=false;
 const lpGet=()=>ls.get('lphone','');
@@ -2695,7 +2716,7 @@ document.addEventListener('click',async e=>{
    case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render()}catch(e){toast(e.message,true)}},kid?200:240);break}
    case 'avNudgeOff':ls.set('avn',1);render();break;
    case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();break}
-   case 'reload':location.reload();break;
+   case 'reload':{const y=scrollY;b.style.opacity='.4';await load();requestAnimationFrame(()=>scrollTo(0,y));toast('Yangilandi');break}
    case 'delOpen':openDel(d.k,+d.id);break;
    case 'delGo':{const k=d.k,id=+d.id;await api(k+'.delete',{id,confirm:val('delConf')});closeSheet();TRASH=null;if(k!=='test'){while(stack.length&&/^(school|class|stu|itest):/.test(stack[stack.length-1]))stack.pop()}if(k==='test'&&testId===id){testId=0}toast('O’chirildi. “O’chirilganlar” bo’limidan qaytarish mumkin');await load();break}
    case 'trRestore':{await api('trash.restore',{id:+d.id});TRASH=null;toast('Qaytarildi');await load();break}
