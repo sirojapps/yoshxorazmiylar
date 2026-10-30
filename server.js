@@ -904,12 +904,33 @@ A['bank.build'] = (u, b) => {
   });
   const nv = Math.min(4, Math.max(1, parseInt(b.nvar, 10) || 1));
   const seed = crypto.randomInt(1, 2 ** 31);
-  const data = { A: { qs } }; for (let k = 1; k < nv; k++) data[VARS[k]] = { qs: makeVariant(qs, seed + k * 7919) };
+  // Variantlar: bazadan tuzilgan testda har o'rin uchun o'sha mavzu va o'sha darajadagi BOSHQA misol olinadi
+  // (o'rni almashtirilgan nusxa emas). Bazada yetarli misol bo'lmagan o'rinlar uchun eski usul (o'rin almashtirish) va ogohlantirish.
+  const data = { A: { qs } }; const short = [];
+  const fromBank = b.kind !== 'paket' && qs.some(q => q.pid);
+  if (fromBank) {
+    const used = new Set(qs.map(q => q.pid).filter(Boolean));
+    const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
+    for (let k = 1; k < nv; k++) {
+      const r = rnd(seed + k * 7919), vq = qs.map((q, i) => {
+        const m = q.pid && meta[q.pid]; if (!m) return null;
+        const cand = all('SELECT * FROM probs WHERE active=1 AND grade=? AND topic=? AND level=?', g, m.topic, m.level).map(probRow).filter(p => !used.has(p.id) && p.pic === m.pic);
+        const pick = cand.length ? shuffle(cand, r)[0] : null; if (!pick) { short.push({ v: VARS[k], i: i + 1, topic: PB_TOPIC[m.topic]?.name || m.topic }); return null; }
+        used.add(pick.id);
+        const o = pick.o.map(v => v.t || ''), oi = pick.o.map(v => v.i || '');
+        const p = pick.fix ? [...o.keys()] : shuffle([...o.keys()], r);
+        return { q: pick.q, img: pick.img, o: p.map(j => o[j]), oi: p.map(j => oi[j]), a: 'ABCDE'[p.indexOf('ABCDE'.indexOf(pick.a))], fix: pick.fix ? 1 : 0, pid: pick.id };
+      });
+      // topilmagan o'rinlar: 1-variantdagi misolning o'zi, variantlari aralashtirilgan
+      const fb = makeVariant(qs, seed + k * 7919 + 1);
+      data[VARS[k]] = { qs: vq.map((x, i) => x || { ...qs[i], ...(() => { const f = fb.find(y => y.q === qs[i].q && y.img === qs[i].img); return f ? { o: f.o, oi: f.oi, a: f.a } : {}; })() }) };
+    }
+  } else for (let k = 1; k < nv; k++) data[VARS[k]] = { qs: makeVariant(qs, seed + k * 7919) };
   const keys = Object.fromEntries(Object.entries(data).map(([v, x]) => [v, x.qs.map(q => q.a).join('')]));
   const nopt = Math.max(4, ...qs.map(q => q.o.length)), kind = b.kind === 'paket' ? 'paket' : 'baza';
   const r = run('INSERT INTO tbank(name,grade,qn,nopt,data,keys,by,at,kind) VALUES(?,?,?,?,?,?,?,?,?)', name, g, qs.length, nopt, JSON.stringify(data), JSON.stringify(keys), u.id, now(), kind);
-  log(u.id, 'test.bazaga', { name, grade: g, variantlar: nv, savol: qs.length, turi: kind });
-  return { id: Number(r.lastInsertRowid) };
+  log(u.id, 'test.bazaga', { name, grade: g, variantlar: nv, savol: qs.length, turi: kind, yetmadi: short.length });
+  return { id: Number(r.lastInsertRowid), short };
 };
 // tayyor PDF test: kitobcha PDFning o'zi saqlanadi, kalit PDFdan o'qiladi yoki qo'lda belgilanadi
 const cleanKey = (k, qn, nopt) => { const s = String(k || '').toUpperCase().replace(/[^A-E]/g, ''); if (s.length !== qn) bad(`Kalit to‘liq emas: ${s.length} / ${qn} ta javob belgilangan`); if ([...s].some(c => 'ABCDE'.indexOf(c) >= nopt)) bad(`Kalitda ${'ABCDE'[nopt - 1]} dan keyingi harf bor`); return s; };

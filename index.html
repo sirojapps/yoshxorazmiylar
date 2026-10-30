@@ -2227,7 +2227,7 @@ function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,
   <section class="sec"><p class="label">4. Saqlash</p><div class="card pad">
    <label class="field"><span class="label">Test nomi</span><input id="tzName" type="text" value="${esc(TZ.name)}" placeholder="Masalan: ${g}-sinf · 2-bosqich saralash"></label>
    <span class="label">Nechta variant?</span><div class="seg">${[1,2,3,4].map(n=>`<button data-tzv="${n}" aria-pressed="${TZ.nvar===n}">${n} ta</button>`).join('')}</div>
-   <p class="note" style="margin:0">${TZ.nvar>1?`1-variant siz ko’rgan tartibda. Qolganlarida savollar va javoblar o’rni aralashtiriladi, har biriga alohida kalit va kitobcha chiqadi.`:'Hamma bolalarga bitta variant.'}</p>
+   <p class="note" style="margin:0">${TZ.nvar>1?`1-variant siz ko’rgan misollar. Qolgan variantlarda har o’rinda o’sha mavzu va o’sha darajadagi BOSHQA misol bo’ladi (o’rni almashgan nusxa emas); har biriga alohida kalit va kitobcha chiqadi. Bazada misol yetmasa, sayt qaysi mavzuda yetmaganini aytadi.`:'Hamma bolalarga bitta variant.'}</p>
    <button class="btn pri" data-pb="tzSave"${it.length<5?' disabled':''}>💾 Testlar bazasiga saqlash · ${it.length} ta savol</button></div></section>`:''}`]}
 const tzRead=()=>{if(!TZ)return;const n=parseInt($('#tzN')?.value,10),p=parseInt($('#tzP')?.value,10);if(n)TZ.n=Math.min(50,Math.max(5,n));if(!isNaN(p))TZ.nimg=Math.min(TZ.n,Math.max(0,p));const nm=$('#tzName');if(nm)TZ.name=nm.value};
 async function tzPick(){tzRead();const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n:TZ.n,nimg:TZ.nimg});TZ.items=r.rows;
@@ -2238,7 +2238,8 @@ async function tzSwap(i){tzRead();const p=TZ.items[i],ex=TZ.items.map(x=>x.id);
   if(!r.rows.length){toast('Bu mavzuda boshqa misol yo’q',true);return}TZ.items[i]=r.rows[0];render()}
 async function tzAdd(){tzRead();const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n:1,exclude:TZ.items.map(x=>x.id)});if(!r.rows.length){toast('Boshqa misol qolmadi',true);return}TZ.items.push(r.rows[0]);render()}
 async function tzSave(){tzRead();if(!TZ.name.trim()){toast('Test nomini yozing',true);$('#tzName')?.focus();return}
-  await api('bank.build',{name:TZ.name,grade:TZ.grade,nvar:TZ.nvar,kind:'baza',qs:TZ.items.map(p=>({q:p.q,img:p.img,o:p.o,a:p.a,fix:p.fix,pid:p.id}))});
+  const rb=await api('bank.build',{name:TZ.name,grade:TZ.grade,nvar:TZ.nvar,kind:'baza',qs:TZ.items.map(p=>({q:p.q,img:p.img,o:p.o,a:p.a,fix:p.fix,pid:p.id}))});
+  if(rb.short?.length){const by={};rb.short.forEach(x=>(by[x.topic]||=[]).push(`${VL(x.v)}-variant ${x.i}-savol`));alert('Test saqlandi, lekin bazada misol yetmadi — bu o’rinlarda 1-variantdagi misolning o’zi (variantlari aralashtirilgan) qo’yildi:\n\n'+Object.entries(by).map(([t,l])=>`• ${t}: ${l.join(', ')}`).join('\n')+'\n\nShu mavzularga misol qo’shib, testni qayta tuzsangiz, variantlar to’liq boshqa misollardan bo’ladi.')}
   toast('Test Testlar bazasiga saqlandi');TZ=null;stack=[];tab='imtihon';examView='bank';await load();scrollTo(0,0)}
 
 // ---- tayyor PDF test: kitobcha o'zi saqlanadi, savollar soni va kalit PDFdan o'qiladi (topilmasa — qo'lda belgilanadi)
@@ -2327,7 +2328,8 @@ async function bookPdf(bankId,only){
   const F=(b,sz,c)=>{pdf.setFont(FN,b?'bold':'normal');if(sz)pdf.setFontSize(sz);Array.isArray(c)?pdf.setTextColor(...c):pdf.setTextColor(c==null?0:c)};
   const W=(s,b,sz)=>{F(b,sz);return pdf.getTextWidth(s)};
   const bw=(S.bank||[]).find(x=>x.id===bk.id)?.w||null;   // har savol bali (variantlarda ham joyi bir xil)
-  const PW=210,M=11,GAP=7,CW=(PW-2*M-GAP)/2,YB=284,NI=6.5,TW=CW-NI,DPI=220,mm=px=>px*25.4/DPI;
+  // bitta ustun: savollar tartib bilan to'liq kenglikda, ikki ustunga siqilmaydi
+  const PW=210,M=14,CW=PW-2*M,YB=282,NI=7,TW=CW-NI,DPI=220,mm=px=>px*25.4/DPI;
   const TOP1=31,TOPN=17;
   // so'zlab qatorga bo'lish: birinchi qator ball yozuvi uchun qisqaroq
   const wrap=(txt,w0,w,sz)=>{F(false,sz);const out=[];T(txt).split('\n').forEach(par=>{let line='';par.split(/ +/).forEach(wd=>{const lim=out.length?w:w0,t=line?line+' '+wd:wd;
@@ -2336,7 +2338,7 @@ async function bookPdf(bankId,only){
   function block(q,i,fs,x,y,draw){const s=fs/11,lh=fs*.43,sm=Math.max(6.5,fs*.68);
     const bl=bw&&bw[i]!=null?`${num(bw[i])} ball`:'',blw=bl?W(bl,false,sm)+2:0;
     const ql=q.q?wrap(q.q,TW-blw,TW,fs):[];
-    const im=q.img&&IMGC[q.img];let iw=0,ih=0;if(im){iw=Math.min(TW,mm(im.w)*s);ih=iw*im.h/im.w;const mh=68*s;if(ih>mh){ih=mh;iw=ih*im.w/im.h}}
+    const im=q.img&&IMGC[q.img];let iw=0,ih=0;if(im){iw=Math.min(TW,120,mm(im.w)*s);ih=iw*im.h/im.w;const mh=70*s;if(ih>mh){ih=mh;iw=ih*im.w/im.h}}
     const oi=q.oi||[],pics=oi.some(Boolean);let oh=0,lay=null;
     if(pics){const cells=q.o.map((t,k)=>{const m=oi[k]&&IMGC[oi[k]];let w=0,h=0;if(m){h=Math.min(9*s,mm(m.h)*.8);w=h*m.w/m.h;if(w>TW/2){w=TW/2;h=w*m.h/m.w}}return {k,t:t?T(t):'',m,w,h,cw:W('E)',true,fs)+1.5+w+(t?W(T(t),false,fs)+1.5:0)+3}});
       const mx=Math.max(...cells.map(c=>c.cw));const per=[5,3,2,1].find(p=>mx*p<=TW)||1;const rws=[];cells.forEach((c,k)=>{(rws[Math.floor(k/per)]||=[]).push(c)});
@@ -2357,9 +2359,9 @@ async function bookPdf(bankId,only){
     else if(lay.per===1)lay.ol.forEach(o=>{F(true,fs,[30,90,160]);pdf.text(o.L,x+NI,yy);F(false,fs);pdf.text(o.ls,x+NI+lay.lw,yy,{lineHeightFactor:1.1});yy+=o.ls.length*lh});
     else{const cw=TW/lay.per;lay.ol.forEach((o,k)=>{const cx=x+NI+(k%lay.per)*cw,cy=yy+Math.floor(k/lay.per)*lh*1.05;F(true,fs,[30,90,160]);pdf.text(o.L,cx,cy);F(false,fs);pdf.text(o.t,cx+lay.lw,cy)})}
     return h}
-  // joylash: chap ustun → o'ng ustun → keyingi bet
-  function place(qs,fs){const pos=[];let pg=0,col=0,y=TOP1;
-    qs.forEach((q,i)=>{const h=block(q,i,fs,0,0,false);if(y+h>YB+2&&y>(pg?TOPN:TOP1)+1){if(col===0){col=1;y=pg?TOPN:TOP1}else{pg++;col=0;y=TOPN}}pos.push({pg,col,y,h});y+=h});return {pos,pages:pg+1}}
+  // joylash: bitta ustun, savol sig'masa keyingi betga
+  function place(qs,fs){const pos=[];let pg=0,y=TOP1;
+    qs.forEach((q,i)=>{const h=block(q,i,fs,0,0,false);if(y+h>YB+2&&y>(pg?TOPN:TOP1)+1){pg++;y=TOPN}pos.push({pg,col:0,y,h});y+=h});return {pos,pages:pg+1}}
   const FS=[12.5,12,11.5,11,10.5,10,9.5];
   const need=fs=>Math.max(...rows.map(r=>place(r.qs,fs).pages));
   const min=need(FS[FS.length-1]),target=Math.max(2,min+(min%2));const fs=FS.find(f=>need(f)<=target)||FS[FS.length-1];
@@ -2369,14 +2371,13 @@ async function bookPdf(bankId,only){
       F(false,8.5,90);pdf.text(T(`${b.qs.length} ta savol${bw?' · jami 100 ball':''} · Har bir savolning bitta to‘g‘ri javobi bor · Javobni TITUL varaqqa belgilang`),M,25);
       pdf.setDrawColor(31,52,94);pdf.setLineWidth(.4);pdf.line(M,27,PW-M,27)}
     else{F(false,8,120);pdf.text(T(`YOSH XORAZMIYLAR · ${bk.grade}-sinf · ${bk.name}`),M,10);F(true,9,[31,52,94]);pdf.text(vv,PW-M,10,{align:'right'});pdf.setDrawColor(190);pdf.setLineWidth(.2);pdf.line(M,12,PW-M,12)}
-    pdf.setDrawColor(205);pdf.setLineWidth(.2);pdf.line(PW/2,p?TOPN-4:TOP1-3,PW/2,YB+3);
     F(false,8,130);pdf.text(T(`${bk.grade}-sinf · ${vv} · ${p+1} / ${tot}-bet`),PW/2,292,{align:'center'})};
   let first=true;
   rows.forEach(b=>{const L=place(b.qs,fs);
     if(!first){if(pdf.getNumberOfPages()%2)pdf.addPage();pdf.addPage()}first=false;   // har variant yangi varaqdan
     for(let p=0;p<L.pages;p++){if(p)pdf.addPage();head(b,p,L.pages)}
     const base=pdf.getNumberOfPages()-L.pages;
-    b.qs.forEach((q,i)=>{const o=L.pos[i];pdf.setPage(base+o.pg+1);const x=o.col?M+CW+GAP:M;block(q,i,fs,x,o.y+fs*.3,true);
+    b.qs.forEach((q,i)=>{const o=L.pos[i];pdf.setPage(base+o.pg+1);const x=M;block(q,i,fs,x,o.y+fs*.3,true);
       const nx=L.pos[i+1];if(nx&&nx.pg===o.pg&&nx.col===o.col){pdf.setDrawColor(225);pdf.setLineWidth(.2);pdf.line(x+NI,o.y+o.h-1.2,x+CW,o.y+o.h-1.2)}});
     pdf.setPage(pdf.getNumberOfPages())});
   pdf.save(fn(only||''));
