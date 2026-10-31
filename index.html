@@ -2212,10 +2212,19 @@ async function pkGo(btn){if(!PK)return;btn.disabled=true;const prog=m=>{const e=
   catch(e){toast(e.message,true);btn.disabled=false;prog('')}}
 
 // ---- test tuzish: mavzularni tanlang → sayt bazadan teradi → ko'rib chiqib almashtirasiz → saqlaysiz
-function tzNew(){TZ={grade:PBG,topics:[],n:20,nimg:6,items:null,name:'',nvar:2}}
-function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,groups=PBM.topics[g]||[],gs=Object.keys(PBM.topics).map(Number);
+function tzNew(){TZ={grade:PBG,topics:[],n:20,nimg:6,items:null,name:'',nvar:2,tf:false,tfn:5,tft:[]}}
+const pbLocked=c=>(PBM?.locked||[]).includes(c);
+function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,groups=(PBM.topics[g]||[]).filter(([,l])=>!l.some(([c])=>pbLocked(c))),gs=Object.keys(PBM.topics).map(Number);
   const sel=TZ.topics,cnt=(sel.length?sel:groups.flatMap(([,l])=>l.map(([c])=>c))).reduce((a,c)=>{const k=pbCnt(g,c);return {n:a.n+k.n,p:a.p+k.p}},{n:0,p:0});
   const it=TZ.items;
+  // qulf ostidagi tanqidiy fikrlash mavzulari — faqat CEO va sardor ochadi
+  const tfl=(PBM.topics[g]||[]).flatMap(([,l])=>l.filter(([c])=>pbLocked(c))),tfAll=tfl.reduce((a,[c])=>a+pbCnt(g,c).n,0);
+  const tfBox=PBM.tf&&tfl.length?`<section class="sec"><p class="label">🔒 Tanqidiy fikrlash</p><div class="card pad">
+   <label class="check" style="padding:0"><input type="checkbox" id="tzTF" ${TZ.tf?'checked':''}><b>Tanqidiy fikrlash masalalarini qo’shish</b></label>
+   <p class="note" style="margin:0">Bu masalalar qulf ostida: oddiy test tuzganda aralashmaydi. Yoqsangiz, tanlangan bo’limlardan masalalar testning oxiriga qo’shiladi (bazada ${tfAll} ta).</p>
+   ${TZ.tf?`<label class="field"><span class="label">Nechta masala?</span><input id="tzTFN" type="number" inputmode="numeric" min="1" max="30" value="${TZ.tfn}"></label>
+   <p class="note" style="margin:0">Bo’limlar (hech narsa tanlanmasa — hammasidan):</p>
+   ${tfl.map(([c,nm])=>{const k=pbCnt(g,c);return `<label class="check" style="padding:8px"><input type="checkbox" data-tft="${c}" ${TZ.tft.includes(c)?'checked':''}><span style="flex:1">${esc(nm)}</span><span class="note">${k.n}</span></label>`}).join('')}`:''}</div></section>`:'';
   return ['Test tuzish','Misollar bazasidan',`
   <div class="seg">${gs.map(x=>`<button data-tzg="${x}" aria-pressed="${x===g}">${x}-sinf</button>`).join('')}</div>
   <section class="sec"><p class="label">1. Qaysi mavzulardan?</p>
@@ -2226,8 +2235,9 @@ function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,
   <section class="sec"><p class="label">2. Nechta savol?</p><div class="card pad" style="flex-direction:row;gap:10px">
    <label class="field" style="flex:1"><span class="label">Hammasi</span><input id="tzN" type="number" inputmode="numeric" min="5" max="50" value="${TZ.n}"></label>
    <label class="field" style="flex:1"><span class="label">Shundan suratli</span><input id="tzP" type="number" inputmode="numeric" min="0" max="50" value="${TZ.nimg}"></label></div>
+   ${tfBox}
    <button class="btn ${it?'sec':'pri'}" data-pb="tzPick">🎲 ${it?'Qaytadan tanlash':'Bazadan tanlash'}</button></section>
-  ${it?`<section class="sec"><p class="label">3. Ko’rib chiqing: ${it.length} ta savol · ${it.filter(pbPic).length} suratli</p>
+  ${it?`<section class="sec"><p class="label">3. Ko’rib chiqing: ${it.length} ta savol · ${it.filter(pbPic).length} suratli${it.some(p=>pbLocked(p.topic))?` · 🔒 ${it.filter(p=>pbLocked(p.topic)).length} tanqidiy fikrlash`:''}</p>
    <p class="note" style="margin:0">Yoqmagan misolni ↻ bilan shu mavzudagi boshqasiga almashtiring yoki ✕ bilan olib tashlang. Tartibi osondan qiyinga.</p>
    ${it.map((p,i)=>probHtml(p,{n:i+1,topic:true,tools:`<div class="ptools"><button class="btn sec sm" data-tzup="${i}" aria-label="Yuqoriga"${i?'':' disabled'}>↑</button><button class="btn sec sm" data-tzdn="${i}" aria-label="Pastga"${i<it.length-1?'':' disabled'}>↓</button><button class="btn sec sm" data-tzsw="${i}">↻ Almashtirish</button><button class="btn sec sm" data-tzrm="${i}" style="color:var(--wrong)">✕</button></div>`})).join('')}
    <button class="btn sec" data-pb="tzAdd">+ Yana bitta misol</button></section>
@@ -2236,9 +2246,16 @@ function scrTZ(){const w=pbNeed();if(w)return w;if(!TZ)tzNew();const g=TZ.grade,
    <span class="label">Nechta variant?</span><div class="seg">${[1,2,3,4].map(n=>`<button data-tzv="${n}" aria-pressed="${TZ.nvar===n}">${n} ta</button>`).join('')}</div>
    <p class="note" style="margin:0">${TZ.nvar>1?`1-variant siz ko’rgan misollar. Qolgan variantlarda har o’rinda o’sha mavzu va o’sha darajadagi BOSHQA misol bo’ladi (o’rni almashgan nusxa emas); har biriga alohida kalit va kitobcha chiqadi. Bazada misol yetmasa, sayt qaysi mavzuda yetmaganini aytadi.`:'Hamma bolalarga bitta variant.'}</p>
    <button class="btn pri" data-pb="tzSave"${it.length<5?' disabled':''}>💾 Testlar bazasiga saqlash · ${it.length} ta savol</button></div></section>`:''}`]}
-const tzRead=()=>{if(!TZ)return;const n=parseInt($('#tzN')?.value,10),p=parseInt($('#tzP')?.value,10);if(n)TZ.n=Math.min(50,Math.max(5,n));if(!isNaN(p))TZ.nimg=Math.min(TZ.n,Math.max(0,p));const nm=$('#tzName');if(nm)TZ.name=nm.value};
-async function tzPick(){tzRead();const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n:TZ.n,nimg:TZ.nimg});TZ.items=r.rows;
-  if(!r.rows.length)toast('Tanlangan mavzularda misol yo’q',true);else if(r.short>0)toast(`Bazada yetarli misol yo’q: ${r.rows.length} ta topildi`,true);render()}
+const tzRead=()=>{if(!TZ)return;const n=parseInt($('#tzN')?.value,10),p=parseInt($('#tzP')?.value,10);if(n)TZ.n=Math.min(50,Math.max(5,n));if(!isNaN(p))TZ.nimg=Math.min(TZ.n,Math.max(0,p));const nm=$('#tzName');if(nm)TZ.name=nm.value;
+  const tf=$('#tzTF');if(tf)TZ.tf=tf.checked;const tn=parseInt($('#tzTFN')?.value,10);if(tn)TZ.tfn=Math.min(30,Math.max(1,tn))};
+async function tzPick(){tzRead();
+  // asosiy misollar — qulfsiz mavzulardan; tanqidiy fikrlash yoqilgan bo'lsa, ular testning oxiriga alohida olinadi
+  const tfn=TZ.tf?Math.min(TZ.tfn,TZ.n-1):0,n=TZ.n-tfn;
+  const r=await api('pb.pick',{grade:TZ.grade,topics:TZ.topics,n,nimg:Math.min(TZ.nimg,n)});let rows=r.rows,short=r.short;
+  if(tfn){const tft=TZ.tft.length?TZ.tft:(PBM.locked||[]).filter(c=>pbT(c)?.g===TZ.grade);const t=await api('pb.pick',{grade:TZ.grade,topics:tft,n:tfn,nimg:0});rows=rows.concat(t.rows);short+=t.short;
+    if(!t.rows.length)toast('Tanqidiy fikrlash bo’limida misol yo’q',true)}
+  TZ.items=rows;
+  if(!rows.length)toast('Tanlangan mavzularda misol yo’q',true);else if(short>0)toast(`Bazada yetarli misol yo’q: ${rows.length} ta topildi`,true);render()}
 async function tzSwap(i){tzRead();const p=TZ.items[i],ex=TZ.items.map(x=>x.id);
   let r=await api('pb.pick',{grade:TZ.grade,topics:[p.topic],n:1,nimg:p.pic?1:0,pic:p.pic?1:0,exclude:ex});
   if(!r.rows.length)r=await api('pb.pick',{grade:TZ.grade,topics:[p.topic],n:1,exclude:ex});
@@ -2478,6 +2495,8 @@ document.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.pbsel&&PBL){const id=+t.dataset.pbsel;if(t.checked)PBL.sel.add(id);else PBL.sel.delete(id);const bar=$('#pbSelBar');if(bar)bar.innerHTML=pbSelBar();return}
   if(t.dataset.pkon!=null&&PK){PK.items[+t.dataset.pkon].on=t.checked;const btn=document.querySelector('[data-pb="pkGo"]');if(btn)btn.textContent=`Yuklash · ${PK.items.filter(x=>x.on).length} ta misol bazaga${PK.test?' + test':''}`;return}
   if(t.dataset.tzt&&TZ){tzRead();const c=t.dataset.tzt;TZ.topics=t.checked?[...new Set([...TZ.topics,c])]:TZ.topics.filter(x=>x!==c);render();return}
+  if(t.dataset.tft&&TZ){tzRead();const c=t.dataset.tft;TZ.tft=t.checked?[...new Set([...TZ.tft,c])]:TZ.tft.filter(x=>x!==c);render();return}
+  if(t.id==='tzTF'&&TZ){tzRead();render();return}
 });
 
 // ================================================================ routing

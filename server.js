@@ -714,6 +714,7 @@ const PB_TOPICS = {
     ['Kattaliklar', [['3G1', 'Uzunlik: mm, sm, dm, m, km'], ['3G2', 'Massa (g, kg) va sig‘im (l)'], ['3G3', 'Vaqt: sutka, soat, minut, sekund; vaqt oralig‘i'], ['3G4', 'Kalendar va hafta kunlari'], ['3G5', 'Ismli sonlar ustida amallar'], ['3G6', 'Pul: narx, qaytim, tejash']]],
     ['Geometriya', [['3H1', 'Perimetr'], ['3H2', 'Kvadrat va to‘g‘ri to‘rtburchak yuzi'], ['3H3', 'Doira va aylana: radius, diametr'], ['3H4', 'Burchak va uchburchak turlari'], ['3H5', 'Murakkab va katakli shakllar perimetri va yuzi'], ['3H6', 'Fazoviy shakllar: kub, shar, silindr, konus']]],
     ['Ma’lumotlar', [['3I1', 'Jadval, piktogramma va ustunli diagramma'], ['3I2', 'Narxlar jadvali va xarid ro‘yxati'], ['3I3', 'Ma’lumot yig‘ish va diagramma tuzish']]],
+    ['🔒 Tanqidiy fikrlash (qulf ostida)', [['3K01', 'Fikrlar tahlili'], ['3K02', 'To‘g‘ri va noto‘g‘ri fikrni aniqlash'], ['3K03', 'Mantiqiy xatolik'], ['3K04', 'Mos keluvchi fikr (agar… bo‘lsa)'], ['3K05', 'O‘xshash tamoyil'], ['3K06', 'Qutblarga doir masalalar'], ['3K07', 'Tartibga doir masalalar'], ['3K08', 'To‘plamlar (doira-diagrammalar)'], ['3K09', 'Rost yoki yolg‘on'], ['3K10', 'Moslikni aniqlash (syujetli)']]],
     ['Mantiq va olimpiada (darslikdan tashqari)', [['3J01', 'Sonli qonuniyatlar'], ['3J02', 'Shaklli qonuniyatlar'], ['3J03', 'Shakllarni sanash'], ['3J04', 'Gugurt cho‘plari bilan masalalar'], ['3J05', 'Sehrli kvadrat va sonli krossvordlar'], ['3J06', 'Mantiqiy masalalar'], ['3J07', 'Yosh masalalari'], ['3J08', 'Kesish, bo‘laklash, ustun va oraliqlar'], ['3J09', 'Hafta kunlari va kalendar jumboqlari'], ['3J10', 'Fazoviy tasavvur: kublar, yoyilmalar'], ['3J11', 'Nechta usul bilan? (kombinatorika)'], ['3J12', 'Tarozi va muvozanat masalalari'], ['3J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['3J14', 'Raqamli jumboqlar (yulduzcha o‘rniga raqam)'], ['3J15', 'Simmetriya, burish, oynadagi aks'], ['3J16', 'Labirint, yo‘l va xarita'], ['3J17', 'Eng ko‘p / eng kam bo‘lishi mumkin? (eng katta qiymat)'], ['3J18', 'Algoritmlar va blok-sxemalar'], ['3J19', 'Rost-yolg‘on va mantiqiy xulosa'], ['3J20', 'Shakl = son jumboqlari']]],
   ],
   4: [
@@ -726,12 +727,17 @@ const PB_TOPICS = {
     ['Kattaliklar', [['4G1', 'Uzunlik, massa birliklari va ularni almashtirish'], ['4G2', 'Yuza birliklari: sm², dm², m², ar, gektar'], ['4G3', 'Vaqt: asr, yil, oy, sutka; vaqtni hisoblash'], ['4G4', 'Ismli sonlar ustida amallar'], ['4G5', 'Hajm va sig‘im birliklari: sm³, dm³, litr']]],
     ['Geometriya', [['4H1', 'Murakkab shakllar perimetri va yuzi'], ['4H2', 'To‘g‘ri burchakli parallelepiped va kub, hajm'], ['4H3', 'Burchaklar, uchburchaklar, chizmalar'], ['4H4', 'Masshtab va plan'], ['4H5', 'Katakli tekislik va koordinatalar'], ['4H6', 'Aylana va doira: radius, diametr']]],
     ['Ma’lumotlar', [['4I1', 'Jadval va diagrammalar'], ['4I2', 'Grafik va ma’lumotlarni tahlil qilish'], ['4I3', 'Chiziqli va doiraviy diagrammalar']]],
+    ['🔒 Tanqidiy fikrlash (qulf ostida)', [['4K01', 'Fikrlar tahlili'], ['4K02', 'To‘g‘ri va noto‘g‘ri fikrni aniqlash'], ['4K03', 'Mantiqiy xatolik'], ['4K04', 'Mos keluvchi fikr (agar… bo‘lsa)'], ['4K05', 'O‘xshash tamoyil'], ['4K06', 'Qutblarga doir masalalar'], ['4K07', 'Tartibga doir masalalar'], ['4K08', 'To‘plamlar (doira-diagrammalar)'], ['4K09', 'Rost yoki yolg‘on'], ['4K10', 'Moslikni aniqlash (syujetli)']]],
     ['Mantiq va olimpiada (darslikdan tashqari)', [['4J01', 'Sonli qonuniyatlar'], ['4J02', 'Shaklli qonuniyatlar'], ['4J03', 'Shakllarni sanash'], ['4J04', 'Gugurt cho‘plari bilan masalalar'], ['4J05', 'Sehrli kvadrat va raqamli jumboqlar'], ['4J06', 'Mantiqiy masalalar: rost-yolg‘on, jadval usuli'], ['4J07', 'Yosh masalalari'], ['4J08', 'Kesish, ustun va oraliqlar'], ['4J09', 'Kalendar jumboqlari'], ['4J10', 'Fazoviy tasavvur: kub, yoyilma, ko‘rinishlar'], ['4J11', 'Kombinatorika va oddiy ehtimollik'], ['4J12', 'Tarozi, quyish va o‘lchash jumboqlari'], ['4J13', 'Eng kami nechta? (Dirixle prinsipi)'], ['4J14', 'Bo‘linish belgilari va sonlar xossalari'], ['4J15', 'Raqamlar yig‘indisi, raqamli jumboqlar'], ['4J16', 'Eng katta / eng kichik qiymat'], ['4J17', 'Simmetriya, burish, oynadagi aks'], ['4J18', 'Labirint, yo‘l va xarita'], ['4J19', 'Algoritmlar va blok-sxemalar'], ['4J20', 'Shakl = son jumboqlari'], ['4J21', 'Qadimiy va xalq masalalari (al-Xorazmiy masalalari)']]],
   ],
 };
 const PB_TOPIC = {}; // kod -> {g, group, name}
 for (const [g, groups] of Object.entries(PB_TOPICS)) for (const [group, list] of groups) for (const [code, name] of list) PB_TOPIC[code] = { g: +g, group, name };
 const PB_KIND = ['hisoblash', 'masala', 'mantiq', 'geometriya'];
+// Qulf ostidagi mavzular (kodida K bor): test tuzganda o'z-o'zidan aralashmaydi. Qulfni faqat CEO va jamoa sardori ochadi —
+// ular test tuzish oynasida "Tanqidiy fikrlash masalalarini qo'shish"ni yoqib, nechta va qaysi bo'limdan ekanini tanlaydi.
+const PB_LOCKED = code => /^\d+K\d/.test(String(code));
+const canTF = u => u.role === 'ceo' || !!perms(u).sardor;
 
 // ---- media: rasm va PDF (faqat kalit huquqi borlar yuklaydi, jamoa ko'radi)
 const MTYPES = { 'image/png': [0x89, 0x50], 'image/jpeg': [0xff, 0xd8], 'image/webp': [0x52, 0x49], 'application/pdf': [0x25, 0x50] };
@@ -782,7 +788,7 @@ A['pb.meta'] = u => {
   need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
   const counts = {};
   for (const r of all("SELECT grade,topic,count(*) n,sum(CASE WHEN img<>'' OR o GLOB '*\"i\":\"[0-9a-f]*' THEN 1 ELSE 0 END) p FROM probs WHERE active=1 GROUP BY grade,topic")) (counts[r.grade] ||= {})[r.topic] = { n: r.n, p: r.p };
-  return { topics: PB_TOPICS, kinds: PB_KIND, counts, total: one('SELECT count(*) n FROM probs WHERE active=1').n };
+  return { topics: PB_TOPICS, kinds: PB_KIND, counts, total: one('SELECT count(*) n FROM probs WHERE active=1').n, locked: Object.keys(PB_TOPIC).filter(PB_LOCKED), tf: canTF(u) };
 };
 A['pb.list'] = (u, b) => {
   need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
@@ -864,9 +870,11 @@ A['pb.pick'] = (u, b) => {
   need(canKey(u));
   const g = parseInt(b.grade, 10); if (!PB_TOPICS[g]) bad('Sinfni tanlang');
   const topics = (Array.isArray(b.topics) ? b.topics : []).filter(t => PB_TOPIC[t]?.g === g);
+  // qulf: tanqidiy fikrlash mavzulari faqat aniq so'ralganda va faqat CEO/sardorga beriladi; mavzu tanlanmasa — ular chiqmaydi
+  if (topics.some(PB_LOCKED) && !canTF(u)) bad('Tanqidiy fikrlash masalalari qulf ostida — ularni faqat CEO va jamoa sardori ochadi');
   const n = Math.min(50, Math.max(1, parseInt(b.n, 10) || 20)), nimg = Math.min(n, Math.max(0, parseInt(b.nimg, 10) || 0));
   const ex = (Array.isArray(b.exclude) ? b.exclude : []).map(Number);
-  let pool = all(`SELECT * FROM probs WHERE active=1 AND grade=?${topics.length ? ` AND topic IN (${inList(topics)})` : ''}`, g, ...topics).map(probRow).filter(p => !ex.includes(p.id));
+  let pool = all(`SELECT * FROM probs WHERE active=1 AND grade=?${topics.length ? ` AND topic IN (${inList(topics)})` : ''}`, g, ...topics).map(probRow).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
   if (b.pic === 1) pool = pool.filter(p => p.pic); if (b.pic === 0) pool = pool.filter(p => !p.pic);
   const spread = l => { const by = {}; shuffle(l).forEach(p => (by[p.topic] ||= []).push(p)); const ks = shuffle(Object.keys(by)), out = []; let more = true; while (more) { more = false; for (const k of ks) if (by[k].length) { out.push(by[k].shift()); more = true; } } return out; };
   const pic = spread(pool.filter(p => p.pic)), txt = spread(pool.filter(p => !p.pic));
@@ -911,6 +919,7 @@ A['bank.build'] = (u, b) => {
   if (fromBank) {
     const used = new Set(qs.map(q => q.pid).filter(Boolean));
     const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
+    if (!canTF(u) && Object.values(meta).some(m => PB_LOCKED(m.topic))) bad('Testda qulf ostidagi tanqidiy fikrlash masalalari bor — ularni faqat CEO va jamoa sardori qo‘shadi');
     for (let k = 1; k < nv; k++) {
       const r = rnd(seed + k * 7919), vq = qs.map((q, i) => {
         const m = q.pid && meta[q.pid]; if (!m) return null;
