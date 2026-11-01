@@ -335,17 +335,11 @@ function state(u) {
   Object.assign(out, extras(u, out));
   return out;
 }
-// iqtidorli: har bir maktab ichida, o'z sinf bosqichida eng yaxshi gifted_top% va kamida gifted_min%
+// iqtidorli: o'zlashtirish darajasi bo'yicha — kamida gifted_min% olgan har bir o'quvchi (top % qoidasi olib tashlandi, 2026-11-01)
 function giftedIds(t, schoolId) {
   const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
     WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL AND s.active=1`, t.id).filter(r => !schoolId || r.school_id === schoolId);
-  const ids = [];
-  for (const g of [...new Set(rows.map(r => r.school_id + ':' + r.grade))]) {
-    const gr = rows.filter(r => r.school_id + ':' + r.grade === g).sort((a, b) => b.score - a.score);
-    const cut = gr[Math.max(0, Math.ceil(gr.length * t.gifted_top / 100) - 1)].score;
-    gr.forEach(r => { if (r.score >= cut && r.score / r.qn * 100 >= t.gifted_min) ids.push(r.student_id); });
-  }
-  return ids;
+  return rows.filter(r => r.qn > 0 && r.score / r.qn * 100 >= t.gifted_min - 1e-9).map(r => r.student_id);
 }
 
 // ---------------------------------------------------------------- actions

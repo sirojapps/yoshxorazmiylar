@@ -494,10 +494,7 @@ function present(list,tid=testId){return list.filter(s=>{const r=R(s.id,tid);ret
 function giftedSet(tid=testId){
   const t=S.tests.find(x=>x.id===tid);const set=new Set();if(!t)return set;
   if(!isTeam()){(S.gifted||[]).forEach(k=>{const[a,b]=k.split(':');if(+a===tid)set.add(+b)});return set}
-  [...new Set(X.st.map(s=>s.school_id+':'+s.grade))].forEach(g=>{ // har bir maktab va sinf bosqichi alohida
-    const p=present(X.st.filter(s=>s.school_id+':'+s.grade===g),tid).map(s=>R(s.id,tid)).filter(r=>r.score!=null).sort((a,b)=>b.score-a.score);
-    if(!p.length)return;const cut=p[Math.max(0,Math.ceil(p.length*t.gifted_top/100)-1)].score;
-    p.forEach(r=>{if(r.score>=cut&&r.score/r.qn*100>=t.gifted_min)set.add(r.student_id)});});
+  present(X.st,tid).map(s=>R(s.id,tid)).forEach(r=>{if(r&&r.score!=null&&r.qn>0&&r.score/r.qn*100>=t.gifted_min-1e-9)set.add(r.student_id)}); // faqat o'zlashtirish darajasi
   return set;
 }
 function hardest(list,k=5,tid=testId){const p=present(list,tid).map(s=>R(s.id,tid)).filter(r=>r.bits);if(!p.length)return[];
@@ -792,7 +789,7 @@ function scrRanking(){
   ${rMode==='iqt'?'':`<div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>`}
   <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar'],['iqt','★ Iqtidorlilar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
   ${one&&t1&&present(X.st,t1.id).length?`<button class="btn sec" data-act="rankDl" data-id="${t1.id}">⬇ Natijalarni yuklab olish</button>`:''}
-  ${body}${one&&t1?`<p class="note">★ iqtidorli: o’z maktabida, o’z sinf bosqichida eng yaxshi ${t1.gifted_top??10}% ichida va kamida ${t1.gifted_min??70}%.</p>`:''}
+  ${body}${one&&t1?`<p class="note">★ iqtidorli: kamida ${t1.gifted_min??70}% natija ko‘rsatgan har bir o‘quvchi.</p>`:''}
   <p class="note">Viloyat reytingi boshqa tumanlar qo’shilganda shu yerda chiqadi.</p>`]}
 // ---------------- yuqori natijalar: chegaradan yuqori olgan barcha bolalar (hamma maktablar)
 function topStu(min=topMin,g=topGrade,sc=topSchool){
@@ -2870,7 +2867,7 @@ document.addEventListener('click',async e=>{
    case 'import':openImport();break;
    case 'impSave':{const num=val('impNum');if(!num){toast('Maktab raqamini yozing',true);break}const r=await api('students.import',{school_num:num,rows:IMP,test_id:testId});closeSheet();toast(`${r.added} ta qo’shildi${r.skipped?`, ${r.skipped} ta avvaldan bor edi`:''}${r.results?`, ${r.results} ta natija yozildi`:''}${r.absents?`, ${r.absents} ta kelmadi`:''}`,!!r.errors?.length);if(r.errors?.length)alert('Natija yozilmadi:\n'+r.errors.join('\n'));await load();break}
    case 'testEdit':{const t=d.id?S.tests.find(x=>x.id===+d.id):{status:'tayyor',gifted_top:10,gifted_min:70};
-     formSheet(d.id?'Tahrirlash':'Yangi sinov yoki imtihon',[{id:'fTN',label:'Nomi',value:t.name,ph:'Masalan: 2026–2027 · 2-bosqich'},{id:'fTD',label:'Sana',type:'date',value:t.date},{id:'fTS',label:'Holati',type:'select',options:STATUS.slice(0,3).concat(t.status==='yakunlandi'?[STATUS[3]]:[]),value:t.status},{id:'fTG',label:'Iqtidorli: eng yaxshi necha foiz',value:t.gifted_top,mode:'numeric'},{id:'fTM',label:'Iqtidorli: kamida necha foiz ball',value:t.gifted_min,mode:'numeric'}],'testSave',scopeHtml(t));$('#sheet').dataset.id=d.id||'';break}
+     formSheet(d.id?'Tahrirlash':'Yangi sinov yoki imtihon',[{id:'fTN',label:'Nomi',value:t.name,ph:'Masalan: 2026–2027 · 2-bosqich'},{id:'fTD',label:'Sana',type:'date',value:t.date},{id:'fTS',label:'Holati',type:'select',options:STATUS.slice(0,3).concat(t.status==='yakunlandi'?[STATUS[3]]:[]),value:t.status},{id:'fTM',label:'Iqtidorli: kamida necha foiz ball',value:t.gifted_min,mode:'numeric'}],'testSave',scopeHtml(t));$('#sheet').dataset.id=d.id||'';break}
    case 'dupFix':{const pairs=d.ids.split(',').map(x=>x.split('-').map(Number)).filter(x=>x[0]&&x[1]);
      if(!confirm(`${pairs.length} ta ortiqcha nusxa olib tashlanadi. Natijasi bor nusxa qoladi, ortiqchasidagi telefon va boshqa ma’lumotlar unga o’tkaziladi.`))break;
      const r=await api('students.merge',{pairs});toast(`${r.n} ta ortiqcha nusxa olib tashlandi`);await load();break}
@@ -2905,7 +2902,7 @@ document.addEventListener('click',async e=>{
      const r=await api('results.absentRest',{test_id:testId,[d.k==='class'?'class_id':'school_id']:+d.id});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();break}
    case 'toCheck':{const t=S.tests.find(x=>x.id===+d.id);if(!t)break;if(!confirm('Barcha maktablarda sinov o’tkazildimi? Sinov Tekshiruv bosqichiga o’tadi.'))break;
      await api('test.save',{id:t.id,name:t.name,date:t.date,status:'tekshiruv',gifted_top:t.gifted_top,gifted_min:t.gifted_min});toast('Tekshiruvga o’tkazildi');await load();break}
-   case 'testSave':{const r=await api('test.save',{id:+$('#sheet').dataset.id||undefined,name:val('fTN'),date:val('fTD'),status:val('fTS'),gifted_top:val('fTG'),gifted_min:val('fTM'),scope:readScope()});const isNew=!$('#sheet').dataset.id;if(!testId){testId=r.id;ls.set('test',testId)}closeSheet();toast('Saqlandi');await load();if(isNew&&isTeam()){tab='imtihon';stack=[];go('exam:'+r.id)}break}
+   case 'testSave':{const r=await api('test.save',{id:+$('#sheet').dataset.id||undefined,name:val('fTN'),date:val('fTD'),status:val('fTS'),gifted_min:val('fTM'),scope:readScope()});const isNew=!$('#sheet').dataset.id;if(!testId){testId=r.id;ls.set('test',testId)}closeSheet();toast('Saqlandi');await load();if(isNew&&isTeam()){tab='imtihon';stack=[];go('exam:'+r.id)}break}
    case 'keyEdit':{const tid=+d.id;const k=S.keys?.[tid]||{};openSheet(`<div class="sh-top"><div class="m"><h2>Kalit kiritish</h2><div class="s">Har sinf uchun javoblar ketma-ket, masalan: ABECDCBDCE…</div></div><button class="ib" data-act="close">${I.x}</button></div>
      ${[2,3,4].map(g=>`<label class="field"><span class="label">${g}-sinf</span><input id="key${g}" value="${esc(k[g]&&!k[g].includes('?')?k[g]:'')}" autocapitalize="characters" placeholder="${k[g]?'kiritilgan':'20 ta harf'}" style="font-family:ui-monospace,monospace;letter-spacing:.1em"></label>`).join('')}
      <p class="note">Kalit o’zgartirilsa, shu sinovdagi harflar bilan kiritilgan natijalar o’zi qayta hisoblanadi.</p><button class="btn pri" data-act="keySave" data-id="${tid}">Saqlash</button>`);break}
