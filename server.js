@@ -245,7 +245,7 @@ const finished = testId => announced(testId, 0);
 function state(u) {
   const P = perms(u);
   const tests = all('SELECT * FROM tests ORDER BY id DESC');
-  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '' }, tests, perms: PERMS };
+  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '', phone: u.phone || '', school_id: u.school_id || null, class_id: u.class_id || null, pin_at: u.pin_at || null, created_at: u.created_at || null }, tests, perms: PERMS };
   if (isTeam(u)) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');

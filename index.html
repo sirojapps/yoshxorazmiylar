@@ -76,6 +76,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .top h1{font-size:17px;font-weight:700;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .sub{display:block;font-size:12px;font-weight:500;color:var(--muted)}
 .ib{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--surface2);flex:none}
+.me-btn{flex:none;border-radius:50%;padding:0;display:inline-flex;cursor:pointer;transition:box-shadow .15s}.me-btn:hover,.me-btn:focus-visible{box-shadow:0 0 0 3px var(--accent-soft)}
+.ib.out-btn{color:var(--wrong);background:var(--wrong-soft)}
+.me-kv{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;border-top:1px solid var(--line,rgba(0,0,0,.06))}.me-kv:first-child{border-top:0}.me-kv span{color:var(--muted)}.me-kv b{font-weight:600;text-align:right}
 .role{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-strong);background:var(--accent-soft);padding:4px 8px;border-radius:999px;flex:none}
 main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -919,7 +922,7 @@ function sideExtra(){
 function scrMore(){
   const items=moreItems();const groups=[...new Set(items.map(x=>x[3]))];
   return ['Ko’proq',S.me.name,`${groups.map(g=>`<section class="sec"><p class="label">${g}</p><div class="card list">${items.filter(x=>x[3]===g).map(([k,n,s])=>`<button class="row" data-go="${k}"><div class="m"><div class="n">${n}</div><div class="s">${s}</div></div>${I.chev}</button>`).join('')}</div></section>`).join('')}
-   ${instBtn()}<button class="btn sec" data-act="logout">Chiqish</button>`]}
+   ${instBtn()}<button class="btn dan" data-act="logoutAsk">Chiqish</button>`]}
 
 // ---------------- o'chirish (faqat CEO: maktab, sinf, sinov) va savat
 let TRASH=null;
@@ -1144,6 +1147,20 @@ function pickImage(cb,max=1280){const i=document.createElement('input');i.type='
 
 // ---------------- profil suratlari: har kim o'z suratini qo'yadi; surat bo'lmasa — bosh harflar
 const AVC=['#0f766e','#1d4ed8','#7c3aed','#be185d','#b45309','#0e7490','#15803d','#9333ea'];
+function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.schools||[]).map(x=>[x.id,x])),cl=Object.fromEntries((S.classes||[]).map(x=>[x.id,x]));
+  const dt=v=>v?String(v).slice(0,10).split('-').reverse().join('.'):'';
+  const kv=(k,v)=>v?`<div class="me-kv"><span>${k}</span><b>${v}</b></div>`:'';
+  const s=m.school_id?sc[m.school_id]:null,c=m.class_id?cl[m.class_id]:null;
+  const role=m.role==='jamoa'?(P.sardor?'Jamoa sardori':P.kuzatuvchi?'Kuzatuvchi':'Jamoa a’zosi'):(ROLE_L[m.role]||'');
+  const PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxati',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish'};
+  const rights=m.role==='ceo'?'<div class="note" style="padding:12px 14px">Hamma huquqlar sizda. PIN berish faqat sizga tegishli.</div>':m.role==='jamoa'?(Object.keys(PL).filter(k=>P[k]).map(k=>`<div class="me-kv"><span>✓</span><b>${PL[k]}</b></div>`).join('')||'<div class="note" style="padding:12px 14px">Hozircha faqat ko’rish huquqi bor</div>'):'';
+  const kids=m.role==='ota'?(S.students||[]).map(k=>{const kc=cl[k.class_id];return esc(k.name)+(kc?` · ${esc(kc.name)}`:'')}).join('<br>'):'';
+  openSheet(`<div class="sh-top"><div class="m"><h2>Mening ma’lumotlarim</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml('',56,m.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:17px">${esc(m.name||'—')}</div><div style="margin-top:4px"><span class="pill ok">${esc(role)}</span></div></div></div>
+  <div class="card list">${kv('Telefon',esc(ph(m.phone)))}${kv('Maktab',s?`${s.num}-maktab`:'')}${kv('Sinf',c?esc(c.name):'')}${kv('Farzandlari',kids)}${kv('PIN berilgan',dt(m.pin_at))}${kv('Saytda',m.created_at?dt(m.created_at)+' dan beri':'')}</div>
+  ${rights?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">HUQUQLARIM</div><div class="card list">${rights}</div>`:''}
+  ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
+  <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
 function avHtml(v,size=36,name='',sid=0){const st=`width:${size}px;height:${size}px;border-radius:50%;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center`;
   const n=String(name||'').trim();const ini=n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))>>>0;const c=AVC[h%AVC.length];
@@ -2561,9 +2578,9 @@ function render(){
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
-   <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><span style="flex:none">${avHtml('',36,S.me.name)}</span>
-   <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button>
-   ${!isTeam()?`<button class="ib" data-act="logout" aria-label="Chiqish">${I.out}</button>`:''}</header>
+   <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml('',36,S.me.name)}</button>
+   <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
+   <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
@@ -2695,6 +2712,8 @@ document.addEventListener('click',async e=>{
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
    case 'logout':await api('logout');S=null;stack=[];tab=null;render();break;
+   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await api('logout');S=null;stack=[];tab=null;render();break;
+   case 'meInfo':openMeInfo();break;
    case 'consent':await api('consent');await load();break;
    case 'pickTest':openSheet(`<div class="sh-top"><div class="m"><h2>Sinovni tanlang</h2></div><button class="ib" data-act="close">${I.x}</button></div><div class="card list">${S.tests.map(t=>`<button class="row" data-act="setTest" data-id="${t.id}"><div class="m"><div class="n">${esc(t.name)}</div></div>${t.id===testId?'<span class="pill ok">joriy</span>':''}</button>`).join('')}</div>`);break;
    case 'setTest':testId=+d.id;ls.set('test',testId);closeSheet();render();break;
