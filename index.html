@@ -1153,11 +1153,20 @@ function scrRahMashq(){const c=S.classes[0];if(!c)return['Mashg’ulot','',''];c
   return ['Mashg’ulot',`${c.grade}-sinf · ${total} ta misol`,`
   <div class="card hero"><p class="label">Sinf mashg’ulotlari</p><p style="margin:0">${c.grade}-sinf matematikasining hamma mavzulari. Mavzuni bosing: misollar yechimi bilan chiqadi, darsga varaq chop etasiz.</p></div>
   ${T.map(([grp,l])=>`<section class="sec"><p class="label">${esc(grp)}</p><div class="card list">${l.map(([code,name,n])=>`<button class="row" data-go="rtopic:${code}" ${n?'':'disabled style="opacity:.55"'}><div class="m"><div class="n">${esc(name)}</div><div class="s">${n?n+' ta misol':'hali misol yo’q'}</div></div>${n?I.chev:''}</button>`).join('')}</div></section>`).join('')||'<div class="card empty">Mavzular hali kiritilmagan</div>'}`]}
-let RT={code:'',rows:null,ans:false,level:0};
-function scrRahTopic(code){const c=S.classes[0];const T=S.pbTopics||[];let name=code;for(const [,l]of T)for(const [cd,n]of l)if(cd===code)name=n;
-  if(RT.code!==code||!RT.rows){if(RT.code!==code){RT={code,rows:null,ans:false,level:0}}api('pb.sample',{topic:code,n:6,level:RT.level||undefined}).then(d=>{RT.rows=d.rows;render()}).catch(e=>toast(e.message,true));if(!RT.rows)return [name,`${c?.grade}-sinf`,'<div class="card empty">Yuklanmoqda…</div>']}
+let RT={code:'',rows:null,ans:false,level:0,info:undefined};
+function mavzuHtml(m,name){if(m===undefined)return '';if(!m)return '';const para=t=>esc(t).replace(/\n/g,'<br>');
+  return `<section class="sec"><p class="label">📘 Mavzu tushuntirishi</p><div class="card pad" style="gap:10px"><div class="pt" style="line-height:1.55">${para(m.t)}</div></div>
+  ${(m.ex||[]).map((e,i)=>`<div class="card pad" style="gap:6px;border-left:4px solid var(--accent)"><div class="s" style="font-weight:700;color:var(--accent-strong)">${i+1}-misol</div><div class="pt">${para(e.q)}</div><div class="note" style="margin:0"><b>Yechim:</b> ${para(e.s)}</div></div>`).join('')}
+  ${m.x?`<div class="card pad" style="gap:4px;background:var(--wrong-soft)"><div class="s" style="font-weight:700;color:var(--wrong)">⚠️ Ko’p uchraydigan xato</div><div class="pt">${para(m.x)}</div></div>`:''}</section>`}
+function scrRahTopic(code){const c=S.classes[0];const T=S.pbTopics||[];let name=code,grp='';for(const [g,l]of T)for(const [cd,n]of l)if(cd===code){name=n;grp=g}
+  const head=`<div class="card hero" style="gap:2px"><p class="label">${esc(grp)}</p><p style="margin:0;font-weight:700;font-size:17px;line-height:1.3">${esc(name)}</p></div>`;
+  if(RT.code!==code){RT={code,rows:null,ans:false,level:0,info:undefined}}
+  if(RT.info===undefined){RT.info=null;api('mavzu.get',{topic:code}).then(d=>{RT.info=d||null;render()}).catch(()=>{})}
+  if(!RT.rows){if(!RT.busy){RT.busy=true;api('pb.sample',{topic:code,n:6,level:RT.level||undefined}).then(d=>{RT.rows=d.rows;RT.busy=false;render()}).catch(e=>{RT.busy=false;toast(e.message,true)})}return ['Mavzu',`${c?.grade}-sinf`,`${head}${mavzuHtml(RT.info,name)}<div class="card empty">Misollar yuklanmoqda…</div>`]}
   const rows=RT.rows||[];
-  return [name,`${c?.grade}-sinf`,`
+  return ['Mavzu',`${c?.grade}-sinf`,`${head}
+  ${mavzuHtml(RT.info,name)}
+  <p class="label" style="margin-top:4px">✏️ Mashq uchun misollar</p>
   <div class="seg"><button data-rl="0" aria-pressed="${!RT.level}">Hammasi</button><button data-rl="1" aria-pressed="${RT.level===1}">Oson</button><button data-rl="2" aria-pressed="${RT.level===2}">O’rta</button><button data-rl="3" aria-pressed="${RT.level===3}">Qiyin</button></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="rtAns">${RT.ans?'Javoblarni yashirish':'Javoblarni ko’rsatish'}</button><button class="btn sec" data-act="rtMore">🔄 Boshqa misollar</button></div>
   <button class="btn pri" data-act="rtPrint">🖨 Varaq chop etish (${rows.length} ta misol)</button>
