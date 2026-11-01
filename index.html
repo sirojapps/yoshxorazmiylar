@@ -955,9 +955,16 @@ function scrTests(){
 let PINS=null, pinKind='ota', pinSchool=0, pinHas='no';
 function scrPins(){
   if(!PINS){api('pins').then(d=>{PINS=d.list;render()}).catch(e=>toast(e.message,true));return ['PIN’lar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(isDir())pinKind='rahbar';
   let l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool));
   const has=l.filter(x=>x.user?.pin), no=l.filter(x=>!x.user?.pin).sort((a,b)=>(!b.phone&&b.kind==='ota')-(!a.phone&&a.kind==='ota'));
-  const view=pinHas==='no'?no:has; const ceo=S.me.role==='ceo';
+  const view=pinHas==='no'?no:has; const ceo=S.me.role==='ceo'||isDir();
+  if(isDir())return ['Sinf rahbarlari PIN’i',`${S.schools[0]?.num}-maktab`,`
+  <div class="card pad"><div class="note" style="margin:0">Har bir sinf rahbari saytga <b>o’z telefon raqami + PIN</b> bilan kiradi. PIN berib, uni rahbarga ayting yoki SMS matnini yuboring. Rahbar <b>@YoshXorazmiylarBot</b> orqali ham o’zi olishi mumkin — buning uchun raqami sinf sahifasida to’g’ri yozilgan bo’lishi kerak.</div></div>
+  <div class="seg"><button data-ph="no" aria-pressed="${pinHas==='no'}">Berilmagan (${no.length})</button><button data-ph="yes" aria-pressed="${pinHas==='yes'}">Berilgan (${has.length})</button></div>
+  ${pinHas==='no'&&no.filter(x=>x.phone).length>1?`<button class="btn pri" data-act="pinBulk">Hammasiga PIN berish (${no.filter(x=>x.phone).length})</button>`:''}
+  <div class="card list">${view.map(x=>`<div class="row"><div class="m"><div class="n">${esc(x.name)}</div><div class="s">${esc(X.cl[x.class_id]?.name||'')}${x.phone?' · '+ph(x.phone):' · <span style="color:var(--wrong)">Telefon kerak — sinf sahifasida yozing</span>'}${x.user?.pin_at?' · '+fmtDate(x.user.pin_at):''}${x.user?.last_login?' · kirgan ✓':''}</div></div>
+   ${x.user?.pin?`<span class="num" style="font-family:var(--display);letter-spacing:.08em">${esc(x.user.pin)}</span><button class="btn sec sm" data-act="pinMenu" data-k="${x.kind}" data-r="${esc(x.ref)}">…</button>`:x.phone?`<button class="btn pri sm" data-act="pinIssue" data-k="${x.kind}" data-r="${esc(x.ref)}">PIN berish</button>`:''}</div>`).join('')||'<div class="empty">Hali sinf yo’q</div>'}</div>`];
   return ['PIN’lar',ceo?'Faqat siz PIN berasiz':'Ko’rish uchun',`
   <div class="seg">${[['ota','Ota-onalar'],['rahbar','Sinf rahbarlari'],['direktor','Direktorlar'],['jamoa','Jamoa']].map(([k,n])=>`<button data-pk="${k}" aria-pressed="${pinKind===k}">${n}</button>`).join('')}</div>
   ${pinKind!=='jamoa'?`<div class="seg"><button data-ps="0" aria-pressed="${!pinSchool}">Hammasi</button>${S.schools.map(sc=>`<button data-ps="${sc.id}" aria-pressed="${pinSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
@@ -1021,6 +1028,7 @@ function dirManage(){const sc=S.schools[0];if(!sc)return'';const l=X.st;const no
    <div class="row"><div class="m"><div class="n">${sc.num}-maktab${sc.name?' · '+esc(sc.name):''}</div><div class="s">Direktor: ${esc(sc.director_name)||'—'}</div></div><button class="btn sec sm" data-act="schoolEdit" data-id="${sc.id}">Tahrirlash</button></div>
    <div class="row"><div class="m"><div class="n">${S.classes.length} ta sinf · ${l.length} ta o’quvchi</div><div class="s">${noPh?`<span style="color:var(--wrong)">${noPh} ta bolaning ota-ona telefoni yo’q</span>`:'Hamma bolaning ota-ona telefoni bor ✓'}</div></div></div></div>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="classEdit" data-school="${sc.id}">+ Sinf qo’shish</button><button class="btn sec" data-act="studentEdit" data-class="${S.classes[0]?.id||''}">+ O’quvchi qo’shish</button></div>
+   <button class="btn pri" data-go="pins">🔑 Sinf rahbarlariga PIN berish</button>
    <button class="lnk" data-go="savat" style="align-self:flex-start">🗑 O’chirilganlar (savat)</button>
    <p class="note" style="margin:0">Sinfni bosib, sinf rahbari va o’quvchilarni tahrirlaysiz. Bolani bosib, telefon, ma’lumot, ko’chirish yoki o’chirishni qilasiz.</p>
    ${dupBox(l)}</section>`}
@@ -2164,8 +2172,10 @@ const LEVEL_L=['','Oson','O’rta','Qiyin'];
 let PBOG=new Set(),PBM=null,PBL=null,PBG=ls.get('pbg',3),PBPIC=0,PK=null,TZ=null,PU=null;
 const pbT=code=>{for(const g of Object.keys(PBM?.topics||{}))for(const [grp,l] of PBM.topics[g])for(const [c,n] of l)if(c===code)return {g:+g,group:grp,name:n,code:c};return null};
 const pbCnt=(g,c)=>PBM?.counts?.[g]?.[c]||{n:0,p:0};
-async function pbMeta(force){if(PBM&&!PBM.err&&!force)return PBM;try{PBM=await api('pb.meta')}catch(e){PBM={err:e.message}}return PBM}
-function pbNeed(){if(!PBM){pbMeta().then(render);return ['Misollar bazasi','','<div class="card empty">Yuklanmoqda…</div>']}if(PBM.err)return ['Misollar bazasi','',`<div class="card empty">${esc(PBM.err)}</div>`];return null}
+async function pbMeta(force){if(PBM&&!PBM.err&&!force)return PBM;try{const old=PBM&&!PBM.err?PBM.total:null;PBM=await api('pb.meta');PBM._t=Date.now();if(old!=null&&old!==PBM.total)PBL=null}catch(e){PBM={err:e.message}}return PBM}
+// boshqa telefondan yuklangan misollar ham ko'rinsin: bazaga kirganda va har 30 soniyada son qayta so'raladi
+let pbRefreshing=false;function pbFresh(){if(PBM&&!PBM.err&&Date.now()-(PBM._t||0)>30000&&!pbRefreshing){pbRefreshing=true;pbMeta(true).then(()=>{pbRefreshing=false;render()})}}
+function pbNeed(){if(!PBM){pbMeta().then(render);return ['Misollar bazasi','','<div class="card empty">Yuklanmoqda…</div>']}pbFresh();if(PBM.err)return ['Misollar bazasi','',`<div class="card empty">${esc(PBM.err)}</div>`];return null}
 async function mediaUp(blob){
   let r;try{r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob,credentials:'same-origin'})}catch(e){throw new Error('Server bilan aloqa yo’q. Internetni tekshiring.')}
   let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw new Error(d.error||'Fayl yuklanmadi');return d.id}
@@ -2781,7 +2791,7 @@ document.addEventListener('click',async e=>{
    case 'avNudgeOff':ls.set('avn',1);render();break;
    case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();if(!kid)openMeInfo();break}
    case 'pageReload':{b.textContent='Yangilanmoqda…';b.disabled=true;try{if('caches' in window){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch(e){}location.reload();break}
-   case 'reload':{const y=scrollY;b.style.opacity='.4';await load();requestAnimationFrame(()=>scrollTo(0,y));toast('Yangilandi');break}
+   case 'reload':{const y=scrollY;b.style.opacity='.4';PBM=null;PBL=null;await load();requestAnimationFrame(()=>scrollTo(0,y));toast('Yangilandi');break}
    case 'delOpen':openDel(d.k,+d.id);break;
    case 'delGo':{const k=d.k,id=+d.id;await api(k+'.delete',{id,confirm:val('delConf')});closeSheet();TRASH=null;if(k!=='test'){while(stack.length&&/^(school|class|stu|itest):/.test(stack[stack.length-1]))stack.pop()}if(k==='test'&&testId===id){testId=0}toast('O’chirildi. “O’chirilganlar” bo’limidan qaytarish mumkin');await load();break}
    case 'bkDl':formSheet('Parol bilan yuklab olish',[{id:'bkP1',label:'Parol (kamida 8 belgi)',type:'password'},{id:'bkP2',label:'Parolni qayta yozing',type:'password'}],'bkDlGo','<p class="note">Parolni qog’ozga yozib, fleshkadan alohida joyda saqlang.</p>','Yuklab olish');break;
@@ -2815,7 +2825,7 @@ document.addEventListener('click',async e=>{
      <button class="btn dan" data-act="pinRevoke" data-id="${x.user.id}">PIN’ni o’chirish</button>`);break}
    case 'pinShow':{const x=PINS.find(p=>p.kind===d.k&&String(p.ref)===d.r);showPin({pin:x.user.pin,name:x.name,phone:x.phone},x.kind);break}
    case 'pinRevoke':await api('pin.revoke',{user_id:+d.id});closeSheet();PINS=null;toast('PIN o’chirildi');render();break;
-   case 'pinBulk':{const l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool)&&!x.user?.pin&&(x.phone||x.kind!=='ota'));
+   case 'pinBulk':{const l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool)&&!x.user?.pin&&(x.phone||(x.kind!=='ota'&&!isDir())));
      openSheet(`<div class="sh-top"><div class="m"><h2>${l.length} ta PIN berilsinmi?</h2><div class="s">Har biriga alohida 6 xonali PIN yaratiladi</div></div><button class="ib" data-act="close">${I.x}</button></div><button class="btn pri" data-act="pinBulkGo">Ha, PIN berish</button><button class="btn sec" data-act="close">Bekor qilish</button>`);break}
    case 'pinBulkGo':{const l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool)&&!x.user?.pin&&(x.phone||x.kind!=='ota'));const out=[];
      for(const x of l){try{out.push({...(await api('pin.issue',{kind:x.kind,ref:x.ref})),kind:x.kind})}catch(err){}}
