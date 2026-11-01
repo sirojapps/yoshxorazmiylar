@@ -1793,7 +1793,10 @@ function cookie(req, n) { const m = (req.headers.cookie || '').match(new RegExp(
 function userOf(req) {
   const t = cookie(req, 'yx'); if (!t) return null;
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
-  return one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
+  const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
+  // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
+  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; } }
+  return u;
 }
 // sayt versiyasi: index.html o'zgarsa, ochiq sahifalarga "Sayt yangilandi" chiqadi
 let VER = { m: 0, v: '' };
