@@ -361,6 +361,16 @@ function cleanAvatar(v, allowPhoto) {
 // profil surati (01.11.2026 qarori): har kim faqat O'ZIGA, o'z xohishi bilan surat qo'ya oladi (ixtiyoriy); bolalarga (o'quvchilarga) surat qo'yilmaydi
 db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_consent_at TEXT"); } catch (e) { }
+// sinf rahbarining har bola haqidagi shaxsiy eslatmasi: faqat o'zi ko'radi (jamoa ham ko'rmaydi)
+db.exec("CREATE TABLE IF NOT EXISTS rnotes(student_id INTEGER NOT NULL, user_id INTEGER NOT NULL, text TEXT DEFAULT '', at TEXT, PRIMARY KEY(student_id,user_id))");
+A['rnote.save'] = (u, b) => {
+  need(u.role === 'rahbar'); const st = one('SELECT id,class_id FROM students WHERE id=? AND active=1', +b.student_id);
+  need(st && st.class_id === u.class_id, 'Faqat o‘z sinfingizdagi bola');
+  const text = String(b.text ?? '').trim().slice(0, 2000);
+  if (!text) run('DELETE FROM rnotes WHERE student_id=? AND user_id=?', st.id, u.id);
+  else run('INSERT INTO rnotes(student_id,user_id,text,at) VALUES(?,?,?,?) ON CONFLICT(student_id,user_id) DO UPDATE SET text=excluded.text,at=excluded.at', st.id, u.id, text, now());
+  return {};
+};
 A['me.avatar'] = (u, b) => { const v = cleanAvatar(b.avatar, true);
   if (v && !u.avatar_consent_at && !b.consent) bad('Avval rozilik belgisini qo‘ying');
   if (v && b.consent) run('UPDATE users SET avatar_consent_at=COALESCE(avatar_consent_at,?) WHERE id=?', now(), u.id);
@@ -1286,8 +1296,33 @@ A['iresult.save'] = (u, b) => {
   run(`INSERT INTO iresults(itest_id,student_id,score,absent,by,at) VALUES(?,?,?,?,?,?) ON CONFLICT(itest_id,student_id) DO UPDATE SET score=excluded.score,absent=excluded.absent,by=excluded.by,at=excluded.at`, t.id, st.id, score, absent, u.id, now());
   return {};
 };
+function rahbarExtras(u, out) {
+  const ex = {};
+  // har bola: ota-onasida PIN bormi, saytga kirganmi (telefon raqami bo'yicha)
+  const otas = all("SELECT phone,pin,last_login FROM users WHERE role='ota' AND active=1");
+  ex.parentAcc = {};
+  for (const s of out.students) {
+    const ps = [s.phone, ...(s.extra || [])].map(phone9).filter(Boolean);
+    const us = otas.filter(o => ps.includes(phone9(o.phone)));
+    ex.parentAcc[s.id] = { pin: us.some(o => o.pin), in: us.some(o => o.last_login) };
+  }
+  ex.rnotes = Object.fromEntries(all('SELECT student_id,text,at FROM rnotes WHERE user_id=?', u.id).map(r => [r.student_id, { text: r.text, at: r.at }]));
+  // o'z sinfi uchun misollar bazasidagi mavzular (qulflangan bo'limlarsiz) va har mavzuda nechta misol borligi
+  const g = out.classes[0]?.grade;
+  const cnt = Object.fromEntries(all('SELECT topic,count(*) n FROM probs WHERE active=1 AND grade=? GROUP BY topic', g || 0).map(r => [r.topic, r.n]));
+  ex.pbTopics = (PB_TOPICS[g] || []).map(([grp, l]) => [grp, l.filter(([c]) => !PB_LOCKED(c)).map(([c, n]) => [c, n, cnt[c] || 0])]).filter(([, l]) => l.length);
+  return ex;
+}
+A['pb.sample'] = (u, b) => { // sinf rahbari: o'z sinfi mavzusidan tasodifiy misollar (yechimi bilan)
+  let g = 0; if (u.role === 'rahbar') g = one('SELECT grade FROM classes WHERE id=?', u.class_id)?.grade || 0; else need(canKey(u));
+  const topic = String(b.topic || ''); if (PB_LOCKED(topic)) bad('Bu bo‘lim yopiq');
+  const n = Math.min(12, Math.max(1, +b.n || 6));
+  const w = ['active=1', 'topic=?'], a = [topic]; if (g) { w.push('grade=?'); a.push(g); }
+  if (b.level) { w.push('level=?'); a.push(+b.level); }
+  return { rows: all(`SELECT * FROM probs WHERE ${w.join(' AND ')} ORDER BY random() LIMIT ?`, ...a, n).map(probRow) };
+};
 function extras(u, out) {
-  const ex = { ...itestsFor(u, out), texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
+  const ex = { ...itestsFor(u, out), ...(u.role === 'rahbar' ? rahbarExtras(u, out) : {}), texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
   ex.bot = getSet('bot_username');
   ex.school = { name: getSet('sch_name') || 'KARAKUL INTERNATIONAL SCHOOL', about: getSet('sch_about'), address: getSet('sch_address') || 'Qorako‘l tumani, Buxoro viloyati',
     phone: getSet('sch_phone'), telegram: getSet('sch_telegram'), instagram: getSet('sch_instagram'), facebook: getSet('sch_facebook'), youtube: getSet('sch_youtube'), site: getSet('sch_site') };
@@ -1898,7 +1933,8 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/media' && req.method === 'POST') return send(res, 200, await mediaPut(u, req));
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
       if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
-        const m = isTeam(u) && one('SELECT type,data FROM media WHERE id=?', mm[1]);
+        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
+        const m = okm && one('SELECT type,data FROM media WHERE id=?', mm[1]);
         if (!m) { res.writeHead(404, SEC); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
       }
