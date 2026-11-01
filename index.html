@@ -977,7 +977,7 @@ function showPin(d,kind){
    <p class="note">PIN ro’yxatda ko’rinib turadi, keyin ham ko’rishingiz mumkin.</p>`);
 }
 function scrTeam(){
-  return ['Jamoa','',`${(S.team||[]).filter(u=>u.role==='jamoa'&&u.active).map(u=>`<button class="row card" data-act="teamEdit" data-id="${u.id}"><div class="m"><div class="n">${esc(u.name)} ${u.perms.sardor?'<span class="pill gold">sardor</span>':''}${u.perms.kuzatuvchi?'<span class="pill gray">kuzatuvchi</span>':''}</div>
+  return ['Jamoa','',`${(S.team||[]).filter(u=>u.role==='jamoa'&&u.active).map(u=>`<button class="row card" data-act="teamEdit" data-id="${u.id}">${avHtml(u.avatar,40,u.name)}<div class="m"><div class="n">${esc(u.name)} ${u.perms.sardor?'<span class="pill gold">sardor</span>':''}${u.perms.kuzatuvchi?'<span class="pill gray">kuzatuvchi</span>':''}</div>
     <div class="s">${Object.entries(u.perms).filter(([k,v])=>v&&k!=='sardor'&&k!=='kuzatuvchi').length} ta huquq · ${u.last_login?'oxirgi kirish '+fmtDate(u.last_login):'hali kirmagan'} · ${(S.results||[]).filter(r=>r.entered_by===u.id).length} ta kiritgan</div></div>${I.chev}</button>`).join('')||'<div class="card empty">Hali a’zo yo’q</div>'}
     <button class="btn pri" data-act="teamEdit">+ A’zo qo’shish</button>`]}
 let HIST=null, histStudent=window.__hs??null;
@@ -1156,7 +1156,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   const rights=m.role==='ceo'?'<div class="note" style="padding:12px 14px">Hamma huquqlar sizda. PIN berish faqat sizga tegishli.</div>':m.role==='jamoa'?(Object.keys(PL).filter(k=>P[k]).map(k=>`<div class="me-kv"><span>✓</span><b>${PL[k]}</b></div>`).join('')||'<div class="note" style="padding:12px 14px">Hozircha faqat ko’rish huquqi bor</div>'):'';
   const kids=m.role==='ota'?(S.students||[]).map(k=>{const kc=cl[k.class_id];return esc(k.name)+(kc?` · ${esc(kc.name)}`:'')}).join('<br>'):'';
   openSheet(`<div class="sh-top"><div class="m"><h2>Mening ma’lumotlarim</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml('',56,m.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:17px">${esc(m.name||'—')}</div><div style="margin-top:4px"><span class="pill ok">${esc(role)}</span></div></div></div>
+  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(m.avatar,56,m.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:17px">${esc(m.name||'—')}</div><div style="margin-top:4px"><span class="pill ok">${esc(role)}</span></div></div><button class="btn sec sm" data-act="avPick">${String(m.avatar||'').startsWith('data:')?'Surat':'📷 Surat qo’yish'}</button></div>
   <div class="card list">${kv('Telefon',esc(ph(m.phone)))}${kv('Maktab',s?`${s.num}-maktab`:'')}${kv('Sinf',c?esc(c.name):'')}${kv('Farzandlari',kids)}${kv('PIN berilgan',dt(m.pin_at))}${kv('Saytda',m.created_at?dt(m.created_at)+' dan beri':'')}</div>
   ${rights?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">HUQUQLARIM</div><div class="card list">${rights}</div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
@@ -1164,13 +1164,17 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
 function avHtml(v,size=36,name='',sid=0){const st=`width:${size}px;height:${size}px;border-radius:50%;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center`;
   const n=String(name||'').trim();const ini=n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))>>>0;const c=AVC[h%AVC.length];
+  if(typeof v==='string'&&v.startsWith('data:image/'))return `<span class="av" style="${st};background:var(--surface2)"><img src="${v}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>`;
   return `<span class="av" style="${st};background:linear-gradient(135deg,${c},${c}cc);color:#fff;font-weight:700;font-size:${Math.round(size*.38)}px;letter-spacing:.02em">${esc(ini||'?')}</span>`}
 // surat qo'yish oynasi: o'zi uchun yoki farzandi/o'quvchi uchun
-function openAvPick(kidId){const kid=kidId?X.st.find(s=>s.id===kidId):null;const cur=kid?kid.avatar:S.me.avatar;const real=cur&&(cur.startsWith('data:')||cur.startsWith('ph:'));
+function openAvPick(kidId){kidId=0;const kid=null;const cur=S.me.avatar;const real=!!(cur&&cur.startsWith('data:'));
   openSheet(`<div class="sh-top"><div class="m"><h2>${kid?esc(kid.name.split(' ')[1]||kid.name)+'ning surati':'Profil surati'}</h2><div class="s">${kid?'Bolaning yuzi aniq ko’ringan surat':'Yuzingiz aniq ko’ringan surat qo’ying'}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   <div style="display:flex;justify-content:center">${avHtml(real?cur:'',120,kid?kid.name:S.me.name,kid?.id)}</div>
-   <button class="btn pri" data-act="avUpload" data-kid="${kidId||''}">📷 ${real?'Suratni almashtirish':'Surat yuklash'}</button>
-   <p class="note" style="margin:0">Telefon galereyasidan tanlang yoki shu yerning o’zida rasmga oling. Surat kichraytirib saqlanadi.${kid?' Bolaning suratini faqat ota-onasi, sinf rahbari, direktor va loyiha jamoasi ko’radi.':''}</p>
+   <div style="display:flex;justify-content:center">${avHtml(real?cur:'',120,S.me.name)}</div>
+   ${real?'':`<div class="card pad" style="gap:8px;background:var(--gold-soft,#fff7e0)"><div class="n" style="font-weight:700">⚠️ Surat qo’yishdan oldin o’qing</div>
+   <ul class="note" style="margin:0;padding-left:18px;display:grid;gap:4px"><li>Surat qo’yish <b>ixtiyoriy</b>. Qo’ymasangiz, ismingizning bosh harflari ko’rinadi.</li><li>Faqat <b>o’zingizning</b> suratingizni qo’ying. Boshqa odamning yoki bolaning suratini qo’yish mumkin emas.</li><li>Suratingizni sizning ismingizni ko’radigan foydalanuvchilar ko’radi: loyiha jamoasi va siz bilan yozishadigan odamlar.</li><li>Surat kichraytirib saqlanadi, boshqa joyga berilmaydi va istalgan vaqt o’zingiz olib tashlashingiz mumkin.</li></ul>
+   <label class="check" style="margin-top:4px"><input type="checkbox" id="avOk" onchange="document.getElementById('avGo').disabled=!this.checked"><b>O’qidim, bu mening suratim, saytda ko’rsatilishiga roziman</b></label></div>`}
+   <button class="btn pri" id="avGo" data-act="avUpload" data-kid="" ${real?'':'disabled'}>📷 ${real?'Suratni almashtirish':'Surat yuklash'}</button>
+   <p class="note" style="margin:0">Galereyadan tanlang yoki shu yerning o’zida rasmga oling.</p>
    ${real?`<button class="btn sec" data-act="avSet" data-v="" data-kid="${kidId||''}">Suratni olib tashlash</button>`:''}`)}
 // surat qo'yishga eslatma (bir marta yopilsa, boshqa chiqmaydi)
 const avNudge=()=>'';const avNudgeOld=()=>!String(S.me.avatar||'').startsWith('data:')&&!ls.get('avn',0)?`<div class="card pad" style="flex-direction:row;align-items:center;gap:12px">${avHtml('',44,S.me.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:600">Profilingizga suratingizni qo’ying</div><div class="note">Xabarlarda sizni tanib olishadi</div></div><button class="btn pri sm" data-act="avPick">Qo’yish</button><button class="ib" data-act="avNudgeOff" aria-label="Yopish">${I.x}</button></div>`:'';
@@ -2578,7 +2582,7 @@ function render(){
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq';
   $('#app').innerHTML=`<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
-   <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml('',36,S.me.name)}</button>
+   <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
@@ -2773,9 +2777,9 @@ document.addEventListener('click',async e=>{
    case 'irAbs':{const tid=+(stack[stack.length-1]||'').split(':')[1];const r=IR(tid,+d.sid);await api('iresult.save',r?.absent?{itest_id:tid,student_id:+d.sid,clear:1}:{itest_id:tid,student_id:+d.sid,absent:1});await load();break}
    case 'avPick':openAvPick(0);break;
    case 'kidAv':openAvPick(+d.id);break;
-   case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render()}catch(e){toast(e.message,true)}},kid?200:240);break}
+   case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u,consent:true});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render();if(!kid)openMeInfo()}catch(e){toast(e.message,true)}},kid?200:240);break}
    case 'avNudgeOff':ls.set('avn',1);render();break;
-   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();break}
+   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();if(!kid)openMeInfo();break}
    case 'pageReload':{b.textContent='Yangilanmoqda…';b.disabled=true;try{if('caches' in window){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch(e){}location.reload();break}
    case 'reload':{const y=scrollY;b.style.opacity='.4';await load();requestAnimationFrame(()=>scrollTo(0,y));toast('Yangilandi');break}
    case 'delOpen':openDel(d.k,+d.id);break;

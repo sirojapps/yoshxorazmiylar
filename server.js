@@ -358,9 +358,13 @@ function cleanAvatar(v, allowPhoto) {
   if (allowPhoto && /^data:image\/(png|jpeg|webp);base64,/.test(s) && s.length <= 160000) return s;
   bad('Rasm juda katta yoki noto‘g‘ri');
 }
-// profil suratlari maxfiylik uchun o'chirilgan (28.10.2026 qarori): faqat ism bosh harflari ko'rinadi
-db.exec("UPDATE users SET avatar='' WHERE avatar<>''"); db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
-A['me.avatar'] = () => bad('Profil surati qo‘yish o‘chirilgan');
+// profil surati (01.11.2026 qarori): har kim faqat O'ZIGA, o'z xohishi bilan surat qo'ya oladi (ixtiyoriy); bolalarga (o'quvchilarga) surat qo'yilmaydi
+db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
+try { db.exec("ALTER TABLE users ADD COLUMN avatar_consent_at TEXT"); } catch (e) { }
+A['me.avatar'] = (u, b) => { const v = cleanAvatar(b.avatar, true);
+  if (v && !u.avatar_consent_at && !b.consent) bad('Avval rozilik belgisini qo‘ying');
+  if (v && b.consent) run('UPDATE users SET avatar_consent_at=COALESCE(avatar_consent_at,?) WHERE id=?', now(), u.id);
+  run('UPDATE users SET avatar=? WHERE id=?', v, u.id); log(u.id, v ? 'surat.qoyish' : 'surat.olish', v ? { rozilik: true } : {}); return {}; };
 A['student.avatar'] = () => bad('Profil surati qo‘yish o‘chirilgan');
 A['consent'] = u => { run('UPDATE users SET consent_at=? WHERE id=?', now(), u.id); log(u.id, 'rozilik', {}); return {}; };
 
