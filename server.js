@@ -1118,13 +1118,17 @@ function pinTargets() {
   return list;
 }
 A['pins'] = u => {
+  if (u.role === 'direktor') { // direktor: faqat o'z maktabidagi sinf rahbarlari
+    return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin || '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  }
   need(can(u, 'pinlar'));
   const show = can(u, 'pin_korish');
   return { list: pinTargets().map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show && (x.kind !== 'jamoa' || u.role === 'ceo') ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
 };
 A['pin.issue'] = (u, b) => {
-  need(u.role === 'ceo', 'PIN‘ni faqat CEO beradi');
+  need(u.role === 'ceo' || u.role === 'direktor', 'PIN‘ni CEO yoki direktor beradi');
   const t = pinTargets().find(x => x.kind === b.kind && String(x.ref) === String(b.ref)); if (!t) bad('Topilmadi');
+  if (u.role === 'direktor') need(t.kind === 'rahbar' && t.school_id === u.school_id, 'Direktor faqat o‘z maktabidagi sinf rahbarlariga PIN beradi');
   if (t.kind === 'ota' && !t.phone) bad('Ota-onaning telefon raqami kerak');
   return ensurePin(t, u.id, true);
 };
@@ -1137,7 +1141,8 @@ function ensurePin(t, by, renew) {
   return { pin, name: t.name, phone: t.phone, kind: t.kind };
 }
 A['pin.revoke'] = (u, b) => {
-  need(u.role === 'ceo'); const t = one('SELECT * FROM users WHERE id=? AND role!=\'ceo\'', b.user_id); if (!t) bad('Topilmadi');
+  need(u.role === 'ceo' || u.role === 'direktor'); const t = one('SELECT * FROM users WHERE id=? AND role!=\'ceo\'', b.user_id); if (!t) bad('Topilmadi');
+  if (u.role === 'direktor') { const c = t.role === 'rahbar' && t.class_id ? one('SELECT school_id FROM classes WHERE id=?', t.class_id) : null; need(c && c.school_id === u.school_id, 'Direktor faqat o‘z maktabidagi sinf rahbarining PIN‘ini o‘chiradi'); }
   run('UPDATE users SET pin=NULL WHERE id=?', t.id); run('DELETE FROM sessions WHERE user_id=?', t.id);
   log(u.id, 'pin.ochirish', { name: t.name, role: t.role }); return {};
 };
