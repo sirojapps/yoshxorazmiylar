@@ -845,18 +845,14 @@ A['pb.add'] = (u, b) => {
         const pid = pid2;
         const sig = probSig(p); const other = one('SELECT id FROM probs WHERE sig=? AND id!=?', sig, pid);
         if (other) { dup++; out.push({ id: other.id, dup: true }); continue; }
-        const nsig = probNsig(p); const near = nsig ? one('SELECT id FROM probs WHERE nsig=? AND active=1 AND id!=?', nsig, pid) : null;
-        if (near) { dup++; nearDup++; out.push({ id: near.id, dup: true, near: true }); continue; }
+        const nsig = probNsig(p); // mazmuni bir xil, sonlari boshqa variantlar ruxsat etiladi — faqat aynan bir xil misol takror hisoblanadi
         run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,nsig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, pid);
         updated++; out.push({ id: pid, dup: false }); continue;
       }
       const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
       if (ex) { if (!ex.active) { run('UPDATE probs SET active=1,topic=?,kind=?,level=?,a=?,fix=?,sol=? WHERE id=?', p.topic, p.kind, p.level, p.a, p.fix, p.sol, ex.id); added++; out.push({ id: ex.id, dup: false }); } else { dup++; out.push({ id: ex.id, dup: true }); } continue; }
-      // o'xshash misol (matni bir xil, faqat raqamlari/variantlari boshqacha) — takror hisoblanadi
-      const nsig = probNsig(p); const near = nsig ? one('SELECT id FROM probs WHERE nsig=? AND active=1', nsig) : null;
-      if (near) { dup++; nearDup++; out.push({ id: near.id, dup: true, near: true }); continue; }
-      // bir paketning ichida ham takror bo'lmasin
-      if (nsig && seen.has(nsig)) { dup++; nearDup++; out.push({ id: seen.get(nsig), dup: true, near: true }); continue; }
+      // mazmuni bir xil, sonlari boshqa misollar (variantlar) ham qabul qilinadi — testda bolalarga teng qiyinlikdagi savol beradi
+      const nsig = probNsig(p);
       const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,nsig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, u.id, now());
       if (nsig) seen.set(nsig, Number(r.lastInsertRowid));
       added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
@@ -897,13 +893,15 @@ A['pb.pick'] = (u, b) => {
   if (topics.some(PB_LOCKED) && !canTF(u)) bad('Tanqidiy fikrlash masalalari qulf ostida — ularni faqat CEO va jamoa sardori ochadi');
   const n = Math.min(50, Math.max(1, parseInt(b.n, 10) || 20)), nimg = Math.min(n, Math.max(0, parseInt(b.nimg, 10) || 0));
   const ex = (Array.isArray(b.exclude) ? b.exclude : []).map(Number);
-  let pool = all(`SELECT * FROM probs WHERE active=1 AND grade=?${topics.length ? ` AND topic IN (${inList(topics)})` : ''}`, g, ...topics).map(probRow).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
+  let pool = all(`SELECT * FROM probs WHERE active=1 AND grade=?${topics.length ? ` AND topic IN (${inList(topics)})` : ''}`, g, ...topics).map(r => ({ ...probRow(r), ns: r.nsig || '' })).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
   if (b.pic === 1) pool = pool.filter(p => p.pic); if (b.pic === 0) pool = pool.filter(p => !p.pic);
   const spread = l => { const by = {}; shuffle(l).forEach(p => (by[p.topic] ||= []).push(p)); const ks = shuffle(Object.keys(by)), out = []; let more = true; while (more) { more = false; for (const k of ks) if (by[k].length) { out.push(by[k].shift()); more = true; } } return out; };
-  const pic = spread(pool.filter(p => p.pic)), txt = spread(pool.filter(p => !p.pic));
+  // bir testga mazmuni bir xil (faqat sonlari boshqa) ikki misol tushmasin
+  const NS = new Set(ex.length ? all(`SELECT nsig FROM probs WHERE id IN (${inList(ex)})`, ...ex).map(r => r.nsig).filter(Boolean) : []), uniq = l => l.filter(p => !p.ns || (!NS.has(p.ns) && NS.add(p.ns)));
+  const pic = uniq(spread(pool.filter(p => p.pic))), txt = uniq(spread(pool.filter(p => !p.pic)));
   let take = pic.slice(0, nimg); take = take.concat(txt.slice(0, n - take.length));
   if (take.length < n) take = take.concat(pic.slice(nimg).slice(0, n - take.length));
-  take.sort((x, y) => x.level - y.level);
+  take.sort((x, y) => x.level - y.level); take = take.map(({ ns, ...p }) => p);
   return { rows: take, short: n - take.length, pool: pool.length };
 };
 
