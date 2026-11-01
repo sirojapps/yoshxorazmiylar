@@ -15,6 +15,8 @@ say(){ echo; echo "==> $*"; }
 say "1/7 Kerakli dasturlar o'rnatilmoqda (bir necha daqiqa)"
 apt-get update -qq
 apt-get install -y -qq curl ca-certificates nginx certbot python3-certbot-nginx sqlite3 >/dev/null
+# zaxira nusxani parolli arxivlash uchun 7-Zip
+command -v 7z >/dev/null || command -v 7zz >/dev/null || apt-get install -y -qq p7zip-full >/dev/null 2>&1 || apt-get install -y -qq 7zip >/dev/null 2>&1 || echo "DIQQAT: 7-Zip o'rnatilmadi — zaxirani yuklab olish ishlamaydi"
 NODE_MAJOR=$(command -v node >/dev/null && node -v | sed 's/v\([0-9]*\).*/\1/' || echo 0)
 if [ "$NODE_MAJOR" -lt 22 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
@@ -91,7 +93,7 @@ fi
 
 say "6/7 Kunlik zaxira nusxa sozlanmoqda"
 cat > /etc/cron.d/yx-backup <<EOF
-30 2 * * * root sqlite3 $APP/data/yx.db ".backup '$APP/backups/yx-\$(date +\%F).db'" && find $APP/backups -name 'yx-*.db' -mtime +30 -delete
+30 21 * * * root sqlite3 $APP/data/yx.db ".backup '$APP/backups/yx-\$(date +\%F).db'" && chown yx:yx $APP/backups/*.db && chmod 600 $APP/backups/*.db && find $APP/backups -name 'yx-*.db' -mtime +30 -delete && find $APP/backups -name 'oldin-*.db' -mtime +60 -delete
 EOF
 chmod 644 /etc/cron.d/yx-backup
 

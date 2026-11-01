@@ -10,6 +10,14 @@ const PORT = +process.env.PORT || 3000;
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUBLIC = path.join(__dirname, 'public');
 fs.mkdirSync(DATA, { recursive: true });
+const BACKUPS = process.env.BACKUP_DIR || path.join(DATA, '..', 'backups');
+// Zaxiradan tiklash: CEO tanlagan nusxa restore.db ga qo'yilgan bo'lsa, ishga tushishda bazaning o'rniga o'tadi
+(() => {
+  const r = path.join(DATA, 'restore.db'); if (!fs.existsSync(r)) return;
+  for (const x of ['yx.db-wal', 'yx.db-shm']) try { fs.unlinkSync(path.join(DATA, x)); } catch { }
+  fs.renameSync(r, path.join(DATA, 'yx.db'));
+  console.log('Baza zaxira nusxadan tiklandi');
+})();
 const db = new DatabaseSync(path.join(DATA, 'yx.db'));
 db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
 
@@ -243,6 +251,7 @@ function state(u) {
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
     out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
     out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq FROM results');
+    if (!P.ceo && !P.kalit) for (const r of out.results) r.answers = r.answers ? r.answers.replace(/[A-E]/g, '•') : r.answers; // javoblar + belgilar = kalit; kalit huquqi yo'qlarga berilmaydi
     out.vinfo = Object.fromEntries(tests.map(t => [t.id, varInfo(t.id)]));
     out.bank = bankList();
     out.keys = {};
@@ -593,8 +602,14 @@ A['key.save'] = (u, b) => {
   const v = varOf(b.variant) || 'A';
   if (key.length < 5) bad('Kalit to‘liq emas');
   if (v !== 'A' && !keyFor(b.test_id, g, 'A')) bad('Avval A variant kalitini kiriting');
+  if (!one('SELECT 1 FROM tests WHERE id=?', +b.test_id)) bad('Sinov topilmadi');
   if (one('SELECT 1 FROM tlinks WHERE test_id=? AND grade=?', b.test_id, g)) bad('Bu sinfning kaliti bazadagi testdan olingan. Testni almashtirish uchun “Test tanlash”dan foydalaning');
   const old = keyFor(b.test_id, g, v);
+  if (old && old !== key && gradeLocked(b.test_id, g)) { // natijalar bor: e'lon qilingan bo'lsa — kalit o'zgarmaydi
+    if (finished(b.test_id) || one('SELECT 1 FROM announcements a JOIN results r ON r.test_id=a.test_id JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id AND c.school_id=a.school_id WHERE a.test_id=? AND c.grade=? LIMIT 1', b.test_id, g))
+      bad(`${g}-sinf natijalari e‘lon qilingan — kalitni endi o‘zgartirib bo‘lmaydi`);
+    need(can(u, 'tuzatish'), 'Natijalar kiritilgan. Kalitni o‘zgartirish uchun tuzatish huquqi kerak');
+  }
   return tx(() => {
     putKey(b.test_id, g, v, key);
     const n = rescoreTest(b.test_id);
@@ -1020,8 +1035,8 @@ A['results.absentRest'] = (u, b) => {
   if (!list.length) return { n: 0 };
   if (announced(t.id, list[0].school_id)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
   tx(() => {
-    for (const s of list) run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) VALUES(?,?,1,'belgi','','',0,20,?,?)
-      ON CONFLICT(test_id,student_id) DO NOTHING`, t.id, s.id, u.id, now());
+    for (const s of list) run(`INSERT INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at) VALUES(?,?,1,'belgi','','',0,?,?,?)
+      ON CONFLICT(test_id,student_id) DO NOTHING`, t.id, s.id, t.scoring === '100' ? 100 : 20, u.id, now());
   });
   log(u.id, 'natija.kelmadi_hammasi', { test_id: t.id, school_id: sid || list[0].school_id, class_id: cid || null, soni: list.length });
   return { n: list.length };
@@ -1029,7 +1044,10 @@ A['results.absentRest'] = (u, b) => {
 A['result.delete'] = (u, b) => {
   const old = one('SELECT * FROM results WHERE test_id=? AND student_id=?', b.test_id, b.student_id); if (!old) return {};
   need(can(u, 'tuzatish') || (old.entered_by === u.id && can(u, 'kiritish')));
-  run('DELETE FROM results WHERE id=?', old.id); log(u.id, 'natija.ochirish', { old }); return {};
+  const sc = schoolOfStudent(old.student_id); if (announced(old.test_id, sc)) need(can(u, 'tuzatish'), 'Maktab natijalari e‘lon qilingan. Tuzatish huquqi kerak');
+  const si = studentInfo(old.student_id), tn = one('SELECT name FROM tests WHERE id=?', old.test_id)?.name || '';
+  tx(() => { toTrash(u, 'natija', old.id, si ? si.name : 'O‘quvchi', `${tn} · ${old.absent ? 'kelmadi' : old.score + ' ball'}`, sc, { results: [old] }); run('DELETE FROM results WHERE id=?', old.id); });
+  log(u.id, 'natija.ochirish', { student_id: old.student_id, test_id: old.test_id, old: { absent: old.absent, score: old.score } }); return {};
 };
 A['results.import'] = (u, b) => { // bulk import (e.g. from the temporary entry page)
   need(u.role === 'ceo');
@@ -1046,8 +1064,9 @@ A['results.import'] = (u, b) => { // bulk import (e.g. from the temporary entry 
   return { ok, miss };
 };
 
-A['approve'] = (u, b) => {
+A['approve'] = (u, b) => tx(() => {
   need(u.role === 'ceo' || perms(u).sardor, 'Faqat CEO va jamoa sardori tasdiqlaydi');
+  b.school_id = +b.school_id || 0; if (!one('SELECT 1 FROM tests WHERE id=?', +b.test_id)) bad('Sinov topilmadi');
   if (b.school_id === 0) { // finishing the whole test needs every school with results announced
     const pend = all(`SELECT DISTINCT c.school_id id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=?`, b.test_id).filter(x => !announced(b.test_id, x.id));
     if (pend.length) bad('Avval hamma maktab natijalari e‘lon qilinishi kerak');
@@ -1059,14 +1078,14 @@ A['approve'] = (u, b) => {
   if (b.school_id && st.done) { assignCerts(b.test_id, b.school_id); notifyAnnounce(b.test_id, b.school_id); }
   log(u.id, b.school_id ? 'elon.tasdiq' : 'yakunlash.tasdiq', { test_id: b.test_id, school_id: b.school_id, done: st.done });
   return st;
-};
-A['unapprove'] = (u, b) => {
-  need(u.role === 'ceo' || perms(u).sardor);
+});
+A['unapprove'] = (u, b) => tx(() => {
+  need(u.role === 'ceo' || perms(u).sardor); b.school_id = +b.school_id || 0;
   run('DELETE FROM approvals WHERE test_id=? AND school_id=? AND user_id=?', b.test_id, b.school_id, u.id);
   if (u.role === 'ceo' && b.school_id) run('DELETE FROM certificates WHERE test_id=? AND student_id IN (SELECT s.id FROM students s JOIN classes c ON c.id=s.class_id WHERE c.school_id=?)', b.test_id, b.school_id);
   if (u.role === 'ceo') { run('DELETE FROM announcements WHERE test_id=? AND school_id=?', b.test_id, b.school_id); if (b.school_id === 0) run("UPDATE tests SET status='tekshiruv' WHERE id=?", b.test_id); }
   log(u.id, 'tasdiq.bekor', { test_id: b.test_id, school_id: b.school_id }); return approvedState(b.test_id, b.school_id);
-};
+});
 
 // PINs: only the CEO issues; list is visible with the 'pinlar' right, PIN digits with 'pin_korish'
 function pinTargets() {
@@ -1097,7 +1116,7 @@ function pinTargets() {
 A['pins'] = u => {
   need(can(u, 'pinlar'));
   const show = can(u, 'pin_korish');
-  return { list: pinTargets().map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  return { list: pinTargets().map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show && (x.kind !== 'jamoa' || u.role === 'ceo') ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
 };
 A['pin.issue'] = (u, b) => {
   need(u.role === 'ceo', 'PIN‘ni faqat CEO beradi');
@@ -1108,7 +1127,7 @@ A['pin.issue'] = (u, b) => {
 function ensurePin(t, by, renew) {
   if (t.user && t.user.pin && !renew) return { pin: t.user.pin, name: t.name, phone: t.phone, kind: t.kind };
   const pin = newPin();
-  if (t.user) run('UPDATE users SET pin=?,pin_at=?,phone=?,name=? WHERE id=?', pin, now(), t.phone || t.user.phone, t.name, t.user.id);
+  if (t.user) { run('UPDATE users SET pin=?,pin_at=?,phone=?,name=? WHERE id=?', pin, now(), t.phone || t.user.phone, t.name, t.user.id); run('DELETE FROM sessions WHERE user_id=?', t.user.id); }
   else run('INSERT INTO users(role,name,phone,pin,pin_at,school_id,class_id,created_at) VALUES(?,?,?,?,?,?,?,?)', t.kind, t.name, t.phone || '', pin, now(), t.school_id || null, t.class_id || null, now());
   log(by, t.user ? 'pin.yangilash' : 'pin.berish', { kind: t.kind, name: t.name, bot: by == null });
   return { pin, name: t.name, phone: t.phone, kind: t.kind };
@@ -1137,12 +1156,12 @@ A['note.save'] = (u, b) => {
   if (b.id) { const n = one('SELECT * FROM notes WHERE id=?', b.id); need(n && n.user_id === u.id, 'Faqat o‘z izohingizni o‘zgartirasiz'); run('UPDATE notes SET text=?,at=? WHERE id=?', text, now(), b.id); return {}; }
   run('INSERT INTO notes(student_id,user_id,text,at) VALUES(?,?,?,?)', b.student_id, u.id, text, now()); return {};
 };
-A['note.summary'] = (u, b) => { need(u.role === 'ceo' || perms(u).sardor); const n = one('SELECT student_id FROM notes WHERE id=?', b.id); run('UPDATE notes SET summary=0 WHERE student_id=?', n.student_id); run('UPDATE notes SET summary=1 WHERE id=?', b.id); return {}; };
+A['note.summary'] = (u, b) => { need(u.role === 'ceo' || perms(u).sardor); const n = one('SELECT student_id FROM notes WHERE id=?', b.id); if (!n) bad('Izoh topilmadi'); run('UPDATE notes SET summary=0 WHERE student_id=?', n.student_id); run('UPDATE notes SET summary=1 WHERE id=?', b.id); return {}; };
 A['audit'] = (u, b) => {
   need(can(u, 'tarix'));
   const rows = b.student_id ? all("SELECT * FROM audit WHERE detail LIKE ? ORDER BY id DESC LIMIT 200", '%"student_id":' + (+b.student_id) + '%')
     : all('SELECT * FROM audit ORDER BY id DESC LIMIT ? OFFSET ?', Math.min(100, Math.max(1, +b.limit || 100)), (+b.offset || 0));
-  const who = {}; for (const r of rows) if (!(r.user_id in who)) { const x = one('SELECT name,role FROM users WHERE id=?', r.user_id); who[r.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'direktor' ? 'Direktor ' + (x.name || '').split(' ')[0] : x.role === 'rahbar' ? 'Ustoz ' + (x.name || '').split(' ')[0] : (x.name || '').split(' ')[0]) : '—'; }
+  const who = {}; for (const r of rows) if (!(r.user_id in who)) { const x = one('SELECT name,role FROM users WHERE id=?', r.user_id); who[r.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'direktor' ? 'Direktor ' + (x.name || '').split(' ')[0] : x.role === 'rahbar' ? 'Ustoz ' + (x.name || '').split(' ')[0] : x.role === 'ota' ? 'Ota-ona (' + (x.name || '').split(/[ ,]/)[0] + ')' : (x.name || '').split(' ')[0]) : 'Tizim'; }
   return { rows: rows.map(r => ({ ...r, who: who[r.user_id], detail: JSON.parse(r.detail || '{}') })) };
 };
 
@@ -1317,6 +1336,7 @@ function grantByPhone(p) {
   for (const t of pinTargets()) {
     if (phone9(t.phone) !== p) continue;
     if (t.kind === 'jamoa') { if (t.user?.pin) got.push({ pin: t.user.pin, name: t.name, kind: 'jamoa' }); continue; }
+    if (t.user && t.user.pin && phone9(t.user.phone) && phone9(t.user.phone) !== p) continue; // PIN egasining raqami boshqa — bermaymiz
     got.push(ensurePin(t, null, false));
   }
   return got;
@@ -1377,9 +1397,10 @@ let tgGen = 0;
 async function tgLoop() {
   const gen = ++tgGen; let offset = 0;
   while (gen === tgGen) {
-    const token = getSet('bot_token');
-    if (!token) { await sleep(5000); continue; }
+    let token = '';
     try {
+      token = getSet('bot_token');
+      if (!token) { await sleep(5000); continue; }
       const r = await fetch(`${TG_API}/bot${token}/getUpdates?timeout=50&offset=${offset}`, { signal: AbortSignal.timeout(65000) });
       const d = await r.json();
       if (!d.ok) { setSet('bot_error', d.description || 'xato'); await sleep(15000); continue; }
@@ -1388,7 +1409,8 @@ async function tgLoop() {
     } catch (e) { await sleep(5000); }
   }
 }
-if (process.env.NO_BOT !== '1') tgLoop();
+if (process.env.NO_BOT !== '1') tgLoop().catch(e => console.error('bot loop', e));
+process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
 A['tg.requests'] = u => {
   need(u.role === 'rahbar' || can(u, 'pinlar'));
@@ -1428,6 +1450,51 @@ const CERT_DEF = {
   cert_tuman: 'Qorako‘l tumani',
 };
 const certTexts = () => Object.fromEntries(Object.keys(CERT_DEF).map(k => [k, getSet(k) || CERT_DEF[k]]));
+
+// ---- Zaxira nusxalar: ro'yxat, tekshirish (haqiqatan tiklasa bo'ladimi), tiklash ----
+async function zipEnc(out, file, pw) { // 7-Zip: AES-256 parolli ZIP (telefonda ZArchiver, RAR, 7-Zip ochadi)
+  const { execFile } = require('node:child_process');
+  for (const bin of ['7z', '7zz', '7za']) {
+    const e = await new Promise(ok => execFile(bin, ['a', '-tzip', '-mem=AES256', '-mx=5', '-p' + pw, '-bso0', '-bsp0', out, file], { timeout: 120e3 }, ok));
+    if (!e) return; if (e.code !== 'ENOENT') throw new HttpErr(500, 'Arxivlashda xato. Birozdan keyin qayta urinib ko‘ring');
+  }
+  throw new HttpErr(500, 'Serverda 7-Zip o‘rnatilmagan — parolli nusxa tayyorlab bo‘lmadi');
+}
+const BK_RE = /^(yx-\d{4}-\d{2}-\d{2}|oldin-[0-9T-]+)\.db$/;
+function bkFiles() {
+  try { return fs.readdirSync(BACKUPS).filter(f => BK_RE.test(f)).map(f => { const s = fs.statSync(path.join(BACKUPS, f)); return { f, size: s.size, at: s.mtime.toISOString(), safety: f.startsWith('oldin-') }; }).sort((a, b) => b.at.localeCompare(a.at)); }
+  catch { return []; }
+}
+const COUNT_T = ['schools', 'classes', 'students', 'results', 'users'];
+const countsOf = d => Object.fromEntries(COUNT_T.map(t => { try { return [t, d.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n]; } catch { return [t, null]; } }));
+function bkCheck(f) {
+  let d; try {
+    d = new DatabaseSync(path.join(BACKUPS, f), { readOnly: true });
+    const r = d.prepare('PRAGMA integrity_check').get(), ok = Object.values(r || {})[0] === 'ok';
+    return { ok, ...countsOf(d) };
+  } catch (e) { return { ok: false }; } finally { try { d && d.close(); } catch { } }
+}
+const bkFind = f => bkFiles().find(x => x.f === f) || bad('Nusxa topilmadi');
+A['backup.list'] = u => {
+  need(u.role === 'ceo', 'Zaxira nusxalarni faqat CEO ko‘radi');
+  const l = bkFiles(), last = l.find(x => !x.safety);
+  return { list: l, last: last ? { ...last, ...bkCheck(last.f) } : null, live: countsOf(db), restored: getSet('restored') };
+};
+A['backup.check'] = (u, b) => { need(u.role === 'ceo'); return { ...bkFind(b.f), ...bkCheck(b.f) }; };
+A['backup.restore'] = (u, b) => {
+  need(u.role === 'ceo', 'Bazani faqat CEO tiklaydi');
+  if (b.confirm !== 'TIKLASH') bad('Tasdiqlash uchun TIKLASH deb yozing');
+  const x = bkFind(b.f), c = bkCheck(x.f); if (!c.ok) bad('Bu nusxa buzilgan — undan tiklab bo‘lmaydi. Boshqa kunni tanlang');
+  // hozirgi baza yo'qolmasin: avval uning o'zi alohida nusxaga olinadi
+  const safe = path.join(BACKUPS, `oldin-${now().slice(0, 19).replace(/:/g, '-')}.db`);
+  db.exec(`VACUUM INTO '${safe.replace(/'/g, "''")}'`);
+  const tmp = path.join(DATA, 'restore.tmp'); fs.copyFileSync(path.join(BACKUPS, x.f), tmp);
+  log(u.id, 'zaxira.tiklash', { from: x.f, safety: path.basename(safe) });
+  fs.writeFileSync(path.join(DATA, 'restored.json'), JSON.stringify({ by: u.id, from: x.f, safety: path.basename(safe), at: now() }));
+  fs.renameSync(tmp, path.join(DATA, 'restore.db'));
+  setTimeout(() => { try { db.close(); } catch { } process.exit(0); }, 500); // server o'zi qayta ishga tushadi va nusxani oladi
+  return { ok: true, safety: path.basename(safe) };
+};
 A['settings.get'] = u => {
   need(u.role === 'ceo');
   const o = {}; for (const k of SET_KEYS) o[k] = k === 'bot_token' ? (getSet(k) ? '••••••' + getSet(k).slice(-4) : '') : getSet(k);
@@ -1466,7 +1533,7 @@ function assignCerts(testId, schoolId) {
   const year = (t.date || now()).slice(0, 4); let n = 0;
   for (const sid of giftedIds(t, schoolId)) {
     if (one('SELECT 1 FROM certificates WHERE test_id=? AND student_id=?', testId, sid)) continue;
-    const seq = (one('SELECT count(*) n FROM certificates').n || 0) + 1;
+    const seq = (one("SELECT max(CAST(substr(code,-4) AS INTEGER)) n FROM certificates WHERE code LIKE ?", `YX-${year}-%`).n || 0) + 1;
     run('INSERT INTO certificates(code,test_id,student_id,at) VALUES(?,?,?,?)', `YX-${year}-${String(seq).padStart(4, '0')}`, testId, sid, now()); n++;
   }
   return n;
@@ -1501,7 +1568,13 @@ function threadAccess(u, t) {
   return { see: false, reply: false };
 }
 function visibleThreads(u) {
-  const rows = all('SELECT * FROM threads ORDER BY updated_at DESC LIMIT 1000').filter(t => threadAccess(u, t).see);
+  let rows;
+  if (u.role === 'ota') { const kids = kidsOfPhone(phone9(u.phone)); const cls = [...new Set(kids.map(id => one('SELECT class_id FROM students WHERE id=?', id)?.class_id).filter(Boolean))]; const sch = [...new Set(cls.map(schoolOfClass))];
+    rows = all(`SELECT * FROM threads WHERE user_id=? OR (kind IN ('sinf','dotalar') AND (class_id IN (${inList(cls)}) OR (class_id IS NULL AND school_id IN (${inList(sch)})))) ORDER BY updated_at DESC LIMIT 500`, u.id, ...cls, ...sch); }
+  else if (u.role === 'rahbar') { const sid = schoolOfClass(u.class_id); rows = all('SELECT * FROM threads WHERE user_id=? OR class_id=? OR (kind IN (\'drhs\',\'dotalar\') AND school_id=?) ORDER BY updated_at DESC LIMIT 1000', u.id, u.class_id, sid); }
+  else if (u.role === 'direktor') rows = all('SELECT * FROM threads WHERE user_id=? OR school_id=? ORDER BY updated_at DESC LIMIT 1000', u.id, u.school_id);
+  else rows = all(`SELECT * FROM threads WHERE kind NOT IN (${inList(PRIVATE_KINDS)}) ORDER BY updated_at DESC LIMIT 1000`, ...PRIVATE_KINDS);
+  rows = rows.filter(t => threadAccess(u, t).see);
   return rows.map(t => {
     const r = one('SELECT at FROM reads WHERE thread_id=? AND user_id=?', t.id, u.id)?.at || '';
     const last = one("SELECT user_id,text,image,audio<>'' AS audio,at FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 1", t.id);
@@ -1535,8 +1608,8 @@ function recipients(t, fromId) {
   if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
-function cleanImage(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:image\/(png|jpeg|webp);base64,/.test(s) || s.length > 1.5e6) bad('Rasm juda katta yoki noto‘g‘ri'); return s; }
-function cleanAudio(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:audio\/[a-z0-9.+-]+(;[a-z0-9=.,+ -]+)*;base64,/i.test(s) || s.length > 4.5e6) bad('Ovozli xabar juda uzun yoki noto‘g‘ri (eng ko‘pi 3 daqiqa)'); return s; }
+function cleanImage(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+=*$/.test(s) || s.length > 1.5e6) bad('Rasm juda katta yoki noto‘g‘ri'); return s; }
+function cleanAudio(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:audio\/[a-z0-9.+-]+(;[a-z0-9=.,+ -]+)*;base64,[A-Za-z0-9+\/]+=*$/i.test(s) || s.length > 4.5e6) bad('Ovozli xabar juda uzun yoki noto‘g‘ri (eng ko‘pi 3 daqiqa)'); return s; }
 function addMessage(u, t, txt, image, audio = '') {
   const at = now();
   run('INSERT INTO messages(thread_id,user_id,text,image,audio,at) VALUES(?,?,?,?,?,?)', t.id, u.id, txt, image, audio, at);
@@ -1556,7 +1629,7 @@ A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', 
   const reads = all('SELECT user_id,at FROM reads WHERE thread_id=?', t.id).filter(r => r.user_id !== u.id);
   const s = t.student_id ? studentInfo(t.student_id) : null;
   let result = null;
-  if (s && (isTeam(u) || u.role === 'rahbar')) { const r = one('SELECT r.score,r.qn,r.absent,t.name FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY r.test_id DESC LIMIT 1', s.id); if (r) result = r; }
+  if (s && (isTeam(u) || (u.role === 'rahbar' && u.class_id === s.class_id))) { const r = one('SELECT r.score,r.qn,r.absent,t.name,r.test_id FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY r.test_id DESC LIMIT 1', s.id); if (r && (isTeam(u) || announced(r.test_id, s.school_id))) result = r; }
   return { thread: { ...t, title: threadTitle(t, u) }, reply: acc.reply, msgs, names, avs, readBy: reads, student: s, result };
 };
 A['thread.new'] = (u, b) => {
@@ -1566,7 +1639,9 @@ A['thread.new'] = (u, b) => {
   if (b.kind === 'jamoa') {
     need(['direktor', 'rahbar', 'jamoa'].includes(u.role), 'Bu xabar turi sizga mo‘ljallanmagan');
     const topic = TOPICS.includes(b.topic) ? b.topic : 'savol';
-    const r = run('INSERT INTO threads(kind,user_id,student_id,topic,created_at,updated_at) VALUES(?,?,?,?,?,?)', 'jamoa', u.id, +b.student_id || null, topic, now(), now());
+    let stId = +b.student_id || null;
+    if (stId) { const si = studentInfo(stId); if (!si || (u.role === 'rahbar' && si.class_id !== u.class_id) || (u.role === 'direktor' && si.school_id !== u.school_id)) stId = null; }
+    const r = run('INSERT INTO threads(kind,user_id,student_id,topic,created_at,updated_at) VALUES(?,?,?,?,?,?)', 'jamoa', u.id, stId, topic, now(), now());
     t = one('SELECT * FROM threads WHERE id=?', Number(r.lastInsertRowid));
   } else if (b.kind === 'ota') {
     const s = studentInfo(+b.student_id); if (!s) bad('O‘quvchini tanlang');
@@ -1628,13 +1703,15 @@ A['msg.edit'] = (u, b) => { // faqat o'z xabarini tahrirlaydi
   const txt = str(b.text, 3000); if (!txt && !m.image) bad('Xabar bo‘sh');
   if (txt === m.text) return {};
   run('UPDATE messages SET text=?,edited=? WHERE id=?', txt, now(), m.id);
-  log(u.id, 'xabar.tahrir', { id: m.id, old: m.text, new: txt }); return {};
+  const priv = PRIVATE_KINDS.includes(one('SELECT kind FROM threads WHERE id=?', m.thread_id)?.kind);
+  log(u.id, 'xabar.tahrir', priv ? { id: m.id, thread_id: m.thread_id } : { id: m.id, old: m.text, new: txt }); return {};
 };
 A['msg.delete'] = (u, b) => { // o'z xabarini o'chiradi; CEO istalgan xabarni o'chira oladi
   const m = one('SELECT * FROM messages WHERE id=?', b.id); if (!m) return {};
   need(m.user_id === u.id || (u.role === 'ceo' && threadAccess(u, one('SELECT * FROM threads WHERE id=?', m.thread_id) || {}).see), 'Faqat o‘z xabaringizni o‘chira olasiz');
   run('DELETE FROM messages WHERE id=?', m.id);
-  log(u.id, 'xabar.ochirish', { id: m.id, thread_id: m.thread_id, by: m.user_id, text: m.text, image: !!m.image }); return {};
+  const priv = PRIVATE_KINDS.includes(one('SELECT kind FROM threads WHERE id=?', m.thread_id)?.kind);
+  log(u.id, 'xabar.ochirish', priv ? { id: m.id, thread_id: m.thread_id, by: m.user_id } : { id: m.id, thread_id: m.thread_id, by: m.user_id, text: m.text, image: !!m.image }); return {};
 };
 A['thread.status'] = (u, b) => {
   const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
@@ -1691,9 +1768,13 @@ A['ex.answer'] = (u, b) => {
 };
 
 // ---------------------------------------------------------------- http
-const fails = new Map(); // ip -> {n, until}
+const fails = new Map(); // ip / tel:raqam -> {n, first, until}
+const FAIL_WIN = 15 * 60e3;
+function failBump(k, max) { const o = fails.get(k), t = Date.now(); const f = o && t - o.first < FAIL_WIN ? o : { n: 0, first: t, until: 0 }; f.n++; if (f.n >= max) f.until = t + FAIL_WIN; fails.set(k, f); return f.n; }
+const failBlocked = k => { const o = fails.get(k); return !!(o && o.until > Date.now()); };
+setInterval(() => { const t = Date.now(); for (const [k, o] of fails) if (t - o.first > FAIL_WIN && o.until < t) fails.delete(k); }, 10 * 60e3).unref();
 function readBody(req, limit = 8e6) {
-  return new Promise((res, rej) => { let s = ''; req.on('data', c => { s += c; if (s.length > limit) { rej(new HttpErr(413, 'Juda katta')); req.destroy(); } }); req.on('end', () => res(s)); req.on('error', rej); });
+  return new Promise((res, rej) => { const parts = []; let n = 0; req.on('data', c => { n += c.length; if (n > limit) { rej(new HttpErr(413, 'Juda katta')); req.destroy(); return; } parts.push(c); }); req.on('end', () => res(Buffer.concat(parts).toString('utf8'))); req.on('error', rej); });
 }
 function send(res, code, obj, headers = {}) {
   const body = typeof obj === 'string' || Buffer.isBuffer(obj) ? obj : JSON.stringify(obj);
@@ -1749,23 +1830,25 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     const ip = String(req.headers['x-real-ip'] || req.socket.remoteAddress);
     if (url.pathname === '/api/login' && req.method === 'POST') {
-      const f = fails.get(ip); if (f && f.until > Date.now()) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
-      const { pin, phone } = JSON.parse(await readBody(req) || '{}');
+      if (failBlocked(ip)) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
+      let lb = {}; try { lb = JSON.parse(await readBody(req) || '{}') || {}; } catch { } const { pin, phone } = typeof lb === 'object' ? lb : {};
       const p9 = phone9(phone);
       if (!p9) return send(res, 400, { error: 'Telefon raqamingizni kiriting.' });
       // bitta raqamga ham ko'p qurilmadan urinishni to'xtatish
-      const pk = 'tel:' + p9, fp = fails.get(pk); if (fp && fp.until > Date.now()) return send(res, 429, { error: 'Bu raqam bilan ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
+      const pk = 'tel:' + p9; if (failBlocked(pk)) return send(res, 429, { error: 'Bu raqam bilan ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
       let u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
       if (u) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
         const own = u.role === 'ceo' ? (phone9(getSet('ceo_phone')) || phone9(u.phone)) : phone9(u.phone);
-        if (own && own !== p9) u = null; // raqami yozilmagan eski foydalanuvchilar vaqtincha faqat PIN bilan kiradi
+        if (own && own !== p9) u = null;
+        else if (!own) { // raqami hali yozilmagan foydalanuvchi: birinchi kirgan raqami unga biriktiriladi
+          run('UPDATE users SET phone=? WHERE id=?', p9, u.id); if (u.role === 'ceo') setSet('ceo_phone', p9);
+          log(u.id, 'telefon.biriktirish', { phone: p9 });
+        }
       }
       if (!u) {
-        const bump = (k, o) => { const n = (o && o.until < Date.now() ? 0 : o?.n || 0) + 1; fails.set(k, { n, until: n >= 5 ? Date.now() + 15 * 60e3 : 0 }); return n; };
-        const n = Math.max(bump(ip, f), bump(pk, fp));
-        return send(res, 401, { error: n >= 5 ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.' });
+        const n = Math.max(failBump(ip, 20), failBump(pk, 5)); // bitta raqamga 5 ta, bitta qurilmadan jami 20 ta urinish
+        return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.' });
       }
-      fails.delete(ip); fails.delete(pk);
       const token = crypto.randomBytes(32).toString('hex');
       run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
       run('UPDATE users SET last_login=? WHERE id=?', now(), u.id);
@@ -1773,7 +1856,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
     }
     if (url.pathname === '/api/logout') { run('DELETE FROM sessions WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }, { 'Set-Cookie': 'yx=; Path=/; Max-Age=0' }); }
-    if (url.pathname === '/api/verify') return send(res, 200, verifyCert(url.searchParams.get('c')));
+    if (url.pathname === '/api/verify') { if (failBlocked('vf:' + ip)) return send(res, 429, { error: 'Juda ko‘p so‘rov. Keyinroq urinib ko‘ring.' }); failBump('vf:' + ip, 60); return send(res, 200, verifyCert(url.searchParams.get('c'))); }
     if (url.pathname === '/api/ver') return send(res, 200, { v: siteVersion() }); // sahifa yangilanganini bilish uchun
     const phm = url.pathname.match(/^\/ph\/s\/(\d+)$/);
     if (phm) { // o'quvchi surati: faqat uni ko'rishga haqli bo'lganlarga
@@ -1785,11 +1868,20 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
       if (url.pathname === '/api/state') return send(res, 200, state(u));
-      if (url.pathname === '/api/backup') {
-        need(u.role === 'ceo'); const f = path.join(DATA, 'backup-download.db'); try { fs.unlinkSync(f); } catch {}
-        db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`); log(u.id, 'zaxira.yuklab_olish', {});
-        const buf = fs.readFileSync(f); fs.unlinkSync(f);
-        return send(res, 200, buf, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="yoshxorazmiylar-${now().slice(0, 10)}.db"` });
+      if (url.pathname === '/api/backup') { // butun baza — faqat parolli (AES-256) ZIP ichida, ochiq holda hech qachon berilmaydi
+        need(u.role === 'ceo');
+        if (req.method !== 'POST') bad('Zaxira nusxa faqat parol bilan yuklab olinadi');
+        const pw = String(JSON.parse(await readBody(req) || '{}').pw || '');
+        if (pw.length < 8) bad('Parol kamida 8 belgidan iborat bo‘lsin');
+        const name = `yoshxorazmiylar-${today()}`, dir = fs.mkdtempSync(path.join(DATA, 'dl-'));
+        try {
+          const f = path.join(dir, name + '.db'), z = path.join(dir, name + '.zip');
+          db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`);
+          { const c = new DatabaseSync(f); c.exec('DELETE FROM sessions; VACUUM;'); c.close(); } // kirish tokenlari nusxaga kirmaydi
+          await zipEnc(z, f, pw);
+          log(u.id, 'zaxira.yuklab_olish', {});
+          return send(res, 200, fs.readFileSync(z), { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${name}.zip"` });
+        } finally { fs.rmSync(dir, { recursive: true, force: true }); }
       }
       if (url.pathname === '/api/media' && req.method === 'POST') return send(res, 200, await mediaPut(u, req));
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
@@ -1798,16 +1890,17 @@ const server = http.createServer(async (req, res) => {
         if (!m) { res.writeHead(404, SEC); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
       }
-      const act = url.pathname.slice(5); const fn = A[act];
+      const act = url.pathname.slice(5); const fn = Object.hasOwn(A, act) ? A[act] : null;
       if (!fn || req.method !== 'POST') return send(res, 404, { error: 'Topilmadi' });
       if (isKuz(u) && !KUZ_READ.has(act) && !(KUZ_MSG.has(act) && can(u, 'xabar'))) return send(res, 403, { error: 'Kuzatuvchi faqat ko‘radi — o‘zgartira olmaydi' });
-      const b = JSON.parse(await readBody(req) || '{}');
+      let b; try { b = JSON.parse(await readBody(req) || '{}'); } catch { bad('Noto‘g‘ri so‘rov'); }
+      if (!b || typeof b !== 'object' || Array.isArray(b)) b = {};
       return send(res, 200, (await fn(u, b)) || {});
     }
     if (pwa(url, res)) return;
     if (FONTS[url.pathname]) { res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'public, max-age=2592000', ...SEC }); return res.end(FONTS[url.pathname]); }
     // static
-    let p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+    let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
@@ -1848,4 +1941,9 @@ if (getSet('scoring_v2') !== '1') {
     setSet('scoring_v2', '1'); log(null, 'ball_tizimi.eski_imtihonlar', { qaytarilgan_natijalar: n });
   });
 }
+// zaxiradan tiklangan bo'lsa — tarixga yozib qo'yish (tiklangan bazaning o'ziga)
+try {
+  const mf = path.join(DATA, 'restored.json');
+  if (fs.existsSync(mf)) { const m = JSON.parse(fs.readFileSync(mf, 'utf8')); setSet('restored', JSON.stringify(m)); log(one('SELECT id FROM users WHERE id=?', m.by) ? m.by : null, 'zaxira.tiklandi', m); fs.unlinkSync(mf); }
+} catch (e) { console.error('restored.json:', e.message); }
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));
