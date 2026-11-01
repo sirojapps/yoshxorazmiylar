@@ -429,8 +429,11 @@ let S=null;            // server state
 let homeSchool=0, homeClass=0, gq='', schGrade=0, schClass=0;
 let topMin=ls.get('topmin',70), topGrade=0, topSchool=0; // "Yuqori natijalar" bo'limi
 let tab=null, stack=[], pin='', pinErr='', sortBy='ball', rGrade=2, rMode='bola', q='', qSchool=0;
-// sahifa yangilanganda (refresh) o'sha sahifada qolish uchun joriy holatni eslab qolamiz
-const NAV={get(){try{return JSON.parse(sessionStorage.getItem('yx_nav')||'null')}catch(e){return null}},set(v){try{sessionStorage.setItem('yx_nav',JSON.stringify(v))}catch(e){}}};
+// joriy sahifani eslab qolamiz: sahifa yangilansa yoki telefon ilovani yopib qo'ysa ham, 15 daqiqa ichida qaytilsa — o'sha sahifa ochiladi; undan keyin — bosh sahifa
+const NAV_TTL=15*60*1000;
+const NAV={get(){try{const v=JSON.parse(localStorage.getItem('yx_nav')||'null');return v&&Date.now()-(v.t||0)<NAV_TTL?v:null}catch(e){return null}},set(v){try{localStorage.setItem('yx_nav',JSON.stringify({...v,t:Date.now()}))}catch(e){}},
+  touch(){try{const v=JSON.parse(localStorage.getItem('yx_nav')||'null');if(v){v.t=Date.now();localStorage.setItem('yx_nav',JSON.stringify(v))}}catch(e){}}};
+addEventListener('pagehide',()=>NAV.touch());document.addEventListener('visibilitychange',()=>{if(document.hidden)NAV.touch()});
 (function(){const n=NAV.get();if(n){if(typeof n.tab==='string')tab=n.tab;if(Array.isArray(n.stack))stack=n.stack.filter(x=>typeof x==='string').slice(-20);if(n.hs!=null)window.__hs=n.hs}})();
 // scroll joyi: brauzer yangilanganda ham odam turgan joyiga qaytadi
 let __y=(NAV.get()||{}).y||0,__yT=0;addEventListener('scroll',()=>{clearTimeout(__yT);__yT=setTimeout(()=>{const n=NAV.get()||{};n.y=scrollY;NAV.set(n)},150)},{passive:true});
@@ -2809,14 +2812,14 @@ document.addEventListener('click',async e=>{
    case 'phoneEdit':openPhone(+d.id);break;
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
-   case 'logout':await api('logout');S=null;stack=[];tab=null;render();break;
+   case 'logout':await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
    case 'composeTo':{tab='xabar';stack=[];openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=String(d.id);break}
    case 'rtAns':RT.ans=!RT.ans;render();break;
    case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
-   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await api('logout');S=null;stack=[];tab=null;render();break;
+   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'meInfo':openMeInfo();break;
    case 'consent':await api('consent');await load();break;
    case 'pickTest':openSheet(`<div class="sh-top"><div class="m"><h2>Sinovni tanlang</h2></div><button class="ib" data-act="close">${I.x}</button></div><div class="card list">${S.tests.map(t=>`<button class="row" data-act="setTest" data-id="${t.id}"><div class="m"><div class="n">${esc(t.name)}</div></div>${t.id===testId?'<span class="pill ok">joriy</span>':''}</button>`).join('')}</div>`);break;
