@@ -712,6 +712,7 @@ function scrClass(id,mode){
   const notIn=l.filter(s=>!R(s.id)); const abs=l.filter(s=>R(s.id)?.absent);
   const top=mode==='rahbar'?[`${c.name} sinf`,`${X.sc[c.school_id]?.num}-maktab`]:[`${X.sc[c.school_id]?.num}-maktab · ${c.name}`,`${l.length} o’quvchi`];
   return [...top,`
+  ${S.me.role==='ceo'?`<div class="card row" style="gap:10px"><div class="m"><div class="n">Obuna ${c.obuna?'<span class="pill ok">yoqilgan</span>':'<span class="pill gray">yo’q</span>'}</div><div class="s">Yoqilsa, sinf rahbari va ota-onalar mavzularni to’liq ko’radi</div></div><button class="btn ${c.obuna?'sec':'pri'} sm" data-act="obunaSet" data-id="${id}" data-on="${c.obuna?0:1}">${c.obuna?'O’chirish':'Yoqish'}</button></div>`:''}
   ${isTeam()||isDir()?`<div class="card list"><div class="row"><div class="m"><div class="s">Sinf rahbari</div><div class="n">${esc(c.teacher_name)||'—'}</div><div class="s">${ph(c.teacher_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="classEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>`:''}
   ${mode!=='rahbar'?examBar(l):''}
   ${p.length?`<div class="card hero"><p class="label">Sinf o’rtachasi</p><div class="big">${pf(avgPct(l))}<small>%</small></div><p class="note">${p.length} ta bola qatnashdi${abs.length?`, ${abs.length} ta kelmadi`:''}.</p></div>`:(curTest()||mode?`<div class="card empty">${isTeam()?'Bu sinf natijalari hali kiritilmagan.':'Natijalar hali e’lon qilinmagan.'}</div>`:'')}
@@ -1151,13 +1152,26 @@ function rahStudentExtra(s){const a=PACC(s.id);const ps=kidPhones(s);const n=(S.
    <div style="display:flex;gap:10px;align-items:center"><button class="btn sec sm" data-act="rnoteSave" data-id="${s.id}">Saqlash</button>${n?`<span class="note">${fmtDate(n.at)}</span>`:''}</div></section>`}
 function scrRahMashq(){const c=S.classes[0];if(!c)return['Mashg’ulot','',''];const T=S.pbTopics||[];const total=T.reduce((a,[,l])=>a+l.reduce((x,[,,n])=>x+n,0),0);
   return ['Mashg’ulot',`${c.grade}-sinf · ${total} ta misol`,`
-  <div class="card hero"><p class="label">Sinf mashg’ulotlari</p><p style="margin:0">${c.grade}-sinf matematikasining hamma mavzulari. Mavzuni bosing: misollar yechimi bilan chiqadi, darsga varaq chop etasiz.</p></div>
-  ${T.map(([grp,l])=>`<section class="sec"><p class="label">${esc(grp)}</p><div class="card list">${l.map(([code,name,n])=>`<button class="row" data-go="rtopic:${code}" ${n?'':'disabled style="opacity:.55"'}><div class="m"><div class="n">${esc(name)}</div><div class="s">${n?n+' ta misol':'hali misol yo’q'}</div></div>${n?I.chev:''}</button>`).join('')}</div></section>`).join('')||'<div class="card empty">Mavzular hali kiritilmagan</div>'}`]}
+  <div class="card hero"><p class="label">Sinf mashg’ulotlari</p><p style="margin:0">${c.grade}-sinf matematikasining hamma mavzulari. Mavzuni bosing: tushuntirish, chizmalar, yechilgan misollar va mashqlar chiqadi; darsga varaq chop etasiz.</p>${c.obuna?'<span class="pill ok" style="align-self:flex-start">✓ Obuna: hamma darslar to’liq ochiq</span>':'<span class="pill gold" style="align-self:flex-start">🔒 Obunasiz: darslarning boshlanishi ochiq</span>'}</div>
+  ${T.map(([grp,l])=>`<section class="sec"><p class="label">${esc(grp)}</p><div class="card list">${l.map(([code,name,n,info])=>`<button class="row" data-go="rtopic:${code}" ${n||info?'':'disabled style="opacity:.55"'}><div class="m"><div class="n">${esc(name)}</div><div class="s">${info?'📘 tushuntirish':''}${info&&n?' · ':''}${n?n+' ta misol':(info?'':'hali misol yo’q')}</div></div>${n||info?I.chev:''}</button>`).join('')}</div></section>`).join('')||'<div class="card empty">Mavzular hali kiritilmagan</div>'}`]}
 let RT={code:'',rows:null,ans:false,level:0,info:undefined};
-function mavzuHtml(m,name){if(m===undefined)return '';if(!m)return '';const para=t=>esc(t).replace(/\n/g,'<br>');
+function lockCard(k){const parts=[k.steps?`${k.steps} ta qadam (chizmalar bilan)`:'',k.ex?`${k.ex} ta yechilgan misol`:'',k.x?`${k.x} ta xato tahlili`:'',k.mashq?`${k.mashq} ta mashq`:''].filter(Boolean);
+  return `<div class="card pad" style="gap:6px;border:1.5px dashed var(--gold);background:var(--gold-soft)"><div style="font-weight:700">🔒 Darsning davomi obuna bilan ochiladi</div><div class="note" style="margin:0">${parts.length?'Yopiq qism: '+parts.join(', ')+'.':'To’liq dars obuna bilan ochiladi.'} Sinfingiz obunaga ulangach, hamma mavzular to’liq ko’rinadi.</div></div>`}
+function mavzuHtml(m,name){if(m===undefined||!m)return '';const para=t=>esc(t).replace(/\n/g,'<br>');
+  if(m.short&&!m.steps?.length)m={...m,steps:[]};
+  // to'liq format: steps (qadamlar, chizmalar bilan), ex (darajali misollar), x (xatolar ro'yxati), mashq (javobi yashirin)
+  if(m.steps){const L=['','Oson','O’rta','Qiyin'];return `<section class="sec"><p class="label">📘 Mavzu tushuntirishi</p>
+   <div class="card pad"><div class="pt" style="line-height:1.6">${para(m.t)}</div></div>
+   ${m.steps.map(st=>`<div class="card pad" style="gap:10px"><div style="font-weight:700;color:var(--accent-strong)">${esc(st.h)}</div><div class="pt" style="line-height:1.6">${para(st.b)}</div>${st.svg?`<div class="mz-svg" style="display:flex;justify-content:center;background:var(--surface2);border-radius:12px;padding:10px">${st.svg}</div>`:''}</div>`).join('')}
+   <p class="label" style="margin-top:6px">🧮 Yechilgan misollar</p>
+   ${m.ex.map((e,i)=>`<div class="card pad" style="gap:6px;border-left:4px solid var(--accent)"><div style="display:flex;gap:8px;align-items:center"><b style="color:var(--accent-strong)">${i+1}-misol</b>${e.lvl?`<span class="pill ${e.lvl===3?'warn':e.lvl===1?'ok':'gold'}">${L[e.lvl]}</span>`:''}</div><div class="pt">${para(e.q)}</div><div class="note" style="margin:0;line-height:1.55"><b>Yechim:</b> ${para(e.s)}</div></div>`).join('')}
+   <div class="card pad" style="gap:6px;background:var(--wrong-soft)"><div style="font-weight:700;color:var(--wrong)">⚠️ Ko’p uchraydigan xatolar</div>${(Array.isArray(m.x)?m.x:[m.x]).map(x=>`<div class="pt">• ${para(x)}</div>`).join('')}</div>
+   ${m.locked?lockCard(m.locked):''}
+   ${m.mashq?.length?`<p class="label" style="margin-top:6px">✍️ O’zing yech</p><div class="card list">${m.mashq.map((q,i)=>`<details class="row" style="display:block"><summary style="cursor:pointer;list-style:none"><b>${i+1}.</b> ${esc(q.q)} <span class="note" style="margin-left:6px">(javob)</span></summary><div class="pill ok" style="margin-top:6px;display:inline-block">${esc(q.a)}</div></details>`).join('')}</div>`:''}
+  </section>`}
   return `<section class="sec"><p class="label">📘 Mavzu tushuntirishi</p><div class="card pad" style="gap:10px"><div class="pt" style="line-height:1.55">${para(m.t)}</div></div>
   ${(m.ex||[]).map((e,i)=>`<div class="card pad" style="gap:6px;border-left:4px solid var(--accent)"><div class="s" style="font-weight:700;color:var(--accent-strong)">${i+1}-misol</div><div class="pt">${para(e.q)}</div><div class="note" style="margin:0"><b>Yechim:</b> ${para(e.s)}</div></div>`).join('')}
-  ${m.x?`<div class="card pad" style="gap:4px;background:var(--wrong-soft)"><div class="s" style="font-weight:700;color:var(--wrong)">⚠️ Ko’p uchraydigan xato</div><div class="pt">${para(m.x)}</div></div>`:''}</section>`}
+  ${m.x?`<div class="card pad" style="gap:4px;background:var(--wrong-soft)"><div class="s" style="font-weight:700;color:var(--wrong)">⚠️ Ko’p uchraydigan xato</div><div class="pt">${para(m.x)}</div></div>`:''}${m.locked?lockCard(m.locked):''}</section>`}
 function scrRahTopic(code){const c=S.classes[0];const T=S.pbTopics||[];let name=code,grp='';for(const [g,l]of T)for(const [cd,n]of l)if(cd===code){name=n;grp=g}
   const head=`<div class="card hero" style="gap:2px"><p class="label">${esc(grp)}</p><p style="margin:0;font-weight:700;font-size:17px;line-height:1.3">${esc(name)}</p></div>`;
   if(RT.code!==code){RT={code,rows:null,ans:false,level:0,info:undefined}}
@@ -1169,7 +1183,7 @@ function scrRahTopic(code){const c=S.classes[0];const T=S.pbTopics||[];let name=
   <p class="label" style="margin-top:4px">✏️ Mashq uchun misollar</p>
   <div class="seg"><button data-rl="0" aria-pressed="${!RT.level}">Hammasi</button><button data-rl="1" aria-pressed="${RT.level===1}">Oson</button><button data-rl="2" aria-pressed="${RT.level===2}">O’rta</button><button data-rl="3" aria-pressed="${RT.level===3}">Qiyin</button></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="rtAns">${RT.ans?'Javoblarni yashirish':'Javoblarni ko’rsatish'}</button><button class="btn sec" data-act="rtMore">🔄 Boshqa misollar</button></div>
-  <button class="btn pri" data-act="rtPrint">🖨 Varaq chop etish (${rows.length} ta misol)</button>
+  ${rows.length?`<button class="btn pri" data-act="rtPrint">🖨 Varaq chop etish (${rows.length} ta misol)</button>`:''}
   ${rows.map((p,i)=>probHtml(p,{n:i+1,ans:RT.ans})).join('')||'<div class="card empty">Bu mavzuda misol yo’q</div>'}
   <p class="note">Varaq: bolalar uchun javobsiz, ${esc(c?.name||'')} sinf nomi va sana bilan. Yechimlar har misol ostida “Yechim” da.</p>`]}
 function rtPrint(){const c=S.classes[0];const rows=RT.rows||[];const T=S.pbTopics||[];let name=RT.code;for(const [,l]of T)for(const [cd,n]of l)if(cd===RT.code)name=n;
@@ -2272,10 +2286,13 @@ function scrPB(){const w=pbNeed();if(w)return w;
     return `<details class="sec" data-pbog="${g}:${esc(grp)}"${PBOG.has(g+':'+grp)?'':' open'}><summary class="label" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px"><span>${esc(grp)}</span><span>${n}</span></summary><div class="card list" style="margin-top:8px">${l.map(([c,nm])=>{const k=pbCnt(g,c),v=PBPIC?k.p:k.n;
       return `<button class="row" data-go="pbt:${c}"${v?'':' style="opacity:.6"'}><div class="m"><div class="n" style="white-space:normal">${esc(nm)}</div><div class="s">${k.n?`${k.n} ta misol${k.p?` · ${k.p} suratli`:''}`:'Hali misol yo’q'}</div></div><span class="num">${v||''}</span>${I.chev}</button>`}).join('')}</div></details>`}).join('')}
   <p class="note">Yangi misol qo’shish: misolni suratga olib Claude’ga yuboring. U misolni chiroyli qilib, mavzusi, qiyinligi va javobi bilan <b>paket</b> fayl qilib beradi — shu yerda “Paket yuklash” orqali bazaga tushadi.</p>`]}
+let PBMZ={code:'',m:undefined};
 function scrPBTopic(code){const w=pbNeed();if(w)return w;const t=pbT(code);if(!t)return ['Topilmadi','',''];
   if(!PBL||PBL.code!==code||PBL.pic!==PBPIC){PBL={code,pic:PBPIC,rows:[],total:null,sel:new Set(),loading:false};pbMore()}
   const L=PBL;
+  if(PBMZ.code!==code){PBMZ={code,m:undefined};api('mavzu.get',{topic:code}).then(d=>{PBMZ.m=d||null;render()}).catch(()=>{PBMZ.m=null})}
   return [t.name,`${t.g}-sinf · ${t.group}`,`
+  ${PBMZ.m?`<details class="card pad"><summary style="cursor:pointer;font-weight:700">📘 Mavzu tushuntirishi (ochish)</summary>${mavzuHtml(PBMZ.m,t.name)}</details>`:''}
   ${L.total==null?'<div class="card empty">Yuklanmoqda…</div>':!L.total?`<div class="card empty">Bu mavzuda ${PBPIC?'suratli ':''}misol hali yo’q</div>`:`<p class="note" style="margin:0">${L.total} ta misol${PBPIC?' (faqat suratli)':''}. O’chirish uchun misollarni belgilang.</p>`}
   ${L.rows.map((p,i)=>probHtml(p,{n:i+1,head:`<label class="check" style="padding:0;justify-content:flex-end;font-size:13px"><input type="checkbox" data-pbsel="${p.id}" ${L.sel.has(p.id)?'checked':''}>Tanlash</label>`})).join('')}
   ${L.total!=null&&L.rows.length<L.total?`<button class="btn sec" data-pb="pbMore">Yana ko’rsatish (${L.total-L.rows.length} ta qoldi)</button>`:''}
@@ -2799,6 +2816,7 @@ document.addEventListener('click',async e=>{
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
    case 'composeTo':{tab='xabar';stack=[];openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=String(d.id);break}
    case 'rtAns':RT.ans=!RT.ans;render();break;
+   case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
    case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await api('logout');S=null;stack=[];tab=null;render();break;
