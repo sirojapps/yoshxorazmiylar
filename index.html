@@ -946,6 +946,7 @@ function scrTrash(){
   if(!TRASH){api('trash.list').then(d=>{TRASH=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’chirilganlar','',`<div class="empty">Yuklanmoqda…</div>`]}
   const ceo=S.me.role==='ceo';const left=at=>Math.max(0,30-Math.floor((Date.now()-new Date(at))/864e5));
   return ['O’chirilganlar',`${TRASH.length} ta`,`<p class="note" style="margin:0">${ceo?'Hamma o’chirilganlar shu yerda.':'Siz o’chirganlar shu yerda.'} 30 kundan keyin butunlay o’chib ketadi.</p>
+   ${ceo&&TRASH.length>1?`<button class="btn sec" data-act="trPurgeAll" style="color:var(--wrong)">🗑 Hammasini butunlay o’chirish (${TRASH.length} ta)</button>`:''}
    <div class="card list">${TRASH.map(r=>`<div class="row"><div class="m"><div class="n">${esc(r.label)} <span class="pill gray">${KIND_L[r.kind]||r.kind}</span></div><div class="s">${esc(r.info||'')}${r.info?' · ':''}${esc(r.who||'')} · ${fmtDate(r.at)} · <b>${left(r.at)} kun qoldi</b></div></div>
      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn pri sm" data-act="trRestore" data-id="${r.id}">Qaytarish</button>${ceo?`<button class="btn sec sm" data-act="trPurge" data-id="${r.id}" style="color:var(--wrong)">Butunlay</button>`:''}</div></div>`).join('')||'<div class="empty">Savat bo’sh</div>'}</div>`]}
 function scrTests(){
@@ -990,19 +991,56 @@ function scrTeam(){
     <div class="s">${Object.entries(u.perms).filter(([k,v])=>v&&k!=='sardor'&&k!=='kuzatuvchi').length} ta huquq · ${u.last_login?'oxirgi kirish '+fmtDate(u.last_login):'hali kirmagan'} · ${(S.results||[]).filter(r=>r.entered_by===u.id).length} ta kiritgan</div></div>${I.chev}</button>`).join('')||'<div class="card empty">Hali a’zo yo’q</div>'}
     <button class="btn pri" data-act="teamEdit">+ A’zo qo’shish</button>`]}
 let HIST=null, histStudent=window.__hs??null;
-const ACT_L={'maktab.ochirish':'Maktabni o’chirdi','sinf.ochirish':'Sinfni o’chirdi','sinov.ochirish':'Sinovni o’chirdi','savat.qaytarish':'Savatdan qaytardi','savat.tozalash':'Savatdan butunlay o’chirdi','ichki.yaratish':'Ichki sinov yaratdi','ichki.tahrir':'Ichki sinovni tahrirladi','ichki.ochirish':'Ichki sinovni o’chirdi','oquvchi.telefon':'Ota-ona telefonini kiritdi','oquvchi.malumot':'O’quvchi ma’lumotini kiritdi','bot.tasdiq':'PIN so’rovini tasdiqladi','bot.rad':'PIN so’rovini rad etdi','mashq.qoshish':'Mashq qo’shdi','mashq.tahrir':'Mashqni tahrirladi','mashq.ochirish':'Mashqni o’chirdi','sozlama':'Sozlamani o’zgartirdi','xabar.tahrir':'Xabarni tahrirladi','xabar.ochirish':'Xabarni o’chirdi','oquvchi.birlashtirish':'Takroriy nusxani olib tashladi','oquvchi.kochirish':'O’quvchini boshqa sinfga ko’chirdi','natija.kelmadi_hammasi':'Qolganlarni “Kelmadi” qildi','natija.kiritish':'Natija kiritdi','natija.tuzatish':'Natijani tuzatdi','natija.ochirish':'Natijani o’chirdi','kalit.kiritish':'Kalit kiritdi','kalit.tuzatish':'Kalitni tuzatdi','oquvchi.qoshish':'O’quvchi qo’shdi','oquvchi.tahrir':'O’quvchini tahrirladi','oquvchi.ochirish':'O’quvchini o’chirdi','oquvchi.qaytarish':'O’quvchini qaytardi','maktab.qoshish':'Maktab qo’shdi','maktab.tahrir':'Maktabni tahrirladi','sinf.qoshish':'Sinf qo’shdi','sinf.tahrir':'Sinfni tahrirladi','royxat.import':'Ro’yxat yukladi','sinov.qoshish':'Sinov yaratdi','sinov.tahrir':'Sinovni tahrirladi','elon.tasdiq':'E’lonni tasdiqladi','yakunlash.tasdiq':'Yakunlashni tasdiqladi','tasdiq.bekor':'Tasdiqni bekor qildi','pin.berish':'PIN berdi','pin.yangilash':'Yangi PIN berdi','pin.ochirish':'PIN o’chirdi','jamoa.qoshish':'Jamoaga qo’shdi','jamoa.huquq':'Huquqlarni o’zgartirdi','jamoa.chiqarish':'Jamoadan chiqardi','zaxira.yuklab_olish':'Zaxira yukladi','rozilik':'Rozilik berdi'};
+const ACT_L={'maktab.ochirish':'Maktabni o’chirdi','sinf.ochirish':'Sinfni o’chirdi','sinov.ochirish':'Sinovni o’chirdi','savat.qaytarish':'Savatdan qaytardi','savat.tozalash':'Savatdan butunlay o’chirdi','ichki.yaratish':'Ichki sinov yaratdi','ichki.tahrir':'Ichki sinovni tahrirladi','ichki.ochirish':'Ichki sinovni o’chirdi','oquvchi.telefon':'Ota-ona telefonini kiritdi','oquvchi.malumot':'O’quvchi ma’lumotini kiritdi','bot.tasdiq':'PIN so’rovini tasdiqladi','bot.rad':'PIN so’rovini rad etdi','mashq.qoshish':'Mashq qo’shdi','mashq.tahrir':'Mashqni tahrirladi','mashq.ochirish':'Mashqni o’chirdi','sozlama':'Sozlamani o’zgartirdi','xabar.tahrir':'Xabarni tahrirladi','xabar.ochirish':'Xabarni o’chirdi','oquvchi.birlashtirish':'Takroriy nusxani olib tashladi','oquvchi.kochirish':'O’quvchini boshqa sinfga ko’chirdi','natija.kelmadi_hammasi':'Qolganlarni “Kelmadi” qildi','natija.kiritish':'Natija kiritdi','natija.tuzatish':'Natijani tuzatdi','natija.ochirish':'Natijani o’chirdi','kalit.kiritish':'Kalit kiritdi','kalit.tuzatish':'Kalitni tuzatdi','oquvchi.qoshish':'O’quvchi qo’shdi','oquvchi.tahrir':'O’quvchini tahrirladi','oquvchi.ochirish':'O’quvchini o’chirdi','oquvchi.qaytarish':'O’quvchini qaytardi','maktab.qoshish':'Maktab qo’shdi','maktab.tahrir':'Maktabni tahrirladi','sinf.qoshish':'Sinf qo’shdi','sinf.tahrir':'Sinfni tahrirladi','royxat.import':'Ro’yxat yukladi','sinov.qoshish':'Sinov yaratdi','sinov.tahrir':'Sinovni tahrirladi','elon.tasdiq':'E’lonni tasdiqladi','yakunlash.tasdiq':'Yakunlashni tasdiqladi','tasdiq.bekor':'Tasdiqni bekor qildi','pin.berish':'PIN berdi','pin.yangilash':'Yangi PIN berdi','pin.ochirish':'PIN o’chirdi','jamoa.qoshish':'Jamoaga qo’shdi','jamoa.huquq':'Huquqlarni o’zgartirdi','jamoa.chiqarish':'Jamoadan chiqardi','zaxira.yuklab_olish':'Zaxira nusxani yuklab oldi','rozilik':'Rozilik berdi','zaxira.tiklash':'Zaxira nusxadan tikladi','sertifikat.berildi':'Sertifikat berdi','sertifikat.bekor':'Sertifikatni bekor qildi','sertifikat.almashtirildi':'Sertifikatni almashtirdi','sertifikat.qolda':'Sertifikat berdi','sertifikat.qolda.tahrir':'Sertifikatni tahrirladi','sertifikat.qolda.ochirish':'Sertifikatni o’chirdi','test.bazaga':'Testni bazaga qo’shdi','test.bazadan_ochirish':'Testni bazadan o’chirdi','test.kalit':'Test kalitini o’zgartirdi','imtihon.test':'Imtihonga test biriktirdi','misol.qoshish':'Misollar qo’shdi','misol.ochirish':'Misollarni o’chirdi','oquvchi.tahrir':'O’quvchini tahrirladi'};
+// O'zgarishlar tarixi: kunlarga bo'lingan, bir xil ketma-ket ishlar bitta qatorga yig'iladi, saralash va qidiruv bilan
+let HF={kind:'',user:'',school:'',q:''},HMORE=false,HBEFORE=0,HOPEN={},HMINOR=null;
+const H_DANGER=a=>/(ochirish|chiqarish|tuzatish|bekor|tozalash|tiklash|almashtirildi)$/.test(a)||a==='natija.kelmadi_hammasi';
+const H_ICON=a=>a.startsWith('sertifikat.')?'🏅':a.startsWith('pin.')||a.startsWith('bot.')?'🔑':a.startsWith('jamoa.')?'👥':a.startsWith('zaxira.')?'↺':/ochirish|tozalash|chiqarish/.test(a)?'🗑':a==='natija.tuzatish'||a.startsWith('kalit.')?'✎':a.startsWith('natija.')?'✓':a.startsWith('elon.')||a.startsWith('yakunlash.')?'📣':'•';
+async function histLoad(more){const q={...(histStudent?{student_id:histStudent}:{kind:HF.kind,user_id:HF.user,school_id:HF.school,q:HF.q}),...(more?{before:HBEFORE}:{})};
+  try{const d=await api('audit',q);HIST=more?(HIST||[]).concat(d.rows):d.rows;HMORE=!!d.more;HBEFORE=d.before||0}catch(e){toast(e.message,true);HIST=HIST||[]}
+  if(S.me.role==='ceo'&&HMINOR==null&&!histStudent)api('audit.minor').then(r=>{HMINOR=r.n;render()}).catch(()=>{});render()}
+// ketma-ket, bir kishi qilgan, bir xil ish (bir sinov, bir sinf) — 90 daqiqa ichida — bitta guruh
+function histGroups(rows){const G=[];for(const h of rows){const g=G[G.length-1],key=[h.action,h.user_id,h.detail.test_id||'',h.class_id||'',h.school_id||''].join('|');
+  if(g&&g.key===key&&['natija.kiritish','natija.tuzatish','natija.ochirish','oquvchi.qoshish','oquvchi.tahrir','pin.berish','pin.yangilash','sertifikat.berildi'].includes(h.action)&&new Date(g.items[g.items.length-1].at)-new Date(h.at)<90*60e3&&g.items[0].at.slice(0,10)===h.at.slice(0,10))g.items.push(h);
+  else G.push({key,items:[h]})}return G}
+function histDay(iso){const d=new Date(iso),t=new Date();const k=x=>x.toDateString();const y=new Date(t);y.setDate(t.getDate()-1);
+  const ds=d.toLocaleDateString('uz-UZ',{day:'numeric',month:'long'});return k(d)===k(t)?'Bugun':k(d)===k(y)?'Kecha · '+ds:ds}
+function histLine(h){const d=h.detail;
+  if(h.action==='natija.tuzatish')return `${esc(h.stu||'')}: ${d.old?.absent?'kelmadi':esc(d.old?.score)} → ${d.new?.absent?'kelmadi':esc(d.new?.score)}`;
+  if(h.action==='natija.kiritish')return `${esc(h.stu||'')}: ${d.absent?'kelmadi':esc(d.score)+' ball'}${d.skaner?' · skaner':''}`;
+  if(h.action==='natija.ochirish')return `${esc(h.stu||'')}: ${d.old?.absent?'kelmadi':esc(d.old?.score)} — o’chirildi`;
+  if(h.action.startsWith('sertifikat.'))return `${esc(d.name||'')}${d.code?' · № '+esc(d.code):''}${d.new_code?' → № '+esc(d.new_code):''}${d.soni?esc(d.soni)+' ta bola':''}${d.reason?' · '+esc(d.reason):''}`;
+  return esc(h.stu||d.name||d.child||'')}
+function histSub(h){const d=h.detail,p=[];if(h.num)p.push(h.num+'-maktab');if(h.cls)p.push(esc(h.cls));
+  if(h.action.startsWith('kalit'))p.push(`${esc(d.grade)}-sinf${d.qayta_hisoblandi?` · ${d.qayta_hisoblandi} ta natija qayta hisoblandi`:''}`);
+  if(h.action==='oquvchi.kochirish')p.push(`${esc(d.name||'')}: ${esc(d.from||'')} → ${esc(d.to||'')}`);
+  if(h.action==='natija.kelmadi_hammasi')p.push(`${esc(d.soni)} ta`);
+  if(h.action==='royxat.import')p.push(`${esc(d.added)} ta qo’shildi`);
+  if(h.test&&!h.action.startsWith('sertifikat.'))p.push(esc(h.test));
+  p.push(esc(h.who||'—'));return p.join(' · ')}
 function scrHistory(){
-  if(!HIST){api('audit',histStudent?{student_id:histStudent}:{}).then(d=>{HIST=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’zgarishlar tarixi','',`<div class="empty">Yuklanmoqda…</div>`]}
-  const names=Object.fromEntries((S.team||[]).map(u=>[u.id,u.name])); const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
-  return ['O’zgarishlar tarixi',histStudent?stn[histStudent]||'':'Oxirgi 100 ta',`<div class="card list">${HIST.map(h=>{const d=h.detail;
-    let extra=d.student_id?stn[d.student_id]||'':d.name||(d.num?d.num+'-maktab':'');
-    if(h.action==='natija.tuzatish')extra+=` · ${d.old?.absent?'kelmadi':d.old?.score}→${d.new?.absent?'kelmadi':d.new?.score}`;
-    if(h.action==='natija.kiritish')extra+=` · ${d.absent?'kelmadi':d.score+' ball'}`;
-    if(h.action.startsWith('kalit'))extra=`${d.grade}-sinf${d.old?` · ${d.qayta_hisoblandi} ta natija qayta hisoblandi`:''}`;
-    if(h.action==='oquvchi.kochirish')extra+=` · ${esc(d.name||'')}: ${esc(d.from||'')} → ${esc(d.to||'')}`;
-    if(h.action==='natija.kelmadi_hammasi')extra+=` · ${d.soni} ta`;
-    if(h.action==='oquvchi.ochirish'&&S.me.role==='ceo')extra+=` · <button class="lnk" data-act="restore" data-id="${d.id}">qaytarish</button>`;
-    return `<div class="row"><div class="m"><div class="n">${ACT_L[h.action]||esc(h.action)}</div><div class="s">${extra.includes('<button')?extra:esc(extra)}</div><div class="s">${esc(names[h.user_id]||'—')} · ${fmtDate(h.at)}</div></div></div>`}).join('')||'<div class="empty">Yozuv yo’q</div>'}</div>`]}
+  if(!HIST){histLoad(false);return ['O’zgarishlar tarixi','',`<div class="empty">Yuklanmoqda…</div>`]}
+  const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
+  const chip=(k,t)=>`<button class="chip-f" data-hk="${k}" aria-pressed="${HF.kind===k}">${t}</button>`;
+  const people=[['','Hamma'],['0','Sayt (avtomatik)']].concat((S.team||[]).filter(u=>u.active!==0).map(u=>[String(u.id),u.role==='ceo'?'CEO':u.name]));
+  const filt=histStudent?'':`<div style="display:flex;flex-direction:column;gap:8px">
+   <div style="display:flex;gap:8px"><input id="hQ" placeholder="🔍 Bola, ustoz yoki maktab" value="${esc(HF.q)}" style="flex:1;min-width:0"><button class="btn sec sm" data-act="hSearch">Izlash</button></div>
+   <div class="seg" style="overflow-x:auto;flex-wrap:nowrap">${chip('','Hammasi')}${chip('n','Natijalar')}${chip('d','⚠ Xavfli')}${chip('c','Sertifikatlar')}${chip('p','PIN va jamoa')}</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><select id="hUser" aria-label="Kim">${people.map(([v,t])=>`<option value="${v}" ${HF.user===v?'selected':''}>${esc(v===''?'Kim: hamma':t)}</option>`).join('')}</select>
+   <select id="hSch" aria-label="Maktab"><option value="">Maktab: hammasi</option>${(S.schools||[]).map(x=>`<option value="${x.id}" ${String(HF.school)===String(x.id)?'selected':''}>${x.num}-maktab</option>`).join('')}</select></div></div>`;
+  const G=histGroups(HIST);let out='',day='';
+  G.forEach((g,i)=>{const h=g.items[0],dd=histDay(h.at);if(dd!==day){if(day)out+='</div>';const n=G.filter(x=>histDay(x.items[0].at)===dd).length;out+=`<div class="sec-h" style="margin-top:6px"><b>${esc(dd)}</b><span class="note">${n} ta ish</span></div><div class="card list">`;day=dd}
+    const many=g.items.length>1,danger=H_DANGER(h.action),open=!!HOPEN[h.id];
+    const title=`${ACT_L[h.action]||esc(h.action)}${many?` · <b style="color:var(--accent)">${g.items.length} ta</b>`:''}${danger?' <span class="pill warn" style="font-size:11px">diqqat</span>':''}`;
+    const line=many?'':histLine(h);
+    out+=`<div class="row" ${many||line?`data-act="hOpen" data-id="${h.id}" style="cursor:pointer${danger?';box-shadow:inset 3px 0 0 var(--wrong,#d63b3b)':''}"`:danger?'style="box-shadow:inset 3px 0 0 var(--wrong,#d63b3b)"':''}><div style="flex:none;width:30px;font-size:17px;text-align:center">${H_ICON(h.action)}</div><div class="m"><div class="n">${title}</div><div class="s">${many?'':line?line+' · ':''}${histSub(h)}</div></div><div class="s" style="flex:none;font-variant-numeric:tabular-nums">${new Date(h.at).toTimeString().slice(0,5)}</div></div>`;
+    if(many&&open)out+=`<div class="pad" style="padding:4px 14px 12px 50px;font-size:13.5px">${g.items.map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;border-top:1px dashed var(--line);padding:5px 0"><span>${histLine(x)||esc(x.who)}</span><span class="note">${new Date(x.at).toTimeString().slice(0,5)}</span></div>`).join('')}${h.action==='oquvchi.ochirish'&&S.me.role==='ceo'?'':''}</div>`;
+    if(!many&&h.action==='oquvchi.ochirish'&&S.me.role==='ceo'&&open)out+=`<div style="padding:0 14px 10px 50px"><button class="lnk" data-act="restore" data-id="${h.detail.id}">qaytarish</button></div>`});
+  if(day)out+='</div>';
+  return ['O’zgarishlar tarixi',histStudent?stn[histStudent]||'':'Muhim ishlar · kunlar bo’yicha',`${filt}
+   ${out||'<div class="card empty">Bu saralash bo’yicha yozuv yo’q</div>'}
+   ${HMORE&&!histStudent?`<button class="btn sec" data-act="hMore">Oldingi kunlar ▾</button>`:''}
+   ${S.me.role==='ceo'&&!histStudent?`<div class="card pad"><p class="note" style="margin:0">Telefon biriktirish, rozilik, sozlamalar va yuklab olish kabi mayda ishlar endi tarixga yozilmaydi. Natija, o’chirish, sertifikat va PIN yozuvlari hech qachon tozalanmaydi.</p>${HMINOR?`<button class="btn sec sm" data-act="hClean" style="align-self:flex-start">🧹 Eski mayda yozuvlarni tozalash (${HMINOR} ta)</button>`:''}</div>`:''}`]}
 let BK=null;
 const fmtMB=n=>n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' KB';
 function scrBackup(){
@@ -1242,7 +1280,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   const kv=(k,v)=>v?`<div class="me-kv"><span>${k}</span><b>${v}</b></div>`:'';
   const s=m.school_id?sc[m.school_id]:null,c=m.class_id?cl[m.class_id]:null;
   const role=m.role==='jamoa'?(P.sardor?'Jamoa sardori':P.kuzatuvchi?'Kuzatuvchi':'Jamoa a’zosi'):(ROLE_L[m.role]||'');
-  const PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxati',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish'};
+  const PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxati',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish',sertifikat:'Sertifikat berish va bekor qilish'};
   const rights=m.role==='ceo'?'<div class="note" style="padding:12px 14px">Hamma huquqlar sizda. PIN berish faqat sizga tegishli.</div>':m.role==='jamoa'?(Object.keys(PL).filter(k=>P[k]).map(k=>`<div class="me-kv"><span>✓</span><b>${PL[k]}</b></div>`).join('')||'<div class="note" style="padding:12px 14px">Hozircha faqat ko’rish huquqi bor</div>'):'';
   const kids=m.role==='ota'?(S.students||[]).map(k=>{const kc=cl[k.class_id];return esc(k.name)+(kc?` · ${esc(kc.name)}`:'')}).join('<br>'):'';
   openSheet(`<div class="sh-top"><div class="m"><h2>Mening ma’lumotlarim</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
@@ -1514,7 +1552,7 @@ async function certView(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c
    <img src="${cv.toDataURL('image/jpeg',.88)}" alt="Sertifikat" data-zoom style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd);cursor:zoom-in">
    <p class="note" style="margin:0">Kattalashtirish uchun rasmni bosing.</p>
    <button class="btn pri" data-act="certPng" data-c="${esc(code)}">⬇ Yuklab olish</button>`)}
-async function certPng(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;toast('Tayyorlanmoqda…');
+async function certPng(code){const c=(S.certs||[]).find(x=>x.code===code);if(!c)return;if(c.status){toast('Bu sertifikat bekor qilingan',true);return}toast('Tayyorlanmoqda…');
   const cv=await drawCert(c);cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`Sertifikat-${code}.png`;document.body.appendChild(a);a.click();a.remove()},'image/png')}
 async function certPdf(list,label=''){
   if(!list.length)return;toast(`${list.length} ta sertifikat tayyorlanmoqda…`);
@@ -1674,33 +1712,75 @@ let certMode='sinov',MC=null,MCD=null;
 async function loadMc(){try{MC=(await api('mcerts.list')).rows}catch(e){MC=[];toast(e.message,true)}render()}
 const mcObj=x=>({code:x.code,issued:x.issued,at:x.at,m:{name:x.name,award:x.award,ribbon:x.ribbon,body:x.body,wish:x.wish}});
 function mcForm(){return {name:val('mcName'),award:val('mcAward'),ribbon:val('mcRib'),body:val('mcBody'),wish:val('mcWish'),issued:val('mcDate')}}
-// yangi sertifikat: asosiy sertifikatlarimizdagi matn bilan to'ldirib beriladi, CEO faqat __ o'rinlarini va kerakli joylarini o'zgartiradi
-function mcBodyDef(a){const tn=String(curTest()?.name||'');const sm=tn.match(/^(\d{4})\s*[-–]\s*(\d{4})\s*[.·,]?\s*(\d+)\s*-\s*bosqich/i);
-  const sinovda=sm?`${sm[1]}–${sm[2]}-o‘quv yilida o‘tkazilgan “Yosh Xorazmiylar” matematika sinovining ${sm[3]}-bosqichida`:(tn?`“${tn}” matematika sinovida`:'“Yosh Xorazmiylar” matematika sinovida');
-  return String(a.cert_body||'').replace(/\{(\w+)\}/g,(m,k)=>({tuman:a.cert_tuman||'',maktab:'__',sinf:'__',sinov:tn,sinovda,natija:'__ ball to‘plab',baho:'yuqori natija ko‘rsatdi',ism:''}[k]??m)).replace(/\s+/g,' ').trim()}
-async function openMc(code){const a=await certAssets();const x=code?(MC||[]).find(y=>y.code===code):null;
-  MCD=x?{code:x.code,name:x.name,award:x.award,ribbon:x.ribbon,body:x.body,wish:x.wish,issued:x.issued||new Date().toISOString().slice(0,10)}
-   :{code:'',name:'',award:a.cert_award||'',ribbon:a.cert_ribbon||'',body:mcBodyDef(a),wish:a.cert_wish||'',issued:new Date().toISOString().slice(0,10)};drawMc()}
-function mcCheck(){if(!MCD.name){toast('Ism familiyani yozing',true);return false}if(!MCD.body){toast('Asosiy matnni yozing',true);return false}
-  if(/__/.test(MCD.body)){toast('Asosiy matndagi __ o’rniga maktab, sinf va ballni yozing',true);return false}return true}
-function drawMc(img){const d=MCD;
-  openSheet(`<div class="sh-top"><div class="m"><h2>${d.code?'Sertifikatni tahrirlash':'Yangi sertifikat'}</h2><div class="s">${d.code?'№ '+esc(d.code)+' · ':''}Ramka, logotip, imzo va muhr — andozadagidek</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+// yangi sertifikat: matn ASOSIY sertifikatlardagi andozadan, xuddi o'sha qoida bilan tuziladi —
+// faqat maktab, sinf, sinov va natija yoziladi; xohlasa matn qo'lda o'zgartiriladi. Berilgandan keyin TAHRIRLANMAYDI.
+const canCert=()=>S.me.role==='ceo'||P('sertifikat');
+function mcNat(d){const sc=+String(d.score).replace(',','.');if(d.mode==='100')return {pp:Math.round(sc*10)/10,full:`100 balldan ${num(sc)} ball to‘plab`,short:`100 balldan ${num(sc)} ball`};
+  const qn=+d.qn,pp=qn?Math.round(sc/qn*100):0;return {pp,full:`${qn} ta savoldan ${sc} tasini to‘g‘ri yechib (${pf(pp)}%)`,short:`${qn} ta savoldan ${sc} tasi to‘g‘ri (${pf(pp)}%)`}}
+function mcGen(a,d){
+  const tn=String(d.test||'').trim();const sm=tn.match(/^(\d{4})\s*[-–]\s*(\d{4})\s*[.·,]?\s*(\d+)\s*-\s*bosqich/i);
+  const sinov=tn.replace(/^(\d{4})\s*[-–]\s*(\d{4})\s*[.·,]?\s*/,'$1–$2 · ');
+  const sinovda=sm?`${sm[1]}–${sm[2]}-o‘quv yilida o‘tkazilgan “Yosh Xorazmiylar” matematika sinovining ${sm[3]}-bosqichida`:`“${sinov}” matematika sinovida`;
+  const N=mcNat(d),pp=N.pp;const baho=pp>=100?'mutlaq natija qayd etdi':pp>=90?'a’lo natija ko‘rsatdi':'yuqori natija ko‘rsatdi';
+  return String(a.cert_body||'').replace(/\{(\w+)\}/g,(m,k)=>({tuman:a.cert_tuman||'',maktab:d.sch,sinf:d.cls,sinov,sinovda,natija:N.full,baho,ism:d.name}[k]??m)).replace(/\s+/g,' ').trim()}
+function mcReady(d){return d.sch&&d.cls&&d.test&&d.score!==''&&(d.mode==='100'||+d.qn>0)}
+// rep: almashtiriladigan eski sertifikat (uning ma'lumoti bilan to'ldiriladi)
+async function openMc(rep){const a=await certAssets();const t=curTest()||S.tests[0];
+  MCD={name:'',award:a.cert_award||'',ribbon:a.cert_ribbon||'',wish:a.cert_wish||'',issued:new Date().toISOString().slice(0,10),own:false,
+    sch:'',cls:'',test:t?.name||'',mode:t&&t.scoring==='100'?'100':'son',qn:'20',score:'',body:''};
+  if(rep){const x=rep.x;Object.assign(MCD,{replaces:x.code,reason:rep.reason,name:x.name||'',award:x.award??MCD.award,ribbon:x.ribbon??MCD.ribbon,wish:x.wish??MCD.wish,sch:x.sch||'',cls:x.cls||'',test:x.test||MCD.test});
+    const m100=String(x.natija||'').match(/100 balldan ([\d,.]+) ball/),mq=String(x.natija||'').match(/(\d+) ta savoldan ([\d,.]+) tasi/);
+    if(m100){MCD.mode='100';MCD.score=m100[1]}else if(mq){MCD.mode='son';MCD.qn=mq[1];MCD.score=mq[2]}
+    if(!MCD.sch||!MCD.score){MCD.own=true;MCD.body=x.body||''}}
+  drawMc()}
+function mcForm(){const f={name:val('mcName'),award:val('mcAward'),ribbon:val('mcRib'),wish:val('mcWish'),issued:val('mcDate')};
+  if($('#mcSch')){f.sch=val('mcSch').replace(/\D/g,'');f.cls=val('mcCls').toUpperCase().replace(/\s+/g,'');f.test=val('mcTest')==='__boshqa'?val('mcTestO'):val('mcTest');f.mode=val('mcMode');f.qn=val('mcQn');f.score=val('mcScore')}
+  if(MCD.own)f.body=val('mcBody');return f}
+function mcCheck(a){const d=MCD;if(!d.name){toast('Ism familiyani yozing',true);return false}
+  if(!d.own){if(!mcReady(d)){toast('Maktab, sinf, sinov va natijani to’ldiring',true);return false}
+    const sc=+String(d.score).replace(',','.');if(!(sc>=0)||(d.mode==='100'?sc>100:sc>+d.qn)){toast('Natija noto’g’ri',true);return false}d.body=mcGen(a,d);d.natija=mcNat(d).short}
+  if(!d.body){toast('Asosiy matnni yozing',true);return false}return true}
+function drawMc(img){const d=MCD;const tests=S.tests.map(t=>t.name);const other=d.test&&!tests.includes(d.test);
+  const preview=!d.own&&mcReady(d)?mcGen(CA||{},d):'';
+  openSheet(`<div class="sh-top"><div class="m"><h2>${d.replaces?'Sertifikatni almashtirish':'Yangi sertifikat'}</h2><div class="s">${d.replaces?'Eski № '+esc(d.replaces)+' «almashtirildi» bo’ladi · ':''}Andoza, matn, imzo va muhr — asosiy sertifikatlardagidek</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    <label class="field"><span class="label">Ism familiya *</span><input id="mcName" value="${esc(d.name)}" placeholder="Masalan: Karimova Malika"></label>
-   <label class="field"><span class="label">Lentadagi yozuv</span><input id="mcRib" value="${esc(d.ribbon)}" placeholder="Bo’sh qolsa, lenta chiqmaydi"></label>
-   <label class="field"><span class="label">Ism ustidagi yozuv</span><input id="mcAward" value="${esc(d.award)}" placeholder="Ushbu sertifikat bilan taqdirlanadi"></label>
-   <label class="field"><span class="label">Asosiy matn (ism ostida) *</span><textarea id="mcBody" rows="4" >${esc(d.body)}</textarea></label>
-   <label class="field"><span class="label">Tilak (bitta qator)</span><textarea id="mcWish" rows="2">${esc(d.wish)}</textarea></label>
+   ${d.own?`<label class="field"><span class="label">Asosiy matn (ism ostida) *</span><textarea id="mcBody" rows="5">${esc(d.body)}</textarea></label>
+     <button class="btn sec sm" data-act="mcAuto" style="align-self:flex-start">↺ Andoza bo’yicha tuzishga qaytish</button>`
+   :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label class="field"><span class="label">Maktab raqami *</span><input id="mcSch" inputmode="numeric" value="${esc(d.sch)}" placeholder="5"></label>
+     <label class="field"><span class="label">Sinf *</span><input id="mcCls" value="${esc(d.cls)}" placeholder="3-A"></label></div>
+     <label class="field"><span class="label">Sinov *</span><select id="mcTest">${tests.map(n=>`<option ${n===d.test?'selected':''}>${esc(n)}</option>`).join('')}<option value="__boshqa" ${other||!tests.length?'selected':''}>Boshqa sinov…</option></select></label>
+     ${other||!tests.length?`<label class="field"><span class="label">Sinov nomi</span><input id="mcTestO" value="${esc(other?d.test:'')}" placeholder="2026–2027 · 1-bosqich"></label>`:''}
+     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><label class="field"><span class="label">Hisob</span><select id="mcMode"><option value="son" ${d.mode!=='100'?'selected':''}>Savol soni</option><option value="100" ${d.mode==='100'?'selected':''}>100 ballik</option></select></label>
+     ${d.mode==='100'?'':`<label class="field"><span class="label">Savollar</span><input id="mcQn" inputmode="numeric" value="${esc(d.qn)}"></label>`}
+     <label class="field"><span class="label">${d.mode==='100'?'Ball':'To’g’ri javob'} *</span><input id="mcScore" inputmode="decimal" value="${esc(d.score)}" placeholder="${d.mode==='100'?'86,5':'17'}"></label></div>
+     <div class="card pad" style="background:var(--bg,#f6f8fb)"><span class="label">Sertifikatdagi matn</span><p id="mcPrevTxt" style="margin:0">${preview?esc(preview):'<span class="note">Maktab, sinf, sinov va natijani yozsangiz, matn asosiy sertifikatlardagidek shu yerda o’zi tuziladi.</span>'}</p></div>
+     <button class="btn sec sm" data-act="mcOwn" style="align-self:flex-start">✎ Matnni o’zim o’zgartiraman</button>`}
+   <details><summary class="note" style="cursor:pointer">Lenta, sarlavha va tilak (odatda o’zgartirilmaydi)</summary>
+   <label class="field"><span class="label">Lentadagi yozuv</span><input id="mcRib" value="${esc(d.ribbon)}"></label>
+   <label class="field"><span class="label">Ism ustidagi yozuv</span><input id="mcAward" value="${esc(d.award)}"></label>
+   <label class="field"><span class="label">Tilak</span><textarea id="mcWish" rows="2">${esc(d.wish)}</textarea></label></details>
    <label class="field"><span class="label">Berilgan sana</span><input type="date" id="mcDate" value="${esc(d.issued)}"></label>
-   <p class="note" style="margin:0">${d.code?'':'Matnlar asosiy sertifikatlarimizdagidek to’ldirildi — faqat <b>__</b> o’rinlariga maktab, sinf va ballni yozing, kerak bo’lsa boshqa joyini ham o’zgartiring. '}Matn uzun bo’lsa, harflar o’zi kichrayadi. Saqlangach sertifikatga raqam va QR kod beriladi — QR’ni skanerlagan odam uning haqiqiyligini ko’radi.</p>
+   <p class="note" style="margin:0">Saqlangach sertifikatga raqam va QR beriladi. Berilgan sertifikat <b>o’zgartirilmaydi va o’chirilmaydi</b> — xato bo’lsa, uni almashtirasiz. Avval «Ko’rish» bilan tekshiring.</p>
    ${img?`<img src="${img}" alt="Sertifikat ko’rinishi" data-zoom style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd);cursor:zoom-in">`:''}
-   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="mcPrev">👁 Ko’rish</button><button class="btn pri" data-act="mcSave">Saqlash</button></div>
-   ${d.code?`<button class="btn dan sm" data-act="mcDel" data-c="${esc(d.code)}" style="align-self:flex-start">O’chirish</button>`:''}`)}
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="mcPrev">👁 Ko’rish</button><button class="btn pri" data-act="mcSave">${d.replaces?'Almashtirish':'Sertifikat berish'}</button></div>`);
+  const upd=()=>{Object.assign(MCD,mcForm());const p=$('#mcPrevTxt');if(p)p.innerHTML=mcReady(MCD)?esc(mcGen(CA||{},MCD)):'<span class="note">Maktab, sinf, sinov va natijani yozsangiz, matn asosiy sertifikatlardagidek shu yerda o’zi tuziladi.</span>'};
+  ['mcName','mcSch','mcCls','mcQn','mcScore','mcTestO'].forEach(id=>{const e=$('#'+id);if(e)e.addEventListener('input',upd)});
+  ['mcTest','mcMode'].forEach(id=>{const e=$('#'+id);if(e)e.addEventListener('change',()=>{Object.assign(MCD,mcForm());if(id==='mcTest'){const t=S.tests.find(x=>x.name===MCD.test);if(t){MCD.mode=t.scoring==='100'?'100':'son';if(MCD.mode==='son'&&!+MCD.qn)MCD.qn='20'}}drawMc()})})}
+// holat belgisi
+const certPill=st=>st==='bekor'?'<span class="pill warn">bekor qilingan</span>':st==='almashtirildi'?'<span class="pill gray">almashtirilgan</span>':'';
+// bekor qilish / almashtirish oynasi
+function openRevoke(code,manual){const x=manual?(MC||[]).find(y=>y.code===code):null;
+  openSheet(`<div class="sh-top"><div class="m"><h2>№ ${esc(code)}</h2><div class="s">Bekor qilish yoki almashtirish</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+   <p style="margin:0">Sertifikat o’chirilmaydi — u daftarda abadiy qoladi, QR esa holatini ko’rsatadi.</p>
+   <label class="field"><span class="label">Sababi *</span><textarea id="rvReason" rows="3" placeholder="Masalan: ismi xato yozilgan / natija noto’g’ri kiritilgan edi"></textarea></label>
+   ${manual?`<button class="btn pri" data-act="rvReplace" data-c="${esc(code)}">Almashtirish — to’g’risini yangi raqam bilan berish</button><p class="note" style="margin:0">Eskisi QR’da «almashtirilgan, yangisi № …» deb chiqadi.</p>`:''}
+   <button class="btn dan" data-act="rvRevoke" data-c="${esc(code)}">Bekor qilish</button><p class="note" style="margin:0">QR’da «⚠ Bekor qilingan» va sababi chiqadi.</p>`)}
 function scrMcerts(){
   if(!MC){loadMc();return '<div class="empty">Yuklanmoqda…</div>'}
-  return `<button class="btn pri" data-act="mcNew">＋ Yangi sertifikat tayyorlash</button>
-  <p class="note" style="margin:0">Asosiy sertifikatlarimizdagi matn bilan ochiladi — ism, maktab, sinf va ballni yozasiz, kerak bo’lsa matnni o’zgartirasiz. Ramka, logotip, imzo va muhr o’sha.</p>
-  ${MC.length>1?`<button class="btn sec" data-act="mcPdf">⬇ Hammasini PDF qilib yuklab olish (${MC.length} ta)</button>`:''}
-  <div class="card list">${MC.map(x=>`<div class="row"><div class="m"><div class="n">${esc(x.name)}</div><div class="s">${esc(x.code)}${x.ribbon?' · '+esc(x.ribbon):''} · ${esc(String(x.issued||String(x.at||'').slice(0,10)).split('-').reverse().join('.'))}</div></div><button class="btn sec sm" data-act="mcEdit" data-c="${esc(x.code)}" aria-label="Tahrirlash">✎</button><button class="btn sec sm" data-act="mcView" data-c="${esc(x.code)}">👁 Ko’rish</button><button class="btn sec sm" data-act="mcPng" data-c="${esc(x.code)}" aria-label="Yuklab olish">⬇</button></div>`).join('')||'<div class="empty">Hali qo’lda tayyorlangan sertifikat yo’q</div>'}</div>`}
+  return `<button class="btn pri" data-act="mcNew">＋ Yangi sertifikat berish</button>
+  <p class="note" style="margin:0">Ism, maktab, sinf, sinov va natijani yozasiz — matn asosiy sertifikatlardagi qoida bilan aynan o’shandek tuziladi. Ramka, logotip, imzo va muhr o’sha.</p>
+  ${MC.filter(x=>!x.status).length>1?`<button class="btn sec" data-act="mcPdf">⬇ Hammasini PDF qilib yuklab olish (${MC.filter(x=>!x.status).length} ta)</button>`:''}
+  <div class="card list">${MC.map(x=>`<div class="row"${x.status?' style="opacity:.6"':''}><div class="m"><div class="n">${esc(x.name)} ${certPill(x.status)}</div><div class="s">${esc(x.code)}${x.sch?` · ${esc(x.sch)}-maktab · ${esc(x.cls)}`:''} · ${esc(String(x.issued||String(x.at||'').slice(0,10)).split('-').reverse().join('.'))}${x.status?`<br>${esc(x.reason||'')}${x.new_code?' → № '+esc(x.new_code):''}`:''}</div></div>${x.status?'':`<button class="btn sec sm" data-act="mcView" data-c="${esc(x.code)}">👁</button><button class="btn sec sm" data-act="mcPng" data-c="${esc(x.code)}" aria-label="Yuklab olish">⬇</button><button class="btn sec sm" data-act="rvOpen" data-c="${esc(x.code)}" data-m="1" aria-label="Bekor qilish yoki almashtirish">⋯</button>`}</div>`).join('')||'<div class="empty">Hali qo’lda berilgan sertifikat yo’q</div>'}</div>`}
 // sertifikatlar: tuman / maktab / sinf bosqichi / sinf bo'yicha saralab, bittalab yoki PDF qilib yuklab olish
 let cfSchool=0,cfGrade=0,cfClass=0,cfTest=0;
 function certFiltered(){
@@ -1719,8 +1799,8 @@ function certLabel(){const p=[];p.push(cfSchool?X.sc[cfSchool]?.num+'-maktab':(i
 function scrCerts(){
   const {l,tests,schools,grades,classes}=certFiltered();
   const seg=(k,cur,items,all)=>`<div class="seg" style="overflow-x:auto;flex-wrap:nowrap"><button data-cf="${k}:0" aria-pressed="${!cur}">${all}</button>${items.map(([v,t])=>`<button data-cf="${k}:${v}" aria-pressed="${cur===v}" style="white-space:nowrap">${esc(t)}</button>`).join('')}</div>`;
-  const ceo=S.me.role==='ceo';if(!ceo)certMode='sinov';
-  const modeSeg=ceo?`<div class="seg"><button data-cm="sinov" aria-pressed="${certMode==='sinov'}">Sinov sertifikatlari</button><button data-cm="qolda" aria-pressed="${certMode==='qolda'}">✎ Qo’lda tayyorlash</button></div>`:'';
+  const ceo=canCert();if(!ceo)certMode='sinov';
+  const modeSeg=ceo?`<div class="seg"><button data-cm="sinov" aria-pressed="${certMode==='sinov'}">Sinov sertifikatlari</button><button data-cm="qolda" aria-pressed="${certMode==='qolda'}">✎ Qo’lda berish</button></div>`:'';
   if(certMode==='qolda')return ['Sertifikatlar',MC?`${MC.length} ta`:'',`${modeSeg}
   ${!S.assetsReady?`<div class="offline">Logotip, imzo yoki muhr rasmi hali yuklanmagan. Ko’proq → Sozlamalar bo’limida yuklang.</div>`:''}${scrMcerts()}`];
   return ['Sertifikatlar',`${l.length} ta`,`${modeSeg}
@@ -1729,12 +1809,12 @@ function scrCerts(){
   ${schools.length>1?seg('s',cfSchool,schools.map(x=>[x.id,x.num+'-maktab']),isTeam()?'Butun tuman':'Hammasi'):''}
   ${grades.length>1?seg('g',cfGrade,grades.map(g=>[g,g+'-sinflar']),'Hamma sinflar'):''}
   ${classes.length>1?seg('c',cfClass,classes.map(c=>[c.id,c.name]),`Barcha ${cfGrade}-sinflar`):''}
-  ${l.length?`<button class="btn pri" data-act="certPdf">⬇ ${l.length>1?`Hammasini PDF qilib yuklab olish (${l.length} ta)`:'PDF qilib yuklab olish'}</button><p class="note" style="margin:0">${esc(certLabel())}${certLabel()?' · ':''}har bir sertifikat alohida A4 sahifada, chop etishga tayyor.</p>`:''}
+  ${l.filter(c=>!c.status).length?`<button class="btn pri" data-act="certPdf">⬇ ${l.filter(c=>!c.status).length>1?`Hammasini PDF qilib yuklab olish (${l.filter(c=>!c.status).length} ta)`:'PDF qilib yuklab olish'}</button><p class="note" style="margin:0">${esc(certLabel())}${certLabel()?' · ':''}har bir sertifikat alohida A4 sahifada, chop etishga tayyor.</p>`:''}
   ${l.length&&S.me.role==='ceo'?(()=>{const ds=l.map(c=>c.issued||String(c.at||'').slice(0,10)).filter(Boolean);const cnt={};ds.forEach(d=>cnt[d]=(cnt[d]||0)+1);const top=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'';const mixed=Object.keys(cnt).length>1;
    return `<div class="card pad"><label class="field"><span class="label">Berilgan sana${l.length>1?` (ro’yxatdagi ${l.length} ta sertifikat uchun)`:''}</span><input type="date" id="certDate" value="${top}"></label>
    ${mixed?'<p class="note" style="margin:0">Bu ro’yxatda sanalar har xil. Saqlasangiz, hammasiga bir xil sana qo’yiladi.</p>':''}<p class="note" style="margin:0">Odatda natijalar e’lon qilingan kun qo’yiladi. Sertifikatni topshiradigan kuningiz boshqa bo’lsa, shu yerda o’zgartiring.</p>
    <button class="btn sec sm" data-act="certDate" style="align-self:flex-start">Sanani saqlash</button></div>`})():''}
-  <div class="card list">${l.map(c=>`<div class="row"><div class="m"><div class="n">${esc(c.s.name)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}</div></div><button class="btn sec sm" data-act="certView" data-c="${c.code}">👁 Ko’rish</button><button class="btn sec sm" data-act="certPng" data-c="${c.code}" aria-label="Yuklab olish">⬇</button></div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
+  <div class="card list">${l.map(c=>`<div class="row"${c.status?' style="opacity:.6"':''}><div class="m"><div class="n">${esc(c.s.name)} ${certPill(c.status)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}${c.status?`<br>${esc(c.reason||'')}`:''}</div></div>${c.status?'':`<button class="btn sec sm" data-act="certView" data-c="${c.code}">👁 Ko’rish</button><button class="btn sec sm" data-act="certPng" data-c="${c.code}" aria-label="Yuklab olish">⬇</button>${canCert()?`<button class="btn sec sm" data-act="rvOpen" data-c="${c.code}" aria-label="Bekor qilish">⋯</button>`:''}`}</div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
 function tabrikCard(role){
   const t=S.tests.find(x=>(S.gifted||[]).some(k=>+k.split(':')[0]===x.id)); if(!t)return'';
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
@@ -1744,7 +1824,7 @@ function parentTabrik(s,t,r){
   if(!(S.gifted||[]).includes(t.id+':'+s.id))return'';
   const c=(S.certs||[]).find(x=>x.student_id===s.id&&x.test_id===t.id);
   return `<div class="card hero" style="background:var(--gold-soft);border-color:transparent"><p class="label" style="color:var(--gold)">Tabriklaymiz!</p><p style="margin:0">${esc(fill(S.texts?.tabrik_ota,{ism:s.name,ball:r.score,foiz:pct(r)}))}</p>
-   ${c?`<button class="btn pri" data-act="certPng" data-c="${c.code}">Sertifikatni yuklab olish</button>`:''}</div>`}
+   ${c&&!c.status?`<button class="btn pri" data-act="certPng" data-c="${c.code}">Sertifikatni yuklab olish</button>`:''}</div>`}
 
 // ---------------- exercises
 let EXL=null, exKid=null;
@@ -1813,14 +1893,20 @@ function scrSettings(){
 async function renderVerify(code){
   let d={ok:false};try{d=await (await fetch('/api/verify?c='+encodeURIComponent(code))).json()}catch(e){}
   $('#app').innerHTML=`<main class="gut" style="padding-top:40px;align-items:center;text-align:center">${LOGO}<h2 style="font-family:var(--display);color:var(--navy);margin:0">YOSH XORAZMIYLAR</h2>
-  ${d.ok?`<div class="card hero" style="width:100%"><span class="pill ok" style="align-self:center">✓ Sertifikat haqiqiy</span><div class="big" style="font-size:24px;font-family:var(--body);font-weight:700">${esc(d.name)}</div>
-   ${d.manual?`${d.ribbon?`<p style="margin:0">${esc(d.ribbon)}</p>`:''}<p class="note">Berilgan sana: ${esc(String(d.date).split('-').reverse().join('.'))}</p>`:`<p style="margin:0">${d.school}-maktab · ${esc(d.cls)}-sinf</p><p class="note">${esc(d.test)} · ${esc(String(d.date).split('-').reverse().join('.'))}</p>`}<p class="note">№ ${esc(d.code)}</p></div>`
-  :`<div class="card hero" style="width:100%"><span class="pill warn" style="align-self:center">Topilmadi</span><p style="margin:0">Bunday raqamli sertifikat yo’q.</p></div>`}<a class="lnk" href="/">Saytga kirish</a></main>`;
+  ${(()=>{const dt=x=>esc(String(x||'').split('-').reverse().join('.'));
+    const info=`<div class="big" style="font-size:24px;font-family:var(--body);font-weight:700">${esc(d.name)}</div>
+     ${d.school?`<p style="margin:0">${esc(d.school)}-maktab${d.cls?' · '+esc(d.cls)+' sinf':''}</p>`:''}
+     ${d.test?`<p style="margin:0">${esc(d.test)}</p>`:''}${d.natija?`<p style="margin:0"><b>${esc(d.natija)}</b></p>`:''}${d.ribbon?`<p class="note" style="margin:0">${esc(d.ribbon)}</p>`:''}
+     <p class="note" style="margin:0">Berilgan sana: ${dt(d.date)} · № ${esc(d.code)}</p>${d.manual?'<p class="note" style="margin:0">Loyiha qarori bilan berilgan</p>':''}`;
+    if(d.ok)return `<div class="card hero" style="width:100%"><span class="pill ok" style="align-self:center">✓ Sertifikat haqiqiy</span>${info}</div>`;
+    if(d.revoked)return `<div class="card hero" style="width:100%"><span class="pill warn" style="align-self:center">⚠ ${d.status==='almashtirildi'?'Almashtirilgan':'Bekor qilingan'}</span>${info}
+     <p style="margin:0">${d.status==='almashtirildi'?`Bu sertifikat ${dt(d.status_at)} da yangisi bilan almashtirilgan${d.new_code?`: <a class="lnk" href="/t/${esc(d.new_code)}">№ ${esc(d.new_code)}</a>`:''}.`:`Bu sertifikat ${dt(d.status_at)} da bekor qilingan.`}</p>${d.reason?`<p class="note" style="margin:0">Sabab: ${esc(d.reason)}</p>`:''}</div>`;
+    return `<div class="card hero" style="width:100%"><span class="pill warn" style="align-self:center">Topilmadi</span><p style="margin:0">Bunday raqamli sertifikat yo’q.</p></div>`})()}<a class="lnk" href="/">Saytga kirish</a></main>`;
 }
 
 // ---------------- v2 events
 document.addEventListener('click',async e=>{
-  const b=e.target.closest('button'); if(!b)return; const d=b.dataset;
+  const b=e.target.closest('button,[data-act="hOpen"]'); if(!b)return; const d=b.dataset;
   try{
   if(d.th){openThread(+d.th);return}
   if(d.thf){thf=d.thf;render();return}
@@ -1854,19 +1940,27 @@ document.addEventListener('click',async e=>{
    case 'dl':dlOpen(d.k,+d.id);break;
    case 'dlGo':await dlGo(d.f);break;
    case 'certDemo':await certDemo();break;
-   case 'mcNew':await openMc('');break;
-   case 'mcEdit':await openMc(d.c);break;
-   case 'mcPrev':{Object.assign(MCD,mcForm());if(!mcCheck())break;toast('Tayyorlanmoqda…');const cv=await drawCert({code:MCD.code||'NAMUNA',issued:MCD.issued,m:MCD});drawMc(cv.toDataURL('image/jpeg',.85));break}
-   case 'mcSave':{Object.assign(MCD,mcForm());if(!mcCheck())break;const r=await api('mcerts.save',MCD);closeSheet();toast(MCD.code?'Saqlandi':'Sertifikat tayyor: № '+r.code);MC=null;render();break}
-   case 'mcDel':{if(!confirm('Sertifikat o’chirilsinmi? U 30 kun O’chirilganlar bo’limida turadi.'))break;await api('mcerts.delete',{code:d.c});closeSheet();toast('O’chirildi');MC=null;render();break}
+   case 'hOpen':HOPEN[d.id]=!HOPEN[d.id];render();break;
+   case 'hMore':await histLoad(true);break;
+   case 'hSearch':HF.q=val('hQ');HIST=null;HOPEN={};render();break;
+   case 'hClean':{if(!confirm('Eski mayda yozuvlar o’chirilsinmi? Muhim yozuvlarga tegilmaydi.'))break;const r=await api('audit.clean');HMINOR=0;toast(r.n+' ta yozuv tozalandi');HIST=null;render();break}
+   case 'mcNew':await openMc(null);break;
+   case 'rvOpen':openRevoke(d.c,!!d.m);break;
+   case 'rvRevoke':{const r=val('rvReason');if(r.length<3){toast('Sababini yozing',true);break}if(!confirm('Sertifikat bekor qilinsinmi? Buni qaytarib bo’lmaydi.'))break;await api('certs.revoke',{code:d.c,reason:r});closeSheet();toast('Bekor qilindi');MC=null;await load();break}
+   case 'rvReplace':{const r=val('rvReason');if(r.length<3){toast('Sababini yozing',true);break}const x=(MC||[]).find(y=>y.code===d.c);if(!x)break;await openMc({x,reason:r});break}
+   case 'mcOwn':{Object.assign(MCD,mcForm());const a=await certAssets();MCD.body=mcReady(MCD)?mcGen(a,MCD):(MCD.body||'');MCD.own=true;drawMc();break}
+   case 'mcAuto':{Object.assign(MCD,mcForm());MCD.own=false;drawMc();break}
+   case 'mcPrev':{Object.assign(MCD,mcForm());if(!mcCheck(await certAssets()))break;toast('Tayyorlanmoqda…');const cv=await drawCert({code:'NAMUNA',issued:MCD.issued,m:MCD});drawMc(cv.toDataURL('image/jpeg',.85));break}
+   case 'mcSave':{Object.assign(MCD,mcForm());if(!mcCheck(await certAssets()))break;if(!confirm(`${MCD.name} uchun sertifikat berilsinmi? Berilgach o’zgartirib bo’lmaydi.`))break;
+     const {code,own,mode,qn,score,...body}=MCD;const r=await api('mcerts.save',body);closeSheet();toast((MCD.replaces?'Almashtirildi. Yangi № ':'Sertifikat berildi: № ')+r.code);MC=null;render();break}
    case 'mcView':{const x=(MC||[]).find(y=>y.code===d.c);if(!x)break;toast('Ochilmoqda…');const cv=await drawCert(mcObj(x));
      openSheet(`<div class="sh-top"><div class="m"><h2>${esc(x.name)}</h2><div class="s">№ ${esc(x.code)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
       <img src="${cv.toDataURL('image/jpeg',.88)}" alt="Sertifikat" data-zoom style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd);cursor:zoom-in">
       <p class="note" style="margin:0">Kattalashtirish uchun rasmni bosing.</p><button class="btn pri" data-act="mcPng" data-c="${esc(x.code)}">⬇ Yuklab olish</button>`);break}
    case 'mcPng':{const x=(MC||[]).find(y=>y.code===d.c);if(!x)break;toast('Tayyorlanmoqda…');const cv=await drawCert(mcObj(x));cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`Sertifikat-${x.code}.png`;document.body.appendChild(a);a.click();a.remove()},'image/png');break}
-   case 'mcPdf':await certPdf((MC||[]).map(mcObj),'qolda');break;
+   case 'mcPdf':await certPdf((MC||[]).filter(x=>!x.status).map(mcObj),'qolda');break;
    case 'certView':await certView(d.c);break;
-   case 'certPdf':await certPdf(certFiltered().l,certLabel());break;
+   case 'certPdf':await certPdf(certFiltered().l.filter(c=>!c.status),certLabel());break;
    case 'certDate':{const d=val('certDate');if(!d){toast('Sanani tanlang',true);break}const L=certFiltered().l;try{const r=await api('certs.date',{date:d,codes:L.map(c=>c.code)});L.forEach(c=>{const x=(S.certs||[]).find(y=>y.code===c.code);if(x)x.issued=d});toast(`${r.n} ta sertifikat sanasi saqlandi`);render()}catch(e){toast(e.message,true)}break}
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
@@ -2804,7 +2898,7 @@ addEventListener('popstate',e=>{
   histD=d;render();scrollTo(0,0)});
 // Bosh sahifada: birinchi "orqaga" — ogohlantirish, ikkinchisi — chiqish. Har qanday bosish himoyani qayta yoqadi.
 addEventListener('pointerdown',()=>{if(exitArmed){exitArmed=false}navSync()},true);
-function go(k){stack.push(k);if(k==='savat')TRASH=null;if(k==='backup')BK=null;if(k==='pins')PINS=null;if(k==='history'){HIST=null;histStudent=null}if(k==='mashq')EXL=null;if(k==='settings')SET=null;render();scrollTo(0,0)}
+function go(k){stack.push(k);if(k==='savat')TRASH=null;if(k==='backup')BK=null;if(k==='pins')PINS=null;if(k==='history'){HIST=null;histStudent=null;HF={kind:'',user:'',school:'',q:''};HOPEN={};HMINOR=null}if(k==='mashq')EXL=null;if(k==='settings')SET=null;render();scrollTo(0,0)}
 
 // ================================================================ forms
 function formSheet(title,fields,act,extra='',btn='Saqlash'){
@@ -2841,6 +2935,8 @@ function openImport(){
 }
 
 // ================================================================ events
+document.addEventListener('change',e=>{const id=e.target.id;if(id==='hUser'||id==='hSch'){HF[id==='hUser'?'user':'school']=e.target.value;HIST=null;HOPEN={};render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='hQ'){HF.q=e.target.value.trim();HIST=null;HOPEN={};render()}});
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-go]'); if(!b)return; const d=b.dataset;
   try{
@@ -2856,7 +2952,7 @@ document.addEventListener('click',async e=>{
   if(d.rsc!=null){rSchool=+d.rsc;render();return}
   if(d.rt){const id=+d.rt;rSel=rSel.includes(id)?(rSel.length>1?rSel.filter(x=>x!==id):rSel):[...rSel,id];render();return}
   if(d.qs!=null){qSchool=+d.qs;render();return}
-  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;schClass=0;render();return} if(d.scl!=null){schClass=+d.scl;render();return} if(d.hc!=null){homeClass=+d.hc;render();return} if(d.cm!=null){certMode=d.cm;render();return} if(d.cf!=null){const[k,v]=d.cf.split(':');if(k==='t')cfTest=+v;if(k==='s'){cfSchool=+v;cfGrade=0;cfClass=0}if(k==='g'){cfGrade=+v;cfClass=0}if(k==='c')cfClass=+v;render();return} if(d.itc!=null){itClass=+d.itc;render();return}
+  if(d.hs!=null){homeSchool=+d.hs;render();return} if(d.sg!=null){schGrade=+d.sg;schClass=0;render();return} if(d.scl!=null){schClass=+d.scl;render();return} if(d.hc!=null){homeClass=+d.hc;render();return} if(d.cm!=null){certMode=d.cm;render();return} if(d.hk!=null){HF.kind=d.hk;HIST=null;HOPEN={};render();return} if(d.cf!=null){const[k,v]=d.cf.split(':');if(k==='t')cfTest=+v;if(k==='s'){cfSchool=+v;cfGrade=0;cfClass=0}if(k==='g'){cfGrade=+v;cfClass=0}if(k==='c')cfClass=+v;render();return} if(d.itc!=null){itClass=+d.itc;render();return}
   if(d.child){child=+d.child;render();return}
   if(d.rs){rSort=d.rs;render();return} if(d.rl!=null){RT.level=+d.rl;RT.rows=null;render();return}
   if(d.pk){pinKind=d.pk;render();return} if(d.ps!=null){pinSchool=+d.ps;render();return} if(d.ph){pinHas=d.ph;render();return}
@@ -2912,8 +3008,8 @@ document.addEventListener('click',async e=>{
    case 'allOff':E.bits=E.bits.map(()=>'0');drawEntry();break;
    case 'entrySave':await entrySave(!!d.absent);break;
    case 'entryDel':await api('result.delete',{test_id:testId,student_id:E.s.id});closeSheet();toast('Natija o’chirildi');await load();break;
-   case 'schoolEdit':{const s=d.id?X.sc[d.id]:{};formSheet(d.id?'Maktabni tahrirlash':'Yangi maktab',isDir()?[{id:'fName',label:'Maktab nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name}]:[{id:'fNum',label:'Maktab raqami',value:s.num,mode:'numeric'},{id:'fName',label:'Qo’shimcha nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name},{id:'fDirP',label:'Direktor telefoni',value:s.director_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'schoolSave',isDir()?'<p class="note">Maktab raqami va direktor telefonini loyiha jamoasi o’zgartiradi.</p>':'');$('#sheet').dataset.id=d.id||'';break}
-   case 'schoolSave':await api('school.save',{id:+$('#sheet').dataset.id||undefined,num:val('fNum'),name:val('fName'),director_name:val('fDir'),director_phone:val('fDirP')});closeSheet();toast('Saqlandi');await load();break;
+   case 'schoolEdit':{const s=d.id?X.sc[d.id]:{};formSheet(d.id?'Maktabni tahrirlash':'Yangi maktab',isDir()?[{id:'fName',label:'Maktab nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name}]:[{id:'fNum',label:'Maktab raqami',value:s.num,mode:'numeric'},{id:'fName',label:'Qo’shimcha nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name},{id:'fDirP',label:'Direktor telefoni',value:s.director_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'schoolSave',isDir()?'<p class="note">Maktab raqami va direktor telefonini loyiha jamoasi o’zgartiradi.</p>':`<label class="check"><input type="checkbox" id="fTest" ${s.test?'checked':''}><span><b>Sinov uchun maktab</b> — saytni tekshirish uchun ochilgan. Bolalariga sertifikat berilmaydi.</span></label>`);$('#sheet').dataset.id=d.id||'';break}
+   case 'schoolSave':await api('school.save',{id:+$('#sheet').dataset.id||undefined,num:val('fNum'),name:val('fName'),director_name:val('fDir'),director_phone:val('fDirP'),test:!!$('#fTest')?.checked});closeSheet();toast('Saqlandi');await load();break;
    case 'classEdit':{const c=d.id?X.cl[d.id]:{school_id:+d.school};formSheet(d.id?'Sinfni tahrirlash':'Yangi sinf',[{id:'fCls',label:'Sinf',value:c.name,ph:'3-A'},{id:'fT',label:'Sinf rahbari',value:c.teacher_name},{id:'fTP',label:'Sinf rahbari telefoni',value:c.teacher_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'classSave');Object.assign($('#sheet').dataset,{id:d.id||'',school:c.school_id});break}
    case 'classSave':await api('class.save',{id:+$('#sheet').dataset.id||undefined,school_id:+$('#sheet').dataset.school,name:val('fCls'),teacher_name:val('fT'),teacher_phone:val('fTP')});closeSheet();toast('Saqlandi');await load();break;
    case 'studentEdit':{const s=d.id?X.st.find(x=>x.id===+d.id):{class_id:+d.class||S.classes[0]?.id,name:d.quick?q:''};
@@ -2963,6 +3059,7 @@ document.addEventListener('click',async e=>{
    case 'bkRestore':{const x=BK.list.find(y=>y.f===d.f);formSheet('Bazani tiklash',[{id:'bkC',label:'Tasdiqlash uchun TIKLASH deb yozing',ph:'TIKLASH'}],'bkRestoreGo',`<p class="note">Baza <b>${esc(fmtDate(x?.at||''))}</b> holatiga qaytadi. Shu vaqtdan keyin kiritilgan natijalar va o’zgarishlar hozirgi bazada qoladi — u alohida nusxaga olinadi, xohlasangiz unga qaytish mumkin. Sayt 10 soniyacha to’xtab, o’zi qayta ochiladi. Hamma qaytadan kiradi.</p>`,'Tiklash');$('#sheet').dataset.f=d.f;break}
    case 'bkRestoreGo':{if(val('bkC').toUpperCase()!=='TIKLASH'){toast('TIKLASH deb yozing',true);break}await api('backup.restore',{f:$('#sheet').dataset.f,confirm:'TIKLASH'});closeSheet();toast('Tiklanmoqda… sahifa o’zi yangilanadi');setTimeout(()=>location.reload(),9000);break}
    case 'trRestore':{await api('trash.restore',{id:+d.id});TRASH=null;toast('Qaytarildi');await load();break}
+   case 'trPurgeAll':{if(!confirm(`Savatdagi ${TRASH.length} ta narsaning hammasi butunlay o’chirilsinmi? Ularni keyin qaytarib bo’lmaydi.`))break;if(!confirm('Rostdan ham hammasini o’chiraymi? Bu oxirgi so’rov.'))break;const r=await api('trash.purgeAll');TRASH=null;toast(r.n+' ta narsa butunlay o’chirildi');render();break}
    case 'trPurge':{if(!confirm('Butunlay o’chirilsinmi? Keyin qaytarib bo’lmaydi.'))break;await api('trash.purge',{id:+d.id});TRASH=null;toast('Butunlay o’chirildi');render();break}
    case 'absRest':{const n=+d.n,where=d.k==='class'?`${X.cl[+d.id]?.name} sinfida`:`${X.sc[+d.id]?.num}-maktabda`;
      if(!confirm(`${where} natijasi kiritilmagan ${n} ta bola “Kelmadi” deb belgilanadi.\n\nBarcha kelgan bolalar natijasi kiritib bo’lindimi?`))break;
@@ -2989,19 +3086,19 @@ document.addEventListener('click',async e=>{
      PINS=null;openSheet(`<div class="sh-top"><div class="m"><h2>${out.length} ta PIN berildi</h2><div class="s">Har biriga bosib SMS yuboring</div></div><button class="ib" data-act="close">${I.x}</button></div>
      <div class="card list">${out.map(o=>`<div class="row"><div class="m"><div class="n">${esc(o.name)}</div><div class="s">${ph(o.phone)}</div></div><span class="num" style="font-family:var(--display)">${o.pin}</span>${o.phone?`<a class="btn pri sm" style="text-decoration:none" href="sms:+998${o.phone}?body=${encodeURIComponent(smsText(o.pin,o.kind))}">SMS</a>`:''}</div>`).join('')}</div>`);render();break}
    case 'copySms':{const t=$('#smsText').textContent;try{await navigator.clipboard.writeText(t);toast('Nusxalandi')}catch(err){toast('Nusxalab bo’lmadi. Matnni bosib turib nusxalang',true)}break}
-   case 'teamEdit':{const u=d.id?(S.team||[]).find(x=>x.id===+d.id):{perms:{kiritish:true}};const PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi, sinov qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish (sinovdan keyin)',reyting:'Tuman reytingi',pinlar:'PIN ro’yxatini ko’rish',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish (kuzatuvchi uchun)'};const KOFF=['kiritish','maktab','tuzatish','kalit','pinlar','pin_korish','mashq'];
+   case 'teamEdit':{const u=d.id?(S.team||[]).find(x=>x.id===+d.id):{perms:{kiritish:true}};const PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi, sinov qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish (sinovdan keyin)',reyting:'Tuman reytingi',pinlar:'PIN ro’yxatini ko’rish',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish (kuzatuvchi uchun)',sertifikat:'Sertifikat berish va bekor qilish'};const KOFF=['kiritish','maktab','tuzatish','kalit','pinlar','pin_korish','mashq','sertifikat'];
      openSheet(`<div class="sh-top"><div class="m"><h2>${d.id?esc(u.name):'Yangi a’zo'}</h2></div><button class="ib" data-act="close">${I.x}</button></div>
      <label class="field"><span class="label">Ism familiya</span><input id="tmN" value="${esc(u.name||'')}"></label><label class="field"><span class="label">Telefon</span><input id="tmP" type="tel" inputmode="tel" placeholder="90 123 45 67" value="${esc(u.phone||'')}"><span class="note" style="margin-top:4px;font-size:12.5px">${TG_HINT}</span></label>
      <div class="card list"><label class="check"><input type="checkbox" id="pm_kuzatuvchi" ${u.perms.kuzatuvchi?'checked':''}><b>Kuzatuvchi</b>&nbsp;— hamma narsani faqat ko’radi, o’zgartira olmaydi</label><label class="check"><input type="checkbox" id="pm_sardor" ${u.perms.sardor?'checked':''} data-act="sardorToggle"><b>Jamoa sardori</b>&nbsp;— e’lonni tasdiqlaydi</label>${Object.entries(PL).map(([k,l])=>`<label class="check"><input type="checkbox" id="pm_${k}" ${u.perms[k]?'checked':''}>${l}</label>`).join('')}</div>
      <p class="note">PIN berish faqat sizda qoladi.</p><button class="btn pri" data-act="teamSave" data-id="${d.id||''}">Saqlash</button>${d.id?`<button class="btn dan" data-act="teamRemove" data-id="${d.id}">Jamoadan chiqarish</button>`:''}`);
      const kz=()=>{const on=$('#pm_kuzatuvchi').checked;KOFF.concat('sardor').forEach(k=>{const x=$('#pm_'+k);if(!x)return;if(on)x.checked=false;x.disabled=on;x.closest('label').style.opacity=on?.45:1})};
-     $('#pm_sardor').onchange=e=>{if(e.target.checked){$('#pm_kuzatuvchi').checked=false;kz();Object.keys(PL).forEach(k=>{if(k!=='pin_korish'&&k!=='yuklash')$('#pm_'+k).checked=true})}};$('#pm_kuzatuvchi').onchange=kz;kz();break}
+     $('#pm_sardor').onchange=e=>{if(e.target.checked){$('#pm_kuzatuvchi').checked=false;kz();Object.keys(PL).forEach(k=>{if(k!=='pin_korish'&&k!=='yuklash'&&k!=='sertifikat')$('#pm_'+k).checked=true})}};$('#pm_kuzatuvchi').onchange=kz;kz();break}
    case 'teamSave':{PINS=null;const perms={sardor:$('#pm_sardor').checked,kuzatuvchi:$('#pm_kuzatuvchi').checked};S.perms.forEach(k=>perms[k]=$('#pm_'+k)?.checked||false);const r=await api('team.save',{id:+d.id||undefined,name:val('tmN'),phone:val('tmP'),perms});
      if(r.pin)showPin({pin:r.pin,name:val('tmN'),phone:val('tmP').replace(/\D/g,'').slice(-9)},'jamoa');else{closeSheet();toast('Saqlandi')}await load();break}
    case 'teamRemove':await api('team.remove',{id:+d.id});closeSheet();toast('Jamoadan chiqarildi');await load();break;
    case 'noteSave':{const t=val('noteText');if(!t)break;await api('note.save',{student_id:+d.id,text:t});toast('Izoh saqlandi');await load();break}
    case 'noteSummary':await api('note.summary',{id:+d.id});await load();break;
-   case 'history':stack.push('history');HIST=null;histStudent=+d.id;render();scrollTo(0,0);break;
+   case 'history':stack.push('history');HIST=null;HOPEN={};histStudent=+d.id;render();scrollTo(0,0);break;
    case 'resImport':{let j;try{j=JSON.parse(val('resImp'))}catch(err){$('#resImpMsg').textContent='Matn noto’g’ri. To’liq nusxalanganini tekshiring.';break}
      const r=await api('results.import',{test_id:testId,rows:j.rows||j});$('#resImpMsg').textContent=`${r.ok} ta natija qo’shildi.${r.miss.length?' Topilmadi: '+r.miss.join('; '):''}`;await load();break}
   }}catch(err){toast(err.message,true)}
