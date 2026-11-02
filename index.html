@@ -1674,24 +1674,31 @@ let certMode='sinov',MC=null,MCD=null;
 async function loadMc(){try{MC=(await api('mcerts.list')).rows}catch(e){MC=[];toast(e.message,true)}render()}
 const mcObj=x=>({code:x.code,issued:x.issued,at:x.at,m:{name:x.name,award:x.award,ribbon:x.ribbon,body:x.body,wish:x.wish}});
 function mcForm(){return {name:val('mcName'),award:val('mcAward'),ribbon:val('mcRib'),body:val('mcBody'),wish:val('mcWish'),issued:val('mcDate')}}
+// yangi sertifikat: asosiy sertifikatlarimizdagi matn bilan to'ldirib beriladi, CEO faqat __ o'rinlarini va kerakli joylarini o'zgartiradi
+function mcBodyDef(a){const tn=String(curTest()?.name||'');const sm=tn.match(/^(\d{4})\s*[-–]\s*(\d{4})\s*[.·,]?\s*(\d+)\s*-\s*bosqich/i);
+  const sinovda=sm?`${sm[1]}–${sm[2]}-o‘quv yilida o‘tkazilgan “Yosh Xorazmiylar” matematika sinovining ${sm[3]}-bosqichida`:(tn?`“${tn}” matematika sinovida`:'“Yosh Xorazmiylar” matematika sinovida');
+  return String(a.cert_body||'').replace(/\{(\w+)\}/g,(m,k)=>({tuman:a.cert_tuman||'',maktab:'__',sinf:'__',sinov:tn,sinovda,natija:'__ ball to‘plab',baho:'yuqori natija ko‘rsatdi',ism:''}[k]??m)).replace(/\s+/g,' ').trim()}
 async function openMc(code){const a=await certAssets();const x=code?(MC||[]).find(y=>y.code===code):null;
-  MCD={code:x?.code||'',name:x?.name||'',award:x?x.award:(a.cert_award||''),ribbon:x?.ribbon||'',body:x?.body||'',wish:x?x.wish:(a.cert_wish||''),issued:x?.issued||new Date().toISOString().slice(0,10)};drawMc()}
+  MCD=x?{code:x.code,name:x.name,award:x.award,ribbon:x.ribbon,body:x.body,wish:x.wish,issued:x.issued||new Date().toISOString().slice(0,10)}
+   :{code:'',name:'',award:a.cert_award||'',ribbon:a.cert_ribbon||'',body:mcBodyDef(a),wish:a.cert_wish||'',issued:new Date().toISOString().slice(0,10)};drawMc()}
+function mcCheck(){if(!MCD.name){toast('Ism familiyani yozing',true);return false}if(!MCD.body){toast('Asosiy matnni yozing',true);return false}
+  if(/__/.test(MCD.body)){toast('Asosiy matndagi __ o’rniga maktab, sinf va ballni yozing',true);return false}return true}
 function drawMc(img){const d=MCD;
   openSheet(`<div class="sh-top"><div class="m"><h2>${d.code?'Sertifikatni tahrirlash':'Yangi sertifikat'}</h2><div class="s">${d.code?'№ '+esc(d.code)+' · ':''}Ramka, logotip, imzo va muhr — andozadagidek</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    <label class="field"><span class="label">Ism familiya *</span><input id="mcName" value="${esc(d.name)}" placeholder="Masalan: Karimova Malika"></label>
-   <label class="field"><span class="label">Lentadagi yozuv</span><input id="mcRib" value="${esc(d.ribbon)}" placeholder="Masalan: OLIMPIADA G‘OLIBI (bo’sh qolsa, lenta chiqmaydi)"></label>
+   <label class="field"><span class="label">Lentadagi yozuv</span><input id="mcRib" value="${esc(d.ribbon)}" placeholder="Bo’sh qolsa, lenta chiqmaydi"></label>
    <label class="field"><span class="label">Ism ustidagi yozuv</span><input id="mcAward" value="${esc(d.award)}" placeholder="Ushbu sertifikat bilan taqdirlanadi"></label>
-   <label class="field"><span class="label">Asosiy matn (ism ostida) *</span><textarea id="mcBody" rows="4" placeholder="Masalan: Qorako‘l tumani 5-maktab 4-B sinf o‘quvchisi 2026-yil 15-noyabrda o‘tkazilgan matematika olimpiadasida I o‘rinni egallagani uchun.">${esc(d.body)}</textarea></label>
+   <label class="field"><span class="label">Asosiy matn (ism ostida) *</span><textarea id="mcBody" rows="4" >${esc(d.body)}</textarea></label>
    <label class="field"><span class="label">Tilak (bitta qator)</span><textarea id="mcWish" rows="2">${esc(d.wish)}</textarea></label>
    <label class="field"><span class="label">Berilgan sana</span><input type="date" id="mcDate" value="${esc(d.issued)}"></label>
-   <p class="note" style="margin:0">Matn uzun bo’lsa, harflar o’zi kichrayadi. Saqlangach sertifikatga raqam va QR kod beriladi — QR’ni skanerlagan odam uning haqiqiyligini ko’radi.</p>
+   <p class="note" style="margin:0">${d.code?'':'Matnlar asosiy sertifikatlarimizdagidek to’ldirildi — faqat <b>__</b> o’rinlariga maktab, sinf va ballni yozing, kerak bo’lsa boshqa joyini ham o’zgartiring. '}Matn uzun bo’lsa, harflar o’zi kichrayadi. Saqlangach sertifikatga raqam va QR kod beriladi — QR’ni skanerlagan odam uning haqiqiyligini ko’radi.</p>
    ${img?`<img src="${img}" alt="Sertifikat ko’rinishi" data-zoom style="width:100%;border-radius:10px;border:1px solid var(--line,#ccd);cursor:zoom-in">`:''}
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="mcPrev">👁 Ko’rish</button><button class="btn pri" data-act="mcSave">Saqlash</button></div>
    ${d.code?`<button class="btn dan sm" data-act="mcDel" data-c="${esc(d.code)}" style="align-self:flex-start">O’chirish</button>`:''}`)}
 function scrMcerts(){
   if(!MC){loadMc();return '<div class="empty">Yuklanmoqda…</div>'}
   return `<button class="btn pri" data-act="mcNew">＋ Yangi sertifikat tayyorlash</button>
-  <p class="note" style="margin:0">Boshqa sinov, tanlov yoki olimpiada uchun: ism va matnni o’zingiz yozasiz, ramka, logotip, imzo va muhr andozadagidek qoladi.</p>
+  <p class="note" style="margin:0">Asosiy sertifikatlarimizdagi matn bilan ochiladi — ism, maktab, sinf va ballni yozasiz, kerak bo’lsa matnni o’zgartirasiz. Ramka, logotip, imzo va muhr o’sha.</p>
   ${MC.length>1?`<button class="btn sec" data-act="mcPdf">⬇ Hammasini PDF qilib yuklab olish (${MC.length} ta)</button>`:''}
   <div class="card list">${MC.map(x=>`<div class="row"><div class="m"><div class="n">${esc(x.name)}</div><div class="s">${esc(x.code)}${x.ribbon?' · '+esc(x.ribbon):''} · ${esc(String(x.issued||String(x.at||'').slice(0,10)).split('-').reverse().join('.'))}</div></div><button class="btn sec sm" data-act="mcEdit" data-c="${esc(x.code)}" aria-label="Tahrirlash">✎</button><button class="btn sec sm" data-act="mcView" data-c="${esc(x.code)}">👁 Ko’rish</button><button class="btn sec sm" data-act="mcPng" data-c="${esc(x.code)}" aria-label="Yuklab olish">⬇</button></div>`).join('')||'<div class="empty">Hali qo’lda tayyorlangan sertifikat yo’q</div>'}</div>`}
 // sertifikatlar: tuman / maktab / sinf bosqichi / sinf bo'yicha saralab, bittalab yoki PDF qilib yuklab olish
@@ -1849,8 +1856,8 @@ document.addEventListener('click',async e=>{
    case 'certDemo':await certDemo();break;
    case 'mcNew':await openMc('');break;
    case 'mcEdit':await openMc(d.c);break;
-   case 'mcPrev':{Object.assign(MCD,mcForm());if(!MCD.name||!MCD.body){toast('Ism va asosiy matnni yozing',true);break}toast('Tayyorlanmoqda…');const cv=await drawCert({code:MCD.code||'NAMUNA',issued:MCD.issued,m:MCD});drawMc(cv.toDataURL('image/jpeg',.85));break}
-   case 'mcSave':{Object.assign(MCD,mcForm());const r=await api('mcerts.save',MCD);closeSheet();toast(MCD.code?'Saqlandi':'Sertifikat tayyor: № '+r.code);MC=null;render();break}
+   case 'mcPrev':{Object.assign(MCD,mcForm());if(!mcCheck())break;toast('Tayyorlanmoqda…');const cv=await drawCert({code:MCD.code||'NAMUNA',issued:MCD.issued,m:MCD});drawMc(cv.toDataURL('image/jpeg',.85));break}
+   case 'mcSave':{Object.assign(MCD,mcForm());if(!mcCheck())break;const r=await api('mcerts.save',MCD);closeSheet();toast(MCD.code?'Saqlandi':'Sertifikat tayyor: № '+r.code);MC=null;render();break}
    case 'mcDel':{if(!confirm('Sertifikat o’chirilsinmi? U 30 kun O’chirilganlar bo’limida turadi.'))break;await api('mcerts.delete',{code:d.c});closeSheet();toast('O’chirildi');MC=null;render();break}
    case 'mcView':{const x=(MC||[]).find(y=>y.code===d.c);if(!x)break;toast('Ochilmoqda…');const cv=await drawCert(mcObj(x));
      openSheet(`<div class="sh-top"><div class="m"><h2>${esc(x.name)}</h2><div class="s">№ ${esc(x.code)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
