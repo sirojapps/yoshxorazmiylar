@@ -81,6 +81,7 @@ try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) {
 try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, ref_id INTEGER, label TEXT DEFAULT '', info TEXT DEFAULT '', school_id INTEGER, by INTEGER, at TEXT, data TEXT DEFAULT '{}')");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
 // tug'ilgan yil va manzil endi yig'ilmaydi — avval kiritilganlari ham o'chiriladi
@@ -1340,7 +1341,7 @@ function extras(u, out) {
   const vis = visibleThreads(u);
   ex.unread = vis.filter(t => !(isTeam(u) && (t.kind === 'ota' || t.kind === 'sinf'))).reduce((n, t) => n + t.unread, 0);
   const sIds = new Set((out.students || []).map(s => s.id));
-  ex.certs = all('SELECT code,test_id,student_id FROM certificates').filter(c => isTeam(u) || sIds.has(c.student_id));
+  ex.certs = all('SELECT code,test_id,student_id,at,issued FROM certificates').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
   if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
   if (u.role === 'ota') {
@@ -1493,16 +1494,19 @@ A['tg.approve'] = async (u, b) => {
 // ---------------------------------------------------------------- settings (CEO)
 const SET_KEYS = ['bot_token', 'logo', 'imzo', 'muhr', 'signer', 'signer_role', 'tabrik_ota', 'tabrik_rahbar', 'tabrik_direktor', 'ceo_phone', 'site_url',
   'sch_name', 'sch_about', 'sch_address', 'sch_phone', 'sch_telegram', 'sch_instagram', 'sch_facebook', 'sch_youtube', 'sch_site',
-  'cert_top', 'cert_title', 'cert_ribbon', 'cert_award', 'cert_body', 'cert_tuman'];
+  'cert_top', 'cert_title', 'cert_ribbon', 'cert_award', 'cert_body', 'cert_wish', 'cert_tuman'];
 // sertifikat matnlari: bo'sh qoldirilsa, shu asl matnlar ishlatiladi
 const CERT_DEF = {
   cert_top: 'KARAKUL INTERNATIONAL SCHOOL  ·  “YOSH XORAZMIYLAR” LOYIHASI',
   cert_title: 'SERTIFIKAT',
   cert_ribbon: '“YOSH XORAZMIY” UNVONI',
   cert_award: 'Ushbu sertifikat bilan taqdirlanadi',
-  cert_body: '{tuman} {maktab}-maktabning {sinf} sinf o‘quvchisi «{sinov}» matematika sinovida {natija}, iqtidorli o‘quvchilar qatoridan joy olgani uchun.',
+  cert_body: '{tuman} {maktab}-maktab {sinf} sinf o‘quvchisi {sinovda} {natija}, {baho} va “Yosh Xorazmiy” unvoniga sazovor bo‘ldi.',
+  cert_wish: 'Bilimingiz va mehnatsevarligingiz tahsinga loyiq! Ilm yo‘lida yangi zafarlar tilaymiz!',
   cert_tuman: 'Qorako‘l tumani',
 };
+// eski asl matn saqlab qo'yilgan bo'lsa, yangisiga o'tkaziladi
+try { if (getSet('cert_body') === '{tuman} {maktab}-maktabning {sinf} sinf o‘quvchisi «{sinov}» matematika sinovida {natija}, iqtidorli o‘quvchilar qatoridan joy olgani uchun.') setSet('cert_body', ''); } catch (e) { }
 const certTexts = () => Object.fromEntries(Object.keys(CERT_DEF).map(k => [k, getSet(k) || CERT_DEF[k]]));
 
 // ---- Zaxira nusxalar: ro'yxat, tekshirish (haqiqatan tiklasa bo'ladimi), tiklash ----
@@ -1592,11 +1596,19 @@ function assignCerts(testId, schoolId) {
   }
   return n;
 }
+// "Berilgan sana": CEO tanlangan sertifikatlar uchun o'zgartiradi (bo'sh = e'lon qilingan kun)
+A['certs.date'] = (u, b) => {
+  need(u.role === 'ceo');
+  const d = String(b?.date || ''); if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) bad('Sana noto‘g‘ri');
+  const codes = (Array.isArray(b?.codes) ? b.codes : []).map(String).slice(0, 5000); if (!codes.length) bad('Sertifikat tanlanmagan');
+  let n = 0; for (const c of codes) n += run('UPDATE certificates SET issued=? WHERE code=?', d, c).changes;
+  log(u.id, 'sertifikat.sana', { date: d, n }); return { n };
+};
 A['certs.assign'] = (u, b) => { need(u.role === 'ceo'); const t = one("SELECT id FROM tests WHERE id=?", +b?.test_id); return { n: t ? assignCerts(t.id) : 0 }; };
 function verifyCert(code) {
   const c = one('SELECT * FROM certificates WHERE code=?', String(code || '').toUpperCase()); if (!c) return { ok: false };
   const s = studentInfo(c.student_id); const t = one('SELECT name,date FROM tests WHERE id=?', c.test_id);
-  return { ok: true, code: c.code, name: s?.name, school: s?.num, cls: s?.cls, test: t?.name, date: t?.date || c.at.slice(0, 10) };
+  return { ok: true, code: c.code, name: s?.name, school: s?.num, cls: s?.cls, test: t?.name, date: c.issued || (c.at || '').slice(0, 10) || t?.date };
 }
 
 // ---------------------------------------------------------------- messages
