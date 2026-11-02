@@ -82,6 +82,8 @@ try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, ref_id INTEGER, label TEXT DEFAULT '', info TEXT DEFAULT '', school_id INTEGER, by INTEGER, at TEXT, data TEXT DEFAULT '{}')");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
+// qo'lda tayyorlanadigan sertifikatlar: andoza (ramka, logotip, imzo, muhr) o'sha, ism va matnni CEO o'zi yozadi
+db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
 // tug'ilgan yil va manzil endi yig'ilmaydi — avval kiritilganlari ham o'chiriladi
@@ -472,7 +474,7 @@ function dropStudents(ids) {
   for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults']) run(`DELETE FROM ${t} WHERE student_id IN (${L})`, ...ids);
   run(`DELETE FROM students WHERE id IN (${L})`, ...ids);
 }
-const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'wts', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults'];
+const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'wts', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults', 'mcerts'];
 function putBack(d) {
   for (const t of ORDER) for (const r of d[t] || []) { const k = Object.keys(r); run(`INSERT INTO ${t}(${k.join(',')}) VALUES(${k.map(() => '?').join(',')})`, ...k.map(x => r[x])); }
   if ((d.users || []).length) run(`UPDATE users SET active=1 WHERE id IN (${inList(d.users)})`, ...d.users);
@@ -1604,9 +1606,37 @@ A['certs.date'] = (u, b) => {
   let n = 0; for (const c of codes) n += run('UPDATE certificates SET issued=? WHERE code=?', d, c).changes;
   log(u.id, 'sertifikat.sana', { date: d, n }); return { n };
 };
+// ---- qo'lda tayyorlanadigan sertifikatlar (boshqa sinov, tanlov, olimpiada uchun) — faqat CEO
+const mtxt = (x, n) => String(x ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+A['mcerts.list'] = u => { need(u.role === 'ceo'); return { rows: all('SELECT code,name,award,ribbon,body,wish,issued,at FROM mcerts ORDER BY id DESC') }; };
+A['mcerts.save'] = (u, b) => {
+  need(u.role === 'ceo', 'Sertifikatni faqat CEO tayyorlaydi');
+  const f = { name: mtxt(b?.name, 80), award: mtxt(b?.award, 120), ribbon: mtxt(b?.ribbon, 90), body: mtxt(b?.body, 600), wish: mtxt(b?.wish, 220), issued: String(b?.issued || '') };
+  if (!f.name) bad('Ism familiyani yozing'); if (!f.body) bad('Asosiy matnni yozing');
+  if (f.issued && !/^\d{4}-\d{2}-\d{2}$/.test(f.issued)) bad('Sana noto‘g‘ri');
+  if (b?.code) {
+    const c = one('SELECT id,code FROM mcerts WHERE code=?', String(b.code)); if (!c) bad('Sertifikat topilmadi');
+    run('UPDATE mcerts SET name=?,award=?,ribbon=?,body=?,wish=?,issued=? WHERE id=?', f.name, f.award, f.ribbon, f.body, f.wish, f.issued, c.id);
+    log(u.id, 'sertifikat.qolda.tahrir', { code: c.code, name: f.name }); return { code: c.code };
+  }
+  const year = (f.issued || now()).slice(0, 4);
+  const seq = (one("SELECT max(CAST(substr(code,-4) AS INTEGER)) n FROM mcerts WHERE code LIKE ?", `YXQ-${year}-%`).n || 0) + 1;
+  const code = `YXQ-${year}-${String(seq).padStart(4, '0')}`;
+  run('INSERT INTO mcerts(code,name,award,ribbon,body,wish,issued,by,at) VALUES(?,?,?,?,?,?,?,?,?)', code, f.name, f.award, f.ribbon, f.body, f.wish, f.issued, u.id, now());
+  log(u.id, 'sertifikat.qolda', { code, name: f.name }); return { code };
+};
+A['mcerts.delete'] = (u, b) => {
+  need(u.role === 'ceo', 'Sertifikatni faqat CEO o‘chiradi');
+  const c = one('SELECT * FROM mcerts WHERE code=?', String(b?.code || '')); if (!c) bad('Sertifikat topilmadi');
+  return tx(() => { run('DELETE FROM mcerts WHERE id=?', c.id); toTrash(u, 'mcert', c.id, c.name, '№ ' + c.code, null, { mcerts: [c] });
+    log(u.id, 'sertifikat.qolda.ochirish', { code: c.code, name: c.name }); return {}; });
+};
 A['certs.assign'] = (u, b) => { need(u.role === 'ceo'); const t = one("SELECT id FROM tests WHERE id=?", +b?.test_id); return { n: t ? assignCerts(t.id) : 0 }; };
 function verifyCert(code) {
-  const c = one('SELECT * FROM certificates WHERE code=?', String(code || '').toUpperCase()); if (!c) return { ok: false };
+  const k = String(code || '').toUpperCase();
+  const m = one('SELECT * FROM mcerts WHERE code=?', k);
+  if (m) return { ok: true, manual: true, code: m.code, name: m.name, ribbon: m.ribbon, date: m.issued || (m.at || '').slice(0, 10) };
+  const c = one('SELECT * FROM certificates WHERE code=?', k); if (!c) return { ok: false };
   const s = studentInfo(c.student_id); const t = one('SELECT name,date FROM tests WHERE id=?', c.test_id);
   return { ok: true, code: c.code, name: s?.name, school: s?.num, cls: s?.cls, test: t?.name, date: c.issued || (c.at || '').slice(0, 10) || t?.date };
 }
