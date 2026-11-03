@@ -2123,7 +2123,7 @@ const server = http.createServer(async (req, res) => {
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : 'max-age=86400', ...SEC }); return fs.createReadStream(file).pipe(res);
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
     }
     if (url.pathname.startsWith('/t/')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(PUBLIC, 'index.html')).pipe(res); }
     res.writeHead(302, { Location: '/' }); res.end();
