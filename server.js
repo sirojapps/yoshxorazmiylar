@@ -2117,11 +2117,13 @@ const server = http.createServer(async (req, res) => {
     if (pwa(url, res)) return;
     if (FONTS[url.pathname]) { res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'public, max-age=2592000', ...SEC }); return res.end(FONTS[url.pathname]); }
     // static
+    if (url.pathname === '/darslar') { res.writeHead(301, { Location: '/darslar/', ...SEC }); return res.end(); }
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
+    if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': ext === '.html' ? 'no-cache' : 'max-age=86400', ...SEC }); return fs.createReadStream(file).pipe(res);
+      const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : 'max-age=86400', ...SEC }); return fs.createReadStream(file).pipe(res);
     }
     if (url.pathname.startsWith('/t/')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(PUBLIC, 'index.html')).pipe(res); }
     res.writeHead(302, { Location: '/' }); res.end();

@@ -35,6 +35,16 @@ grep -q "YOSH XORAZMIYLAR" "$APP/public/index.html.new" || { echo "index.html yu
 cp "$APP/server.js.new" /tmp/yx-check.js && node --check /tmp/yx-check.js && rm -f /tmp/yx-check.js
 mv "$APP/server.js.new" "$APP/server.js"
 mv "$APP/public/index.html.new" "$APP/public/index.html"
+# Mavzu darslari (darslar.tar.gz): bo'lsa — public/darslar ga ochiladi
+if curl -fsSL "$REPO/darslar.tar.gz?$TS" -o /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt && grep -qx 'index.html' /tmp/yx-darslar.txt; then
+  rm -rf "$APP/public/darslar.new"; mkdir -p "$APP/public/darslar.new"
+  tar -xzf /tmp/yx-darslar.tgz -C "$APP/public/darslar.new" --no-same-owner
+  rm -rf "$APP/public/darslar.old"; [ -d "$APP/public/darslar" ] && mv "$APP/public/darslar" "$APP/public/darslar.old"
+  mv "$APP/public/darslar.new" "$APP/public/darslar"; rm -rf "$APP/public/darslar.old"
+  cp /tmp/yx-darslar.tgz "$APP/.darslar.tgz"
+  echo "Mavzu darslari o'rnatildi: $(ls "$APP/public/darslar/m" | wc -l) ta mavzu"
+fi
+rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
 chown -R yx:yx "$APP"
 chmod 700 "$APP/data" "$APP/backups"
 
@@ -100,15 +110,17 @@ chmod 644 /etc/cron.d/yx-backup
 # Avtomatik yangilanish: GitHub'ga yangi fayl yuklansa, server 5 daqiqa ichida o'zi o'rnatadi.
 cat > /usr/local/bin/yx-update <<'UPD'
 #!/bin/bash
-# GitHub'dagi server.js va index.html o'zgargan bo'lsa, saytni o'zi yangilaydi.
+# GitHub'dagi server.js, index.html yoki darslar.tar.gz o'zgargan bo'lsa, saytni o'zi yangilaydi.
 R="https://raw.githubusercontent.com/sirojapps/yoshxorazmiylar/main"
 exec 9>/run/yx-update.lock; flock -n 9 || exit 0
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 TS=$(date +%s)
 curl -fsSL "$R/server.js?$TS" -o "$T/s" || exit 0
 curl -fsSL "$R/index.html?$TS" -o "$T/i" || exit 0
-cmp -s "$T/s" /opt/yx/server.js && cmp -s "$T/i" /opt/yx/public/index.html && exit 0
-H=$(cat "$T/s" "$T/i" | sha256sum | cut -c1-16)
+curl -fsSL "$R/darslar.tar.gz?$TS" -o "$T/d" 2>/dev/null || : > "$T/d"
+DS=0; [ -s "$T/d" ] && ! cmp -s "$T/d" /opt/yx/.darslar.tgz && DS=1
+cmp -s "$T/s" /opt/yx/server.js && cmp -s "$T/i" /opt/yx/public/index.html && [ $DS = 0 ] && exit 0
+H=$(cat "$T/s" "$T/i" "$T/d" | sha256sum | cut -c1-16)
 [ "$(cat /opt/yx/.last-try 2>/dev/null)" = "$H" ] && exit 0
 echo "=== $(date '+%F %T') yangilanish boshlandi" >> /var/log/yx-update.log
 curl -fsSL "$R/install.sh?$TS" | bash >> /var/log/yx-update.log 2>&1 \
