@@ -95,15 +95,12 @@ EOF
 fi
 ln -sf /etc/nginx/sites-available/yx /etc/nginx/sites-enabled/yx
 rm -f /etc/nginx/sites-enabled/default
-# siqish (gzip): sahifa telefonga 3-4 baravar kichik bo'lib boradi
-cat > /etc/nginx/conf.d/yx-gzip.conf <<'EOF'
-gzip on;
-gzip_vary on;
-gzip_proxied any;
-gzip_comp_level 6;
-gzip_min_length 1024;
-gzip_types text/plain text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml;
-EOF
+[ -f /etc/nginx/nginx.conf.yxbak ] || cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.yxbak
+# siqish (gzip): Ubuntu'ning o'z nginx.conf faylida gzip bor — faqat izohdagi sozlamalarini yoqamiz
+rm -f /etc/nginx/conf.d/yx-gzip.conf
+sed -i -E 's/^([[:space:]]*)#[[:space:]]*(gzip_(vary|proxied|comp_level|types)[[:space:]])/\1\2/' /etc/nginx/nginx.conf
+grep -qE '^[[:space:]]*gzip[[:space:]]+on' /etc/nginx/nginx.conf || sed -i -E 's/^([[:space:]]*)#[[:space:]]*gzip[[:space:]]+on;/\1gzip on;/' /etc/nginx/nginx.conf
+nginx -t -q 2>/dev/null || { echo "DIQQAT: gzip sozlamasi qabul qilinmadi, qaytarildi"; cp /etc/nginx/nginx.conf.yxbak /etc/nginx/nginx.conf 2>/dev/null || true; }
 nginx -t -q
 systemctl reload nginx
 
@@ -118,6 +115,7 @@ echo "https allaqachon sozlangan."
 fi
 
 say "6/8 Sinov sayti (test.$DOMAIN)"
+sinov_sayti(){
 # GitHub'da test-server.js va test-index.html bo'lsa — alohida sinov sayti ishga tushadi.
 # U haqiqiy bazaning NUSXASI bilan ishlaydi: u yerdagi o'zgarishlar asosiy saytga hech qachon tegmaydi.
 if curl -fsSL "$REPO/test-server.js?$TS" -o /tmp/yx-ts.js 2>/dev/null && curl -fsSL "$REPO/test-index.html?$TS" -o /tmp/yx-ti.html 2>/dev/null \
@@ -176,6 +174,9 @@ EOF
 else
   echo "GitHub'da test-server.js / test-index.html yo'q — sinov sayti o'tkazib yuborildi."
 fi
+
+}
+sinov_sayti || echo "DIQQAT: sinov sayti sozlanmadi — asosiy sayt ishlayveradi."
 
 say "7/8 Kunlik zaxira nusxa sozlanmoqda"
 cat > /etc/cron.d/yx-backup <<EOF
