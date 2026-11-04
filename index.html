@@ -1304,7 +1304,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
-function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:12px 14px;font:inherit;font-size:16px;background:var(--card,#fff)">`;
+function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<label style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:4px 6px 4px 14px;background:var(--card,#fff)"><input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="flex:1;min-width:0;border:0;outline:0;padding:8px 0;font:inherit;font-size:16px;background:transparent"><button type="button" class="btn sec sm" data-act="pwEyeF" data-f="${id}" style="white-space:nowrap">👁 Ko’rsatish</button></label>`;
   openSheet(`<div class="sh-top"><div class="m"><h2>${has?'Parolni o’zgartirish':'Kirish paroli o’rnatish'}</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card pad" style="gap:10px">${has?inp('pwOld','Hozirgi parol','current-password'):''}${inp('pwNew','Yangi parol','new-password')}${inp('pwNew2','Yangi parolni qayta yozing','new-password')}
   <p class="err" id="pwErr" role="alert" style="margin:0"></p>
@@ -3007,6 +3007,7 @@ document.addEventListener('click',async e=>{
    case 'pwGo':{const i=$('#pwIn');const v=i?i.value:'';if(!v){pinErr='Parolni yozing';render();break}
      try{await api('login',{phone:lpGet(),password:v});pinErr='';await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}break}
    case 'parolSet':openParol();break;
+   case 'pwEyeF':{const i=$('#'+d.f);if(i){const sh=i.type==='password';i.type=sh?'text':'password';b.textContent=sh?'🙈 Yashirish':'👁 Ko’rsatish';i.focus()}break}
    case 'parolSave':{const o=$('#pwOld')?.value||'',n=$('#pwNew')?.value||'',n2=$('#pwNew2')?.value||'';const er=$('#pwErr');
      const w=n.length<12?'Parol kamida 12 belgidan iborat bo’lsin':!(/\p{L}/u.test(n)&&/\d/.test(n))?'Parolda harflar ham, raqamlar ham bo’lsin':n!==n2?'Ikkinchi marta yozilgan parol mos emas':'';
      if(w){er.textContent=w;break}
