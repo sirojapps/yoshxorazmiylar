@@ -82,6 +82,9 @@ try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, ref_id INTEGER, label TEXT DEFAULT '', info TEXT DEFAULT '', school_id INTEGER, by INTEGER, at TEXT, data TEXT DEFAULT '{}')");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE users ADD COLUMN pass TEXT DEFAULT ''"); } catch (e) { } // CEO kirish paroli (scrypt xeshi)
+for (const q of ['students(class_id)', 'results(student_id)', 'results(test_id)', 'users(class_id)', 'users(school_id)', 'users(phone)', 'users(role)', 'classes(school_id)', 'audit(at)', 'audit(user_id)', 'messages(thread_id)', 'sessions(user_id)'])
+  try { db.exec(`CREATE INDEX IF NOT EXISTS ix_${q.replace(/\W+/g, '_')} ON ${q}`); } catch (e) { } // tezlik uchun indekslar
+db.exec('CREATE TABLE IF NOT EXISTS visits(day TEXT NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(day,user_id)) WITHOUT ROWID'); // kunlik faollik
 try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
@@ -1573,7 +1576,7 @@ async function tgLoop() {
     } catch (e) { await sleep(5000); }
   }
 }
-if (process.env.NO_BOT !== '1') tgLoop().catch(e => console.error('bot loop', e));
+if (process.env.NO_BOT !== '1' && process.env.YX_TEST !== '1') tgLoop().catch(e => console.error('bot loop', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
 A['tg.requests'] = u => {
@@ -1688,7 +1691,7 @@ A['settings.save'] = async (u, b) => {
   }
   if (b.key === 'ceo_phone') v = phone9(v);
   setSet(b.key, v);
-  if (b.key === 'bot_token') tgLoop();
+  if (b.key === 'bot_token' && process.env.YX_TEST !== '1') tgLoop();
   log(u.id, 'sozlama', { key: b.key });
   return { ok: true, bot_username: getSet('bot_username') };
 };
@@ -2024,7 +2027,7 @@ function userOf(req) {
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
-  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; } }
+  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
   return u;
 }
 // sayt versiyasi: index.html o'zgarsa, ochiq sahifalarga "Sayt yangilandi" chiqadi
@@ -2066,6 +2069,24 @@ function pwa(url, res) {
   return false;
 }
 
+// CEO bosh sahifasi uchun haqiqiy ko'rsatkichlar
+A['ceo.stats'] = u => {
+  need(u.role === 'ceo');
+  const roles = {}; for (const r of all("SELECT role,count(*) n FROM users WHERE active=1 AND pin IS NOT NULL GROUP BY role")) roles[r.role] = r.n;
+  const days = []; for (let i = 364; i >= 0; i--) days.push(new Date(Date.parse(today()) - i * 864e5).toISOString().slice(0, 10));
+  const va = Object.fromEntries(all('SELECT day,count(*) n FROM visits WHERE day>=? GROUP BY day', days[0]).map(r => [r.day, r.n]));
+  const vn = Object.fromEntries(all("SELECT substr(created_at,1,10) d,count(*) n FROM users WHERE created_at>=? GROUP BY d", days[0]).map(r => [r.d, r.n]));
+  const first = one('SELECT min(day) d FROM visits')?.d || today();
+  const w7 = new Date(Date.now() - 7 * 864e5).toISOString(), t0 = new Date(Date.parse(today()) - 5 * 3600e3).toISOString();
+  const c = (q, ...a) => { try { return one(q, ...a).n; } catch (e) { return 0; } };
+  const delta = { users: c("SELECT count(*) n FROM users WHERE active=1 AND pin IS NOT NULL AND created_at>=?", w7), stu: c('SELECT count(*) n FROM students WHERE created_at>=?', w7),
+    rahbar: c("SELECT count(*) n FROM users WHERE role='rahbar' AND active=1 AND pin IS NOT NULL AND created_at>=?", w7), sch: c('SELECT count(*) n FROM schools WHERE created_at>=?', w7) };
+  const bugun = { sch: c('SELECT count(*) n FROM schools WHERE created_at>=?', t0), users: c('SELECT count(*) n FROM users WHERE created_at>=?', t0),
+    obuna: c("SELECT count(*) n FROM audit WHERE action='obuna.yoqish' AND at>=?", t0), tests: c('SELECT count(DISTINCT test_id) n FROM results WHERE at>=?', t0) };
+  return { roles, delta, bugun, users: Object.values(roles).reduce((a, b) => a + b, 0), misol: one('SELECT count(*) n FROM probs WHERE active=1').n, first,
+    days: days.map(d => ({ d, a: va[d] || 0, n: vn[d] || 0 })) };
+};
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -2099,7 +2120,7 @@ const server = http.createServer(async (req, res) => {
       }
       const token = crypto.randomBytes(32).toString('hex');
       run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
-      run('UPDATE users SET last_login=? WHERE id=?', now(), u.id);
+      run('UPDATE users SET last_login=? WHERE id=?', now(), u.id); run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
       return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
     }
@@ -2110,6 +2131,7 @@ const server = http.createServer(async (req, res) => {
       const isCeo = !!(p9 && c && c.pass && (phone9(getSet('ceo_phone')) || phone9(c.phone)) === p9);
       return send(res, 200, { kind: isCeo ? 'parol' : 'pin' });
     }
+    if (url.pathname === '/robots.txt' && process.env.YX_TEST === '1') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('User-agent: *\nDisallow: /\n'); }
     if (url.pathname === '/robots.txt') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...SEC }); return res.end('User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://yoshxorazmiylar.uz/sitemap.xml\n'); }
     if (url.pathname === '/sitemap.xml') { res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', ...SEC }); return res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://yoshxorazmiylar.uz/</loc></url></urlset>\n'); }
     if (url.pathname === '/googlea6059590c58b5b1a.html') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...SEC }); return res.end('google-site-verification: googlea6059590c58b5b1a.html'); }
@@ -2175,8 +2197,8 @@ const server = http.createServer(async (req, res) => {
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
+      const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
     }
     if (url.pathname.startsWith('/t/')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(PUBLIC, 'index.html')).pipe(res); }
     res.writeHead(302, { Location: '/' }); res.end();
