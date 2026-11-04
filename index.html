@@ -1506,7 +1506,7 @@ function darsCard(code){if(!darsHas(code))return '';return `<button class="card 
 function darsOpen(code){const src=code?`/darslar/lesson.html#${encodeURIComponent(DARS_AL[code]||code)}`:'/darslar/';document.getElementById('darsOv')?.remove();
   const o=document.createElement('div');o.id='darsOv';o.style.cssText='position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column';
   o.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc"><button class="btn sec sm" id="darsX">✕ Yopish</button><b style="flex:1;font-size:15px">📘 Mavzu darslari</b></div><iframe src="${src}" style="flex:1;border:0;width:100%" title="Mavzu darsi"></iframe>`;
-  document.body.appendChild(o);document.body.style.overflow='hidden';o.querySelector('#darsX').onclick=()=>{o.remove();document.body.style.overflow=''}}
+  document.body.appendChild(o);document.body.style.overflow='hidden';o.querySelector('#darsX').onclick=()=>{o.remove();document.body.style.overflow='';DARS_NP=false;navSync()};navSync()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dars]');if(b){e.preventDefault();e.stopPropagation();darsOpen(b.dataset.dars)}},true);
 function mavzuHtml(m,name){if(m===undefined||!m)return '';const para=t=>esc(t).replace(/\n/g,'<br>');
   if(m.short&&!m.steps?.length)m={...m,steps:[]};
@@ -3452,9 +3452,10 @@ function closeSheet(){const el=$('#sheet');el.hidden=true;el.innerHTML='';docume
 // ---- telefonning "orqaga" tugmasi: saytdagi ◀ tugmasi bilan bir xil ishlaydi.
 // Har bir chuqurlik darajasi uchun bosish paytida bitta tarix qadami qo'shiladi (Chrome bosilmasdan qo'shilgan qadamlarni o'tkazib yuboradi).
 let histD=+(history.state?.yxd||0),navSkip=0,navT=0,exitArmed=false,NAVH=[];
-function navPush(){NAVH.push({tab,stack:[...stack]});if(NAVH.length>40)NAVH.shift()}
+let NP_FROM=false,DARS_NP=false;
+function navPush(){NAVH.push({tab,stack:[...stack],np:NP_FROM||(typeof NP_OPEN!=='undefined'&&NP_OPEN)});NP_FROM=false;if(NAVH.length>40)NAVH.shift()}
 function firstTab(){if(!S)return null;const t=TABS[isTeam()?'team':S.me.role]();return t[0]?.[0]||null}
-function appDepth(){if(!S)return 0;const np=typeof NP_OPEN!=='undefined'&&NP_OPEN?1:0;return (exitArmed?0:1)+(SC?1:0)+(!$('#sheet').hidden?1:0)+np+(NAVH.length?NAVH.length:stack.length+(tab&&tab!==firstTab()?1:0))}
+function appDepth(){if(!S)return 0;const np=typeof NP_OPEN!=='undefined'&&NP_OPEN?1:0;return (exitArmed?0:1)+(SC?1:0)+(!$('#sheet').hidden?1:0)+np+(document.getElementById('darsOv')?(DARS_NP?2:1):0)+(NAVH.length?NAVH.reduce((a,h)=>a+1+(h.np?1:0),0):stack.length+(tab&&tab!==firstTab()?1:0))}
 function navSync(){if(!navT)navT=setTimeout(navDo,0)}
 function navDo(){navT=0;if(navSkip)return;const d=appDepth();
   try{if(d>histD){for(let i=histD+1;i<=d;i++)history.pushState({yxd:i},'');histD=d}
@@ -3466,8 +3467,9 @@ addEventListener('popstate',e=>{
   while(appDepth()>d){
     if(SC){clearTimeout(SC.timer);SC.stream?.getTracks().forEach(t=>t.stop());SC=null;const se=$('#scan');if(se){se.hidden=true;se.innerHTML=''}if($('#sheet').hidden)document.body.style.overflow=''}
     else if(!$('#sheet').hidden)closeSheet();
+    else if(document.getElementById('darsOv')){document.getElementById('darsOv').remove();document.body.style.overflow='';if(DARS_NP){NP_OPEN=true;document.body.classList.add('np-open')}DARS_NP=false}
     else if(typeof NP_OPEN!=='undefined'&&NP_OPEN){NP_OPEN=false;document.body.classList.remove('np-open')}
-    else if(NAVH.length){const h=NAVH.pop();tab=h.tab;stack=h.stack}
+    else if(NAVH.length){const h=NAVH.pop();tab=h.tab;stack=h.stack;if(h.np){NP_OPEN=true;document.body.classList.add('np-open')}}
     else if(stack.length)stack.pop();
     else if(tab&&tab!==firstTab()){tab=firstTab();stack=[]}
     else break}
@@ -3518,6 +3520,7 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-go]'); if(!b)return; const d=b.dataset;
   try{
   if(d.d!=null){if(pin.length<6){pin+=d.d;pinErr=''}render();if(pin.length===6){const p=pin;pin='';try{await api('login',{pin:p,phone:lpGet()});await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}}return}
+  if(NP_OPEN&&(d.tab||d.go||d.side))NP_FROM=true;
   if(NP_OPEN&&(d.tab||d.go||d.side)){NP_OPEN=false;document.body.classList.remove('np-open')}
   if(d.side){navPush();stack=[];go(d.side,1);return}
   if(d.act==='limMore'){LIM[d.k]=(LIM[d.k]||LIMN)+LIMN;render();return}
@@ -3555,7 +3558,7 @@ document.addEventListener('click',async e=>{
      if(w){er.textContent=w;break}
      try{await api('parol',{old:o,yangi:n});S.me.has_pass=true;closeSheet();toast('Parol saqlandi. Endi saytga faqat shu parol bilan kirasiz.')}catch(err){er.textContent=err.message}break}
    case 'pinDel':pin=pin.slice(0,-1);render();break;
-   case 'back':if(NAVH.length){const h=NAVH.pop();tab=h.tab;stack=h.stack}else stack.pop();render();scrollTo(0,0);break;
+   case 'back':if(NAVH.length){const h=NAVH.pop();tab=h.tab;stack=h.stack;if(h.np){NP_OPEN=true;document.body.classList.add('np-open')}}else stack.pop();navSync();render();scrollTo(0,0);break;
    case 'close':closeSheet();break;
    case 'install':await doInstall();break;
    case 'phoneEdit':openPhone(+d.id);break;
@@ -3576,7 +3579,7 @@ document.addEventListener('click',async e=>{
    case 'npHelp':openSheet(`<div class="sh-top"><div class="m"><h2>Yordam</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div><div class="card pad"><p style="margin:0">Savol yoki muammo bo’lsa: <b>+998 94 753 99 33</b></p><p class="note">Ota-onalar PIN kodni @YoshXorazmiylarBot orqali oladi.</p></div>`);break;
    case 'npOpen':NP_OPEN=true;document.body.classList.add('np-open');navSync();break;
    case 'npClose':NP_OPEN=false;document.body.classList.remove('np-open');break;
-   case 'npDars':NP_OPEN=false;document.body.classList.remove('np-open');darsOpen('');break;
+   case 'npDars':DARS_NP=NP_OPEN;NP_OPEN=false;document.body.classList.remove('np-open');darsOpen('');break;
    case 'npOn':ls.set('newui',true);closeSheet();NP_OPEN=false;render();toast('Yangi panel yoqildi');break;
    case 'npOff':ls.set('newui',false);NP_OPEN=false;closeSheet();render();toast('Eski ko’rinishga qaytildi');break;
    case 'consent':await api('consent');await load();break;
