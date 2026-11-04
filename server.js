@@ -81,7 +81,8 @@ try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) {
 try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, ref_id INTEGER, label TEXT DEFAULT '', info TEXT DEFAULT '', school_id INTEGER, by INTEGER, at TEXT, data TEXT DEFAULT '{}')");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
-try { db.exec("ALTER TABLE users ADD COLUMN pass TEXT DEFAULT ''"); } catch (e) { } // CEO kirish paroli (scrypt xeshi)
+try { db.exec("ALTER TABLE users ADD COLUMN pass TEXT DEFAULT ''"); } catch (e) { }
+db.exec('CREATE TABLE IF NOT EXISTS visits(day TEXT NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(day,user_id)) WITHOUT ROWID'); // kunlik faollik (CEO bosh sahifasi grafigi) // CEO kirish paroli (scrypt xeshi)
 try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
@@ -2024,7 +2025,7 @@ function userOf(req) {
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
-  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; } }
+  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
   return u;
 }
 // sayt versiyasi: index.html o'zgarsa, ochiq sahifalarga "Sayt yangilandi" chiqadi
@@ -2066,6 +2067,54 @@ function pwa(url, res) {
   return false;
 }
 
+// ---- Mavzu darslarini bittalab yuklash: data/darslar-m/<kod>.js — darslar.tar.gz yangilansa ham saqlanib qoladi
+const DARS_X = path.join(DATA, 'darslar-m'); fs.mkdirSync(DARS_X, { recursive: true });
+function darsReady() {
+  let a = []; try { a = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'darslar', 'ready.json'), 'utf8')); } catch (e) { }
+  let x = []; try { x = fs.readdirSync(DARS_X).filter(f => /^[0-9A-Za-z]+\.js$/.test(f)).map(f => f.slice(0, -3)); } catch (e) { }
+  return [...new Set([...a.map(String), ...x])];
+}
+A['dars.list'] = u => { need(u.role === 'ceo'); let x = []; try { x = fs.readdirSync(DARS_X).filter(f => f.endsWith('.js')).map(f => ({ code: f.slice(0, -3), at: fs.statSync(path.join(DARS_X, f)).mtime.toISOString() })); } catch (e) { } return { ready: darsReady(), extra: x, topics: PB_TOPICS }; };
+A['dars.put'] = (u, b) => {
+  need(u.role === 'ceo', 'Darsni faqat CEO yuklaydi');
+  const code = String(b.code || ''); if (!PB_TOPIC[code]) bad('Mavzu topilmadi');
+  const js = String(b.js || ''); if (js.length < 50) bad('Fayl bo‘sh yoki noto‘g‘ri'); if (js.length > 3e6) bad('Fayl juda katta');
+  if (/<\s*script|<\s*iframe/i.test(js)) bad('Dars fayli .js bo‘lishi kerak');
+  fs.writeFileSync(path.join(DARS_X, code + '.js'), js);
+  log(u.id, 'dars.yuklash', { name: PB_TOPIC[code].g + '-sinf · ' + PB_TOPIC[code].name }); return { ok: true };
+};
+A['dars.reset'] = (u, b) => { need(u.role === 'ceo'); const code = String(b.code || ''); if (!PB_TOPIC[code]) bad('Mavzu topilmadi');
+  try { fs.unlinkSync(path.join(DARS_X, code + '.js')); } catch (e) { } log(u.id, 'dars.qaytarish', { name: PB_TOPIC[code].name }); return {}; };
+
+// ---- CEO bosh sahifasi: platforma holati (faqat haqiqiy ma'lumot)
+A['ceo.dash'] = u => {
+  need(u.role === 'ceo');
+  const roles = {}; for (const r of all("SELECT role,count(*) n FROM users WHERE active=1 GROUP BY role")) roles[r.role] = r.n;
+  const stu = one('SELECT count(*) n FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE sc.test=0').n; // sinov maktablari hisobga kirmaydi
+  const obuna = one('SELECT count(*) n FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE c.obuna=1 AND sc.test=0').n;
+  const days = []; for (let i = 29; i >= 0; i--) days.push(new Date(Date.parse(today()) - i * 864e5).toISOString().slice(0, 10));
+  const vm = Object.fromEntries(all('SELECT day,count(*) n FROM visits WHERE day>=? GROUP BY day', days[0]).map(r => [r.day, r.n]));
+  const firstDay = one('SELECT min(day) d FROM visits')?.d || today();
+  const dars = darsReady();
+  const grades = {};
+  for (const [code, t] of Object.entries(PB_TOPIC)) { if (PB_LOCKED(code)) continue; const g = (grades[t.g] ||= { mavzu: 0, dars: 0, misol: 0, bosh: 0 }); g.mavzu++; }
+  const dset = new Set(dars.map(String)); for (const code of dset) { const t = PB_TOPIC[code]; if (t && grades[t.g]) grades[t.g].dars++; }
+  for (const r of all('SELECT grade,topic,count(*) n FROM probs WHERE active=1 GROUP BY grade,topic')) { const g = grades[r.grade]; if (!g) continue; g.misol += r.n; }
+  for (const g of Object.keys(grades)) { const used = new Set(all('SELECT DISTINCT topic FROM probs WHERE active=1 AND grade=?', +g).map(r => r.topic)); grades[g].bosh = Object.keys(PB_TOPIC).filter(c => PB_TOPIC[c].g === +g && !PB_LOCKED(c) && !used.has(c)).length; }
+  let backup = null; try { const f = fs.readdirSync(BACKUPS).filter(x => /^yx-.*\.db$/.test(x)).map(x => ({ x, m: fs.statSync(path.join(BACKUPS, x)).mtimeMs })).sort((a, b) => b.m - a.m)[0]; if (f) backup = new Date(f.m).toISOString(); } catch (e) { }
+  let disk = null; try { const st = fs.statfsSync(DATA); disk = { free: st.bavail * st.bsize, total: st.blocks * st.bsize }; } catch (e) { }
+  let dbSize = 0; try { dbSize = fs.statSync(path.join(DATA, 'yx.db')).size; } catch (e) { }
+  return { roles, stu, obuna, visits: days.map(d => ({ d, n: vm[d] || 0 })), firstDay, today: vm[today()] || 0, grades, misol: one('SELECT count(*) n FROM probs WHERE active=1').n, dars: dset.size,
+    certs: (() => { try { return one("SELECT count(*) n FROM cert_log WHERE status=''").n; } catch (e) { return one('SELECT count(*) n FROM certificates').n; } })(),
+    active: all("SELECT id,num FROM schools WHERE test=0 ORDER BY num").map(sc => {
+      const ids = all("SELECT u.id FROM users u LEFT JOIN classes c ON c.id=u.class_id WHERE u.active=1 AND (u.school_id=? OR c.school_id=?)", sc.id, sc.id).map(r => r.id);
+      const a = ids.length ? one(`SELECT count(DISTINCT user_id) n FROM visits WHERE day>=? AND user_id IN (${ids.map(() => '?').join(',')})`, days[23], ...ids).n : 0;
+      return { num: sc.num, users: ids.length, a };
+    }),
+    noTeacher: one("SELECT count(*) n FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE sc.test=0 AND NOT EXISTS (SELECT 1 FROM users u WHERE u.class_id=c.id AND u.role='rahbar' AND u.active=1)").n,
+    sys: { backup, disk, dbSize, up: Math.round(process.uptime()), node: process.version, mem: process.memoryUsage().rss } };
+};
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -2099,7 +2148,7 @@ const server = http.createServer(async (req, res) => {
       }
       const token = crypto.randomBytes(32).toString('hex');
       run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
-      run('UPDATE users SET last_login=? WHERE id=?', now(), u.id);
+      run('UPDATE users SET last_login=? WHERE id=?', now(), u.id); run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
       return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
     }
@@ -2170,6 +2219,8 @@ const server = http.createServer(async (req, res) => {
     if (pwa(url, res)) return;
     if (FONTS[url.pathname]) { res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'public, max-age=2592000', ...SEC }); return res.end(FONTS[url.pathname]); }
     // static
+    if (url.pathname === '/darslar/ready.json') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return res.end(JSON.stringify(darsReady())); }
+    { const dm = url.pathname.match(/^\/darslar\/m\/([0-9A-Za-z]+)\.js$/); if (dm && fs.existsSync(path.join(DARS_X, dm[1] + '.js'))) { res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(DARS_X, dm[1] + '.js')).pipe(res); } }
     if (url.pathname === '/darslar') { res.writeHead(301, { Location: '/darslar/', ...SEC }); return res.end(); }
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
