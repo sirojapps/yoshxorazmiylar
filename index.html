@@ -646,6 +646,43 @@ body.nui .np-regw .np-reg{position:absolute;left:50%;bottom:34px;transform:trans
  body.nui .npi small{font-size:12.5px}
  body.nui .npsi{padding:10px 12px;font-size:14.5px}
 }
+
+/* kirish sahifasi: Xorazmiy rasmi sahifa bilan qo'shilib ketadi */
+body.lgx{background:linear-gradient(180deg,#1d2c5c 0%,#3a3f63 22%,#cdb48a 46%,#f3e7cd 62%,#fbf6ea 100%)!important}
+body.lgx #atmo{opacity:.18}
+.lhero{line-height:0;position:relative}
+.lhero img{display:block;width:100%;height:auto}
+@media (max-width:899px){
+ body.lgx .login{gap:14px;padding-top:0!important}
+ body.lgx .lhero{width:calc(100% + 32px);max-width:none;margin:0 -16px 0;
+  -webkit-mask-image:linear-gradient(180deg,#000 72%,transparent 100%);mask-image:linear-gradient(180deg,#000 72%,transparent 100%)}
+ body.lgx .login>img,body.lgx .login>svg{margin-top:-78px;position:relative;z-index:2;width:118px;height:118px;border-radius:50%;box-shadow:0 0 0 5px rgba(251,246,234,.9),0 10px 26px rgba(60,40,10,.35)}
+}
+body.lgx .login h2{font-size:24px;letter-spacing:.05em;color:#0f2350;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+body.lgx .login .note{color:#5b4a2e}
+body.lgx .login input,body.lgx .login label{background:rgba(255,255,255,.85)!important;border-color:#e3cfa6!important}
+body.lgx .pinbox span{border-color:#e3cfa6!important;background:rgba(255,255,255,.85)!important}
+body.lgx .kp button{background:rgba(255,255,255,.8)!important;border:1px solid #ecdcb9!important}
+body.lgx .login .btn.pri{background:linear-gradient(90deg,#b67b0c,#e0a72a);border:0;color:#fff;box-shadow:0 6px 16px rgba(182,123,12,.35)}
+body.lgx .lhelp{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:320px;margin:2px 0 18px}
+body.lgx .lbot{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:12px 14px;border-radius:14px;background:#229ED9;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 6px 16px rgba(34,158,217,.3)}
+body.lgx .lsos{margin:0 0 18px;font-size:14px;color:#5b4a2e}
+body.lgx .lsos a{color:#0f2350;font-weight:700;text-decoration:none;white-space:nowrap}
+body.lgx .login .btn.sec{background:rgba(255,255,255,.6)}
+@media (min-width:900px){
+ body.lgx{background:linear-gradient(90deg,#3a3550 0%,#c9ad7d 60%,#f6ecd6 75%,#fbf6ea 100%)!important}
+ body.lgx .app{max-width:none!important}
+ body.lgx .login{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);grid-auto-rows:min-content;column-gap:24px;row-gap:16px;align-content:center;justify-items:center;max-width:none!important;width:100%!important;box-sizing:border-box;margin:0;min-height:100vh;padding:0 6vw 0 0}
+ body.lgx .login>*{grid-column:2}
+ body.lgx .lhero{grid-column:1;grid-row:1/span 20;align-self:center;width:100%;margin:0;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 14%,#000 86%,transparent 100%)}
+ body.lgx .lhero img{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 72%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 72%,transparent 100%)}
+ body.lgx::before{content:'';position:fixed;left:0;top:0;bottom:0;width:66vw;background:url(/a/kirish.webp?v=1) center/cover;filter:blur(38px) brightness(.85) saturate(1.1);transform:scale(1.1);-webkit-mask-image:linear-gradient(90deg,#000 55%,transparent);mask-image:linear-gradient(90deg,#000 55%,transparent);z-index:0}
+ body.lgx .app{position:relative;z-index:1}
+ body.lgx .login>:not(.lhero):not(img):not(svg){width:100%;max-width:360px}
+ body.lgx .login>img,body.lgx .login>svg{width:140px!important;height:140px!important;max-width:none;border-radius:50%;box-shadow:0 0 0 5px rgba(251,246,234,.9),0 10px 26px rgba(60,40,10,.3)}
+ body.lgx .yx-cap{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -3381,9 +3418,12 @@ function npHome(){nstLoad();darsLoad();if(P('tarix'))loadRecent();const d=NST;co
 let LIM={};const LIMN=60;
 const lim=(a,k)=>a.slice(0,LIM[k]||LIMN);
 const limMore=(a,k)=>a.length>(LIM[k]||LIMN)?`<button class="btn sec" data-act="limMore" data-k="${k}" style="width:100%">Yana ko’rsatish (${a.length-(LIM[k]||LIMN)} ta qoldi)</button>`:'';
+function loginHero(){document.body.classList.add('lgx');const l=document.querySelector('#app .login');if(!l||l.querySelector('.lhero'))return;
+  l.insertAdjacentHTML('afterbegin','<div class="lhero"><img src="/a/kirish.webp?v=1" alt="Muhammad al-Xorazmiy"></div>');
+  l.insertAdjacentHTML('beforeend','<div class="lhelp">'+(l.querySelector('#pwIn')?'':'<a class="lbot" href="https://t.me/YoshXorazmiylarBot" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.3 13 1.5 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.4 1.5z"/></svg>PIN olish — Telegram bot</a>')+'</div>')}
 function render(){
   document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
-  if(!S){renderLogin();return}
+  if(!S){renderLogin();loginHero();return}
   if(S.me.role==='ota'&&!S.me.consent){renderConsent();return}
   X=idx();
   const tabs=TABS[isTeam()?'team':S.me.role]();
