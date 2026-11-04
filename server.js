@@ -81,6 +81,7 @@ try { db.exec("ALTER TABLE threads ADD COLUMN school_id INTEGER"); } catch (e) {
 try { db.exec("ALTER TABLE itests ADD COLUMN class_id INTEGER"); } catch (e) { }
 db.exec("CREATE TABLE IF NOT EXISTS trash(id INTEGER PRIMARY KEY, kind TEXT NOT NULL, ref_id INTEGER, label TEXT DEFAULT '', info TEXT DEFAULT '', school_id INTEGER, by INTEGER, at TEXT, data TEXT DEFAULT '{}')");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE users ADD COLUMN pass TEXT DEFAULT ''"); } catch (e) { } // CEO kirish paroli (scrypt xeshi)
 try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
@@ -155,6 +156,30 @@ if (!one("SELECT 1 FROM users WHERE role='ceo'")) {
   fs.writeFileSync(path.join(DATA, 'ceo-pin.txt'), pin + '\n', { mode: 0o600 });
   console.log('CEO PIN:', pin);
 }
+// ---- CEO paroli: faqat CEO uchun. Parol o'rnatilgach CEO PIN bilan kira olmaydi.
+function passHash(pw) { const salt = crypto.randomBytes(16); const h = crypto.scryptSync(String(pw), salt, 64, { N: 16384, r: 8, p: 1 }); return 's1$' + salt.toString('hex') + '$' + h.toString('hex'); }
+function passOk(pw, stored) {
+  const m = String(stored || '').match(/^s1\$([0-9a-f]{32})\$([0-9a-f]{128})$/); if (!m) return false;
+  const h = crypto.scryptSync(String(pw), Buffer.from(m[1], 'hex'), 64, { N: 16384, r: 8, p: 1 });
+  return crypto.timingSafeEqual(h, Buffer.from(m[2], 'hex'));
+}
+function passWeak(pw) {
+  pw = String(pw || '');
+  if (pw.length < 12) return 'Parol kamida 12 belgidan iborat bo‘lsin';
+  if (pw.length > 128) return 'Parol juda uzun';
+  if (!/\p{L}/u.test(pw) || !/\d/.test(pw)) return 'Parolda harflar ham, raqamlar ham bo‘lsin';
+  return '';
+}
+const ceoRow = () => one("SELECT * FROM users WHERE role='ceo' ORDER BY id LIMIT 1");
+// Parol unutilsa: server panelidagi Konsolda data papkasida "ceo-parol-reset" fayli yaratilib, sayt qayta ishga tushiriladi
+(() => {
+  const f = path.join(DATA, 'ceo-parol-reset'); if (!fs.existsSync(f)) return;
+  run("UPDATE users SET pass='' WHERE role='ceo'");
+  const c = ceoRow(); if (c) run('DELETE FROM sessions WHERE user_id=?', c.id);
+  try { fs.unlinkSync(f); } catch (e) { }
+  if (c) fs.writeFileSync(path.join(DATA, 'ceo-pin.txt'), (c.pin || '') + '\n', { mode: 0o600 });
+  console.log('CEO paroli o‘chirildi — endi CEO PIN bilan kiradi. PIN:', c && c.pin);
+})();
 
 // ---------------------------------------------------------------- scoring
 const VARS = ['A', 'B', 'C', 'D'];
@@ -253,7 +278,7 @@ const finished = testId => announced(testId, 0);
 function state(u) {
   const P = perms(u);
   const tests = all('SELECT * FROM tests ORDER BY id DESC');
-  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '', phone: u.phone || '', school_id: u.school_id || null, class_id: u.class_id || null, pin_at: u.pin_at || null, created_at: u.created_at || null }, tests, perms: PERMS };
+  const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '', phone: u.phone || '', school_id: u.school_id || null, class_id: u.class_id || null, pin_at: u.pin_at || null, created_at: u.created_at || null, has_pass: u.role === 'ceo' ? !!u.pass : undefined }, tests, perms: PERMS };
   if (isTeam(u)) {
     out.schools = all('SELECT * FROM schools ORDER BY num');
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
@@ -2052,8 +2077,15 @@ const server = http.createServer(async (req, res) => {
       if (!p9) return send(res, 400, { error: 'Telefon raqamingizni kiriting.' });
       // bitta raqamga ham ko'p qurilmadan urinishni to'xtatish
       const pk = 'tel:' + p9; if (failBlocked(pk)) return send(res, 429, { error: 'Bu raqam bilan ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
-      let u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
-      if (u) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
+      let u = null;
+      if (lb.password != null) { // CEO paroli bilan kirish
+        const c = ceoRow(); const own = c && (phone9(getSet('ceo_phone')) || phone9(c.phone));
+        if (c && c.active && c.pass && own === p9 && passOk(String(lb.password).slice(0, 128), c.pass)) u = c;
+      } else {
+        u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
+        if (u && u.role === 'ceo' && u.pass) u = null; // parol o'rnatilgan bo'lsa CEO PIN bilan kira olmaydi
+      }
+      if (u && lb.password == null) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
         const own = u.role === 'ceo' ? (phone9(getSet('ceo_phone')) || phone9(u.phone)) : phone9(u.phone);
         if (own && own !== p9) u = null;
         else if (!own) { // raqami hali yozilmagan foydalanuvchi: birinchi kirgan raqami unga biriktiriladi
@@ -2063,7 +2095,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (!u) {
         const n = Math.max(failBump(ip, 20), failBump(pk, 5)); // bitta raqamga 5 ta, bitta qurilmadan jami 20 ta urinish
-        return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.' });
+        return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : (lb.password != null ? 'Telefon raqami yoki parol noto‘g‘ri. Qaytadan kiriting.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.') });
       }
       const token = crypto.randomBytes(32).toString('hex');
       run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
@@ -2071,6 +2103,16 @@ const server = http.createServer(async (req, res) => {
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
       return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
     }
+    if (url.pathname === '/api/login-kind' && req.method === 'POST') { // raqam bo'yicha: PIN yoki parol so'ralsinmi
+      if (failBlocked('lk:' + ip)) return send(res, 429, { error: 'Juda ko‘p so‘rov. Keyinroq urinib ko‘ring.' }); failBump('lk:' + ip, 60);
+      let lb = {}; try { lb = JSON.parse(await readBody(req) || '{}') || {}; } catch { }
+      const p9 = phone9(lb && lb.phone); const c = ceoRow();
+      const isCeo = !!(p9 && c && c.pass && (phone9(getSet('ceo_phone')) || phone9(c.phone)) === p9);
+      return send(res, 200, { kind: isCeo ? 'parol' : 'pin' });
+    }
+    if (url.pathname === '/robots.txt') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...SEC }); return res.end('User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://yoshxorazmiylar.uz/sitemap.xml\n'); }
+    if (url.pathname === '/sitemap.xml') { res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', ...SEC }); return res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://yoshxorazmiylar.uz/</loc></url></urlset>\n'); }
+    if (url.pathname === '/googlea6059590c58b5b1a.html') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...SEC }); return res.end('google-site-verification: googlea6059590c58b5b1a.html'); }
     if (url.pathname === '/api/logout') { run('DELETE FROM sessions WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }, { 'Set-Cookie': 'yx=; Path=/; Max-Age=0' }); }
     if (url.pathname === '/api/verify') { if (failBlocked('vf:' + ip)) return send(res, 429, { error: 'Juda ko‘p so‘rov. Keyinroq urinib ko‘ring.' }); failBump('vf:' + ip, 60); return send(res, 200, verifyCert(url.searchParams.get('c'))); }
     if (url.pathname === '/api/ver') return send(res, 200, { v: siteVersion() }); // sahifa yangilanganini bilish uchun
@@ -2084,6 +2126,17 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
       if (url.pathname === '/api/state') return send(res, 200, state(u));
+      if (url.pathname === '/api/parol' && req.method === 'POST') { // CEO parolini o'rnatish / almashtirish
+        need(u.role === 'ceo');
+        if (failBlocked('pw:' + u.id)) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
+        let b = {}; try { b = JSON.parse(await readBody(req) || '{}') || {}; } catch { }
+        if (u.pass && !passOk(String(b.old || '').slice(0, 128), u.pass)) { failBump('pw:' + u.id, 5); bad('Hozirgi parol noto‘g‘ri'); }
+        const w = passWeak(b.yangi); if (w) bad(w);
+        run('UPDATE users SET pass=? WHERE id=?', passHash(String(b.yangi)), u.id);
+        run('DELETE FROM sessions WHERE user_id=? AND token<>?', u.id, cookie(req, 'yx')); // boshqa qurilmalardagi kirishlar yopiladi
+        log(u.id, u.pass ? 'parol.almashtirish' : 'parol.ornatish', {});
+        return send(res, 200, { ok: true });
+      }
       if (url.pathname === '/api/backup') { // butun baza — faqat parolli (AES-256) ZIP ichida, ochiq holda hech qachon berilmaydi
         need(u.role === 'ceo');
         if (req.method !== 'POST') bad('Zaxira nusxa faqat parol bilan yuklab olinadi');

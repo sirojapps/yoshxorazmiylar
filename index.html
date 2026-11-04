@@ -13,6 +13,9 @@
 <meta name="apple-mobile-web-app-title" content="Yosh Xorazmiylar">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Yosh Xorazmiylar</title>
+<meta name="description" content="Yosh Xorazmiylar — Karakul International School tashkil etgan matematika platformasi: o'quvchilar uchun sinovlar, mavzuli darslar, mashg'ulotlar va natijalar.">
+<meta property="og:title" content="Yosh Xorazmiylar">
+<meta property="og:description" content="Yosh Xorazmiylar — Karakul International School tashkil etgan matematika platformasi: o'quvchilar uchun sinovlar, mavzuli darslar, mashg'ulotlar va natijalar.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap">
 <style>
@@ -1298,8 +1301,16 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(m.avatar,56,m.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:17px">${esc(m.name||'—')}</div><div style="margin-top:4px"><span class="pill ok">${esc(role)}</span></div></div><button class="btn sec sm" data-act="avPick">${String(m.avatar||'').startsWith('data:')?'Surat':'📷 Surat qo’yish'}</button></div>
   <div class="card list">${kv('Telefon',esc(ph(m.phone)))}${kv('Maktab',s?`${s.num}-maktab`:'')}${kv('Sinf',c?esc(c.name):'')}${kv('Farzandlari',kids)}${kv('PIN berilgan',dt(m.pin_at))}${kv('Saytda',m.created_at?dt(m.created_at)+' dan beri':'')}</div>
   ${rights?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">HUQUQLARIM</div><div class="card list">${rights}</div>`:''}
+  ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
+function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:12px 14px;font:inherit;font-size:16px;background:var(--card,#fff)">`;
+  openSheet(`<div class="sh-top"><div class="m"><h2>${has?'Parolni o’zgartirish':'Kirish paroli o’rnatish'}</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  <div class="card pad" style="gap:10px">${has?inp('pwOld','Hozirgi parol','current-password'):''}${inp('pwNew','Yangi parol','new-password')}${inp('pwNew2','Yangi parolni qayta yozing','new-password')}
+  <p class="err" id="pwErr" role="alert" style="margin:0"></p>
+  <div class="note">Kamida 12 belgi, harflar va raqamlar aralash bo’lsin. Masalan: Qorakol2026!Bahor</div></div>
+  <div class="note">${has?'':'Parol o’rnatilgach, saytga PIN bilan emas, faqat shu parol bilan kirasiz. '}Boshqa qurilmalardagi kirishlar yopiladi. Parolni qog’ozga yozib, xavfsiz joyda saqlang. Unutsangiz, faqat server paneli orqali tiklanadi.</div>
+  <button class="btn pri" data-act="parolSave">Saqlash</button>`)}
 function avHtml(v,size=36,name='',sid=0){const st=`width:${size}px;height:${size}px;border-radius:50%;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center`;
   const n=String(name||'').trim();const ini=n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   let h=0;for(const ch of n)h=(h*31+ch.charCodeAt(0))>>>0;const c=AVC[h%AVC.length];
@@ -2863,8 +2874,22 @@ function render(){
 let lpEdit=false;
 const lpGet=()=>ls.get('lphone','');
 const lpShow=p=>p?`+998 ${p.slice(0,2)} ${p.slice(2,5)} ** ${p.slice(7)}`:'';
+let lpKind=null,lpKindFor='';
+function lpKindLoad(lp){lpKindFor=lp;lpKind='?';fetch('/api/login-kind',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:lp})}).then(r=>r.json()).then(d=>{lpKind=d.kind==='parol'?'parol':'pin'}).catch(()=>{lpKind='pin'}).then(()=>{if(!S)render()})}
 function renderLogin(){
   const lp=lpGet();
+  if(lp&&!lpEdit&&lpKindFor!==lp)lpKindLoad(lp);
+  if(lp&&!lpEdit&&lpKind==='?'){$('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">${lpShow(lp)}</p></div></div>`;return}
+  if(lp&&!lpEdit&&lpKind==='parol'){
+    $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">${lpShow(lp)} · <button class="lnk" data-act="lpChange">o’zgartirish</button></p><p class="note" style="margin-top:4px">Parolingizni kiriting</p></div>
+    <label style="display:flex;align-items:center;gap:8px;width:100%;max-width:320px;border:1px solid var(--line,#ccd);border-radius:14px;padding:12px 14px;background:var(--card,#fff)">🔒
+     <input id="pwIn" type="password" autocomplete="current-password" maxlength="128" placeholder="Parol" style="flex:1;border:0;outline:0;font:inherit;font-size:18px;background:transparent;min-width:0">
+     <button type="button" class="lnk" data-act="pwEye" aria-label="Parolni ko’rsatish">👁</button></label>
+    <p class="err" role="alert">${esc(pinErr)}</p>
+    <button class="btn pri" data-act="pwGo" style="width:100%;max-width:320px">Kirish</button>
+    <p class="note" style="max-width:320px">Bu akkaunt parol bilan himoyalangan.</p></div>`;
+    const i=$('#pwIn');if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')document.querySelector('[data-act=pwGo]')?.click()}}
+    return}
   if(!lp||lpEdit){
     $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">Telefon raqamingizni kiriting</p></div>
     <label style="display:flex;align-items:center;gap:8px;width:100%;max-width:320px;border:1px solid var(--line,#ccd);border-radius:14px;padding:12px 14px;background:var(--card,#fff)"><span style="opacity:.6;font-weight:600">+998</span>
@@ -2976,8 +3001,16 @@ document.addEventListener('click',async e=>{
   if(d.q!=null){E.ans[d.q]=E.ans[d.q]===d.l?'-':d.l;drawEntry();return}
   switch(d.act){
    case 'lpGo':{const v=String($('#lpIn')?.value||'').replace(/\D/g,'').replace(/^998(?=\d{9}$)/,'');if(v.length!==9){pinErr='Raqamni to’liq yozing: 9 ta raqam, masalan 90 123 45 67';render();break}
-     ls.set('lphone',v);lpEdit=false;pinErr='';pin='';render();break}
+     ls.set('lphone',v);lpEdit=false;pinErr='';pin='';lpKindFor='';render();break}
    case 'lpChange':lpEdit=true;pin='';pinErr='';render();break;
+   case 'pwEye':{const i=$('#pwIn');if(i)i.type=i.type==='password'?'text':'password';break}
+   case 'pwGo':{const i=$('#pwIn');const v=i?i.value:'';if(!v){pinErr='Parolni yozing';render();break}
+     try{await api('login',{phone:lpGet(),password:v});pinErr='';await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}break}
+   case 'parolSet':openParol();break;
+   case 'parolSave':{const o=$('#pwOld')?.value||'',n=$('#pwNew')?.value||'',n2=$('#pwNew2')?.value||'';const er=$('#pwErr');
+     const w=n.length<12?'Parol kamida 12 belgidan iborat bo’lsin':!(/\p{L}/u.test(n)&&/\d/.test(n))?'Parolda harflar ham, raqamlar ham bo’lsin':n!==n2?'Ikkinchi marta yozilgan parol mos emas':'';
+     if(w){er.textContent=w;break}
+     try{await api('parol',{old:o,yangi:n});S.me.has_pass=true;closeSheet();toast('Parol saqlandi. Endi saytga faqat shu parol bilan kirasiz.')}catch(err){er.textContent=err.message}break}
    case 'pinDel':pin=pin.slice(0,-1);render();break;
    case 'back':stack.pop();render();scrollTo(0,0);break;
    case 'close':closeSheet();break;
