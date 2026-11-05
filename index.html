@@ -648,7 +648,7 @@ body.nui .np-regw .np-reg{position:absolute;left:50%;bottom:34px;transform:trans
 }
 
 /* kirish sahifasi: Xorazmiy rasmi sahifa bilan qo'shilib ketadi */
-body.lgx{background:linear-gradient(180deg,#1d2c5c 0%,#3a3f63 22%,#cdb48a 46%,#f3e7cd 62%,#fbf6ea 100%)!important}
+body.lgx{background:linear-gradient(180deg,#efe2c6 0%,#f6eedc 45%,#fbf6ea 100%)!important}
 body.lgx #atmo{opacity:.18}
 .lhero{line-height:0;position:relative}
 .lhero img{display:block;width:100%;height:auto}
@@ -660,7 +660,8 @@ body.lgx #atmo{opacity:.18}
 }
 body.lgx .login h2{font-size:24px;letter-spacing:.05em;color:#0f2350;text-shadow:0 1px 0 rgba(255,255,255,.6)}
 body.lgx .login .note{color:#5b4a2e}
-body.lgx .login input,body.lgx .login label{background:rgba(255,255,255,.85)!important;border-color:#e3cfa6!important}
+body.lgx .login label{background:rgba(255,255,255,.85)!important;border-color:#e3cfa6!important}
+body.lgx .login label input{background:transparent!important;border:0!important;box-shadow:none!important}
 body.lgx .pinbox span{border-color:#e3cfa6!important;background:rgba(255,255,255,.85)!important}
 body.lgx .kp button{background:rgba(255,255,255,.8)!important;border:1px solid #ecdcb9!important}
 body.lgx .login .btn.pri{background:linear-gradient(90deg,#b67b0c,#e0a72a);border:0;color:#fff;box-shadow:0 6px 16px rgba(182,123,12,.35)}
@@ -3419,7 +3420,7 @@ let LIM={};const LIMN=60;
 const lim=(a,k)=>a.slice(0,LIM[k]||LIMN);
 const limMore=(a,k)=>a.length>(LIM[k]||LIMN)?`<button class="btn sec" data-act="limMore" data-k="${k}" style="width:100%">Yana ko’rsatish (${a.length-(LIM[k]||LIMN)} ta qoldi)</button>`:'';
 function loginHero(){document.body.classList.add('lgx');const l=document.querySelector('#app .login');if(!l||l.querySelector('.lhero'))return;
-  l.insertAdjacentHTML('afterbegin','<div class="lhero"><img src="/a/kirish.webp?v=1" alt="Muhammad al-Xorazmiy"></div>');
+  l.insertAdjacentHTML('afterbegin','<div class="lhero"><img src="/a/kirish.webp?v=1" alt="" onerror="this.parentNode.remove();document.body.classList.remove(&quot;lgx&quot;)"></div>');
   l.insertAdjacentHTML('beforeend','<div class="lhelp">'+(l.querySelector('#pwIn')?'':'<a class="lbot" href="https://t.me/YoshXorazmiylarBot" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.3 13 1.5 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.4 1.5z"/></svg>PIN olish — Telegram bot</a>')+'</div>')}
 function render(){
   document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
