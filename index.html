@@ -731,6 +731,17 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
 .dm-card{gap:10px}.dm-h{display:flex;align-items:center;gap:12px}.dm-ic{font-size:28px;width:44px;height:44px;display:grid;place-items:center;background:#eef4ff;border-radius:12px;flex:none}
 .dm-perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;padding-top:8px;border-top:1px solid #e5edf8}
 .dm-chk{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer}.dm-chk input{width:18px;height:18px;accent-color:#2563eb;flex:none}
+
+/* telefon: tepa paneldagi sarlavha qo'ng'iroqcha ostiga kirmasin */
+@media (max-width:899px){
+ body.nui .nph{gap:8px!important}
+ body.nui .nph-b,body.nui .nph-l,body.nui .nph-bell,body.nui .nph-me,body.nui .nph-out{flex:none}
+ body.nui .nph-l{width:40px!important;height:40px!important}
+ body.nui .nph-t{flex:1 1 auto;min-width:0;overflow:hidden}
+ body.nui .nph-t b{font-size:clamp(13px,4.2vw,17px)!important;overflow:hidden;text-overflow:ellipsis}
+ body.nui .nph-t small{font-size:clamp(9px,2.5vw,10.5px)!important;overflow:hidden;text-overflow:ellipsis}
+ body.nui .nph-bell{margin-left:0!important}
+}
 </style>
 </head>
 <body>
@@ -745,7 +756,8 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
 <text x="310" y="132" font-size="30">x² + 10x = 39</text><text x="310" y="506" font-size="24">(x + 5)² = 64 ⇒ x = 3</text></g></svg>
 <div id="gl"></div></div>
 <div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
-<div class="app" id="app"><div class="gut skw" style="padding-top:28px"><i class="sk" style="height:120px;border-radius:18px"></i><i class="sk" style="width:60%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:80%"></i></div></div><script>if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
+<div class="app" id="app"><div class="gut skw" style="padding-top:28px"><i class="sk" style="height:120px;border-radius:18px"></i><i class="sk" style="width:60%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:80%"></i></div></div><script>const mkN=o=>{const n=o&&typeof o==='object'?o.num:o;const s=(typeof S!=='undefined'&&S&&S.schools||[]).find(x=>x.num===n);return s&&n>=101&&s.name?s.name:n+'-maktab'};
+if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <script>
@@ -928,7 +940,7 @@ function stageBox(t,sid=0){
   else if(i===1&&sid)note=`<b>${left}</b> ta o’quvchi hali kiritilmagan. Hammasi kiritib bo’lingach, qolganlarini bir bosishda “Kelmadi” qiling.${absBtn('school',sid,left)}`;
   else if(i===1)note=`${left?`<b>${left}</b> ta o’quvchi hali kiritilmagan. `:''}Barcha maktablarda sinov o’tkazilib bo’lgach, sinovni Tekshiruvga o’tkazing.${P('maktab')?`<div style="margin-top:10px"><button class="btn sec sm" data-act="toCheck" data-id="${t.id}">Tekshiruvga o’tkazish</button></div>`:''}`;
   else if(i===2)note=sid?`Hamma kiritildi. E’lon uchun tasdiq: ${ap.ceo?'CEO ✓':'CEO'} · ${ap.hasSardor?(ap.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}`:'Hamma kiritildi. Maktablar e’lon qilingach, sinovni yakunlang.';
-  return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">${sid?`${X.sc[sid]?.num}-maktab · bosqich`:'Joriy sinov'}</div><div class="t">${esc(t.name)}</div></div>
+  return `<div class="stage"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="slb">${sid?`${mkN(X.sc[sid])} · bosqich`:'Joriy sinov'}</div><div class="t">${esc(t.name)}</div></div>
    <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${isTeam()&&S.tests.length>1?`<button class="pill gray" data-act="pickTest" style="color:var(--fg)">almashtirish</button>`:''}${isTeam()?`<button class="pill gray" data-go="exam:${t.id}" style="color:var(--fg)">ochish →</button>`:''}</span></div>
    <div class="steps">${steps.map((s,k)=>`<span class="${k<i?'done':k===i?'on':''}">${s}</span>`).join('')}</div>${note?`<div style="font-size:13px;opacity:.85">${note}</div>`:''}</div>`}
 const absBtn=(k,id,n)=>n>0&&P('kiritish')&&curTest()?`<div style="margin-top:10px"><button class="btn sec sm" data-act="absRest" data-k="${k}" data-id="${id}" data-n="${n}">Qolgan ${n} tasini “Kelmadi” qilish</button></div>`:'';
@@ -993,11 +1005,11 @@ function searchRes(){
   const st=X.st.filter(s=>okC(s.cls)&&hit(norm(`${s.name} ${s.cls||''} ${s.num||''} maktab`).split(' ').filter(Boolean),s.phone)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
   const ppl=[];
   if(isTeam()||S.me.role==='direktor'){
-    S.classes.forEach(c=>{if((c.teacher_name||c.teacher_phone)&&okC(c.name)){const sc=X.sc[c.school_id];if(hit(norm(`${c.teacher_name||''} ${c.name} ${sc?.num||''} maktab rahbar`).split(' ').filter(Boolean),c.teacher_phone))ppl.push({go:'class:'+c.id,n:c.teacher_name||'Ismi kiritilmagan',s:`Sinf rahbari · ${many?sc?.num+'-maktab · ':''}${c.name}`})}});
-    if(isTeam()&&!want)S.schools.forEach(sc=>{if(sc.director_name||sc.director_phone){if(hit(norm(`${sc.director_name||''} ${sc.num} maktab direktor`).split(' ').filter(Boolean),sc.director_phone))ppl.push({go:'school:'+sc.id,n:sc.director_name||'Ismi kiritilmagan',s:`Direktor · ${sc.num}-maktab`})}});
+    S.classes.forEach(c=>{if((c.teacher_name||c.teacher_phone)&&okC(c.name)){const sc=X.sc[c.school_id];if(hit(norm(`${c.teacher_name||''} ${c.name} ${sc?.num||''} maktab rahbar`).split(' ').filter(Boolean),c.teacher_phone))ppl.push({go:'class:'+c.id,n:c.teacher_name||'Ismi kiritilmagan',s:`Sinf rahbari · ${many?mkN(sc)+' · ':''}${c.name}`})}});
+    if(isTeam()&&!want)S.schools.forEach(sc=>{if(sc.director_name||sc.director_phone){if(hit(norm(`${sc.director_name||''} ${sc.num} maktab direktor`).split(' ').filter(Boolean),sc.director_phone))ppl.push({go:'school:'+sc.id,n:sc.director_name||'Ismi kiritilmagan',s:`Direktor · ${mkN(sc)}`})}});
   }
   if(!st.length&&!ppl.length)return `<div class="empty">Hech narsa topilmadi. Harflarni tekshiring.</div>`;
-  const sub=s=>`${many?s.num+'-maktab · ':''}${s.cls||''}`;
+  const sub=s=>`${many?mkN(s)+' · ':''}${s.cls||''}`;
   return `${ppl.length?`<section class="sec"><p class="label">Xodimlar · ${ppl.length}</p><div class="card list">${ppl.slice(0,15).map(x=>`<button class="row" data-go="${x.go}"><div class="m"><div class="n">${esc(x.n)}</div><div class="s">${esc(x.s)}</div></div>${I.chev}</button>`).join('')}</div></section>`:''}
   ${st.length?`<section class="sec"><p class="label">O’quvchilar · ${st.length}</p><div class="card list">${st.slice(0,30).map((x,i)=>stuRow(x,i,{sub})).join('')}</div>${st.length>30?`<p class="note">Yana ${st.length-30} ta bor. Qidiruvni aniqroq yozing.</p>`:''}</section>`:''}`}
 
@@ -1008,7 +1020,7 @@ let RECENT=null,RECENT_AT=0;
 function loadRecent(){if(!P('tarix'))return;if(RECENT&&Date.now()-RECENT_AT<60000)return;RECENT_AT=Date.now();api('audit',{limit:7}).then(d=>{RECENT=d.rows;const b=$('#recentBox');if(b)b.innerHTML=recentHtml()}).catch(()=>{})}
 function recentHtml(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<div class="note">Hali o’zgarish yo’q</div>';
   const names=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name.split(' ')[0]]));const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
-  return RECENT.map(h=>{const d=h.detail||{};let x=d.student_id?stn[d.student_id]||'':d.name||(d.num?d.num+'-maktab':'');
+  return RECENT.map(h=>{const d=h.detail||{};let x=d.student_id?stn[d.student_id]||'':d.name||(d.num?mkN(d)+'':'');
     if(h.action==='natija.kiritish')x+=` · ${d.absent?'kelmadi':d.score+' ball'}`;if(h.action==='natija.tuzatish')x+=` · ${d.old?.absent?'kelmadi':d.old?.score}→${d.new?.absent?'kelmadi':d.new?.score}`;
     if(h.action.startsWith('elon')&&d.school_id)x=(X.sc[d.school_id]?.num||'')+'-maktab';
     if(h.action==='oquvchi.telefon'||h.action==='oquvchi.malumot')x=stn[d.id]||'';
@@ -1018,7 +1030,7 @@ function sideTeam(){
   const waitAp=t&&canAp?S.schools.filter(sc=>{const l=X.st.filter(s=>s.school_id===sc.id);const n=l.filter(s=>R(s.id)).length;const a=ap[sc.id]||{};return n&&n===l.length&&!a.done&&!a.by?.includes(S.me.id)}):[];
   const notIn=t?X.st.filter(s=>!R(s.id)).length:0;const dups=findDups(X.st).length;
   const items=[
-    ...waitAp.map(sc=>[`${sc.num}-maktab tasdig’ingizni kutmoqda`,'tasdiq','gold',`data-go="school:${sc.id}"`]),
+    ...waitAp.map(sc=>[`${mkN(sc)} tasdig’ingizni kutmoqda`,'tasdiq','gold',`data-go="school:${sc.id}"`]),
     [S.unread?'Javob kutayotgan xabarlar':'',S.unread,'warn','data-tab="xabar"'],
     [S.tgPending?'PIN so’rovlari (Telegram)':'',S.tgPending,'warn','data-act="tgReq"'],
     [dups?'Ikki marta kiritilgan bolalar':'',dups,'gold','data-tab="maktab"'],
@@ -1042,16 +1054,16 @@ function scrTeamHome(){
   if(homeSchool&&!S.schools.some(x=>x.id===homeSchool))homeSchool=0;
   const t=curTest(); const st=homeSchool?X.st.filter(s=>s.school_id===homeSchool):X.st; const p=present(st); const gifted=giftedSet();
   const entered=st.filter(s=>R(s.id)).length; const hsc=homeSchool?X.sc[homeSchool]:null;
-  return ['Yosh Xorazmiylar',hsc?`${hsc.num}-maktab`:'Qorako’l tumani',`${NUI()?npBanner():''}<div class="dash"><div class="dmain">
+  return ['Yosh Xorazmiylar',hsc?`${mkN(hsc)}`:'Qorako’l tumani',`${NUI()?npBanner():''}<div class="dash"><div class="dmain">
   ${searchBox('Ism, familiya, sinf yoki telefon…')}
-  ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
+  ${S.schools.length>1?`<div class="seg"><button data-hs="0" aria-pressed="${!homeSchool}">Hammasi</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-hs="${sc.id}" aria-pressed="${homeSchool===sc.id}">${mkN(sc)}</button>`).join('')}</div>`:''}
   ${stageBox(t,homeSchool)}
   ${kpis([...(hsc?[]:[[S.schools.length,'maktab']]),[hsc?S.classes.filter(c=>c.school_id===hsc.id).length:S.classes.length,'sinf'],[st.length,'o’quvchi'],[entered,'kiritildi'],[entered-p.length,'kelmadi'],[avgPct(st)==null?'—':avgPct(st)+'%','o’rtacha']])}
   ${p.length?dlBtn(homeSchool?'school':'district',homeSchool):''}
   <div class="dpair">${t?annBox(t):''}
   ${p.length?`<section class="sec"><p class="label">Sinflar bo’yicha o’rtacha</p>${gradeBars(st)}</section>`:''}</div>
   ${gifted.size?`<section class="sec"><div class="sec-h"><p class="label">Iqtidorli bolalar</p><span class="pill gold">★ ${gifted.size} ta</span></div>
-   <div class="card list">${st.filter(s=>gifted.has(s.id)).sort((a,b)=>resCmp(R(a.id),R(b.id))).slice(0,5).map((s,i)=>stuRow(s,i,{sub:s=>`${s.num}-maktab · ${s.cls}`,gifted})).join('')}</div>
+   <div class="card list">${st.filter(s=>gifted.has(s.id)).sort((a,b)=>resCmp(R(a.id),R(b.id))).slice(0,5).map((s,i)=>stuRow(s,i,{sub:s=>`${mkN(s)} · ${s.cls}`,gifted})).join('')}</div>
    ${P('reyting')?`<button class="lnk" data-go="reyting" style="align-self:flex-start">Reytingni ko’rish</button>`:''}</section>`:''}
   ${hardBox(st)}
   ${!S.tests.length&&P('maktab')?`<button class="btn pri" data-act="testEdit">Birinchi sinovni yaratish</button>`:''}</div><aside class="dside">${sideTeam()}</aside></div>`]}
@@ -1061,7 +1073,7 @@ function annBox(t){
     const a=ap[sc.id]||{};const mine=a.by?.includes(S.me.id);
     const st=a.done?`<span class="pill ok">e’lon qilindi</span>`:`<span class="pill gray">${a.ceo?'CEO ✓':'CEO'} · ${a.hasSardor?(a.sardor?'Sardor ✓':'Sardor'):'sardor yo’q'}</span>`;
     const left=list.length-n; const wait=left>0&&!a.done&&!a.by?.length;
-    return `<div class="row"><div class="m"><div class="n">${sc.num}-maktab</div><div class="s">${n} / ${list.length} kiritildi</div></div>
+    return `<div class="row"><div class="m"><div class="n">${mkN(sc)}</div><div class="s">${n} / ${list.length} kiritildi</div></div>
      ${wait?`<span class="pill gray">${left} ta qoldi</span>`:st+(canAp&&!a.done&&!mine?`<button class="btn pri sm" data-act="approve" data-s="${sc.id}">Tasdiqlash</button>`:'')}${canAp&&mine&&(S.me.role==='ceo'||!a.done)?`<button class="btn sec sm" data-act="unapprove" data-s="${sc.id}">Bekor</button>`:''}</div>`}).join('');
   if(!rows)return'';
   const f=ap[0]||{};
@@ -1075,10 +1087,10 @@ function annBox(t){
 function scrSchools(){
   return ['Maktablar',`${S.schools.length} ta maktab`,`
   <div class="card list">${S.schools.map(sc=>{const l=X.st.filter(s=>s.school_id===sc.id);const v=avgPct(l);
-   return `<button class="row" data-go="school:${sc.id}"><div class="m"><div class="n">${sc.num}-maktab${sc.name?' · '+esc(sc.name):''}</div>
+   return `<button class="row" data-go="school:${sc.id}"><div class="m"><div class="n">${mkN(sc)}${sc.name&&sc.num<101?' · '+esc(sc.name):''}</div>
    <div class="s">${S.classes.filter(c=>c.school_id===sc.id).length} sinf · ${l.length} o’quvchi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>
    ${v!=null?`<div class="num">${pf(v)}%<small>o’rtacha</small></div>`:''}${I.chev}</button>`}).join('')||'<div class="empty">Hali maktab yo’q</div>'}</div>
-  ${P('maktab')?`<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="import">Excel’dan ro’yxat yuklash</button><button class="btn sec" data-act="schoolEdit">+ Maktab</button></div>`:''}`]}
+  ${P('maktab')?`<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="import">Excel’dan ro’yxat yuklash</button>${S.me.role==='ceo'&&!S.me.demo?`<button class="btn sec" data-side="timport">🏫 Tuman ro’yxatini yuklash</button>`:''}<button class="btn sec" data-act="schoolEdit">+ Maktab</button></div>`:''}`]}
 // maktab o'quvchilari: sinf bosqichi va sinf bo'yicha saralanadigan, o'rinli ro'yxat (jamoa va direktor uchun bir xil)
 function stuListSec(l,cls){if(!l.length)return'';const gs=[...new Set(cls.map(c=>c.grade))].sort((a,b)=>a-b);if(schGrade&&!gs.includes(schGrade))schGrade=0;
    const gcl=schGrade?cls.filter(c=>c.grade===schGrade).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})):[];if(schClass&&!gcl.some(c=>c.id===schClass))schClass=0;
@@ -1096,7 +1108,7 @@ function examBar(l){if(!isTeam()||!S.tests.length)return'';const t=curTest();con
 function scrSchool(id){
   const sc=X.sc[id]; if(!sc)return ['Topilmadi','',''];
   const cls=S.classes.filter(c=>c.school_id===id); const l=X.st.filter(s=>s.school_id===id);
-  return [`${sc.num}-maktab`,`${cls.length} sinf · ${l.length} o’quvchi`,`
+  return [`${mkN(sc)}`,`${cls.length} sinf · ${l.length} o’quvchi`,`
   <div class="card list"><div class="row"><div class="m"><div class="s">Direktor</div><div class="n">${esc(sc.director_name)||'—'}</div><div class="s">${ph(sc.director_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="schoolEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>
   ${examBar(l)}
   ${dupBox(l)}
@@ -1115,7 +1127,7 @@ function scrClass(id,mode){
   const c=X.cl[id]; if(!c)return ['Topilmadi','',''];
   const l=X.st.filter(s=>s.class_id===id); const p=present(l); const gifted=giftedSet();
   const notIn=l.filter(s=>!R(s.id)); const abs=l.filter(s=>R(s.id)?.absent);
-  const top=mode==='rahbar'?[`${c.name} sinf`,`${X.sc[c.school_id]?.num}-maktab`]:[`${X.sc[c.school_id]?.num}-maktab · ${c.name}`,`${l.length} o’quvchi`];
+  const top=mode==='rahbar'?[`${c.name} sinf`,`${mkN(X.sc[c.school_id])}`]:[`${mkN(X.sc[c.school_id])} · ${c.name}`,`${l.length} o’quvchi`];
   return [...top,`
   ${S.me.role==='ceo'?`<div class="card row" style="gap:10px"><div class="m"><div class="n">Obuna ${c.obuna?'<span class="pill ok">yoqilgan</span>':'<span class="pill gray">yo’q</span>'}</div><div class="s">Yoqilsa, sinf rahbari va ota-onalar mavzularni to’liq ko’radi</div></div><button class="btn ${c.obuna?'sec':'pri'} sm" data-act="obunaSet" data-id="${id}" data-on="${c.obuna?0:1}">${c.obuna?'O’chirish':'Yoqish'}</button></div>`:''}
   ${isTeam()||isDir()?`<div class="card list"><div class="row"><div class="m"><div class="s">Sinf rahbari</div><div class="n">${esc(c.teacher_name)||'—'}</div><div class="s">${ph(c.teacher_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="classEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>`:''}
@@ -1129,7 +1141,7 @@ function scrClass(id,mode){
    ${sortStu(l.filter(s=>!R(s.id)||R(s.id).absent)).map(s=>stuRow(s,0)).join('')}</div>
   ${ED()?`<button class="btn sec" data-act="studentEdit" data-class="${id}">+ O’quvchi qo’shish</button>`:''}
   ${S.me.role==='ceo'&&mode!=='rahbar'?`<button class="btn dan" data-act="delOpen" data-k="class" data-id="${id}" style="margin-top:20px">🗑 Sinfni o’chirish</button>`:''}`]}
-const moveOpts=s=>ED()?S.classes.filter(c=>c.id!==s.class_id).map(c=>[c.id,isDir()?`${c.name} sinf`:`${X.sc[c.school_id]?.num}-maktab · ${c.name}`]):S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id?(S.moveTo||[]).map(c=>[c.id,`${c.name} sinf`]):[];
+const moveOpts=s=>ED()?S.classes.filter(c=>c.id!==s.class_id).map(c=>[c.id,isDir()?`${c.name} sinf`:`${mkN(X.sc[c.school_id])} · ${c.name}`]):S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id?(S.moveTo||[]).map(c=>[c.id,`${c.name} sinf`]):[];
 const moveBtn=s=>moveOpts(s).length?`<button class="btn sec" data-act="moveOpen" data-id="${s.id}">↔ Boshqa sinfga ko’chirish</button>`:'';
 function scrStudent(id){
   const s=X.st.find(x=>x.id===id); if(!s)return ['Topilmadi','',''];
@@ -1138,8 +1150,8 @@ function scrStudent(id){
   const notes=(S.notes||[]).filter(n=>n.student_id===id).sort((a,b)=>b.summary-a.summary);
   const team_=Object.fromEntries((S.team||[]).map(u=>[u.id,u.name]));
   const canAv=ED()||(S.me.role==='rahbar'&&s.class_id===S.classes[0]?.id);
-  return [s.name,`${s.num}-maktab · ${s.cls}`,`
-  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div></div>
+  return [s.name,`${mkN(s)} · ${s.cls}`,`
+  <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}
   ${tests.length?tests.map(t=>{const r=R(id,t.id);const cAvg=avgPct(X.st.filter(x=>x.class_id===s.class_id),t.id);
    return `<section class="sec"><p class="label">${esc(t.name)}</p><div class="card hero">${r.absent?`<span class="pill gray" style="align-self:flex-start">sinovga kelmadi</span>`:r.score==null?`<span class="pill gray" style="align-self:flex-start">kalit kiritilmagan</span>`:
     `<div class="big">${blBig(r)}</div>${gifted.has(id)&&t.id===testId?`<span class="pill gold" style="align-self:flex-start">★ iqtidorli</span>`:''}`}
@@ -1174,26 +1186,26 @@ function scrRanking(){
     const RR=s=>R(s.id,rSel[0]),plc=[];full.forEach((s,i)=>{plc[i]=i&&(one?resCmp(RR(full[i-1]),RR(s))===0:comboPct(full[i-1].id)===comboPct(s.id))?plc[i-1]:i+1});
     const tieUp=i=>one&&i!=null&&full[i+1]&&Math.abs(RR(full[i]).score-RR(full[i+1]).score)<1e-9&&tieCmp(RR(full[i]),RR(full[i+1]))<0;
     const row=(s,i)=>{const r=one?R(s.id,rSel[0]):null;const g=gifted.has(s.id);
-      return `<button class="row" data-go="stu:${s.id}">${i!=null?`<span class="rank">${plc[i]}</span>`:''}<div class="m"><div class="n">${esc(s.name)}</div><div class="s">${s.num}-maktab · ${esc(s.cls)}${g?' <span class="pill gold">★ iqtidorli</span>':''}${tieUp(i)?' <span class="pill gray">▲ qiyin savollar hisobiga</span>':''}</div></div>
+      return `<button class="row" data-go="stu:${s.id}">${i!=null?`<span class="rank">${plc[i]}</span>`:''}<div class="m"><div class="n">${esc(s.name)}</div><div class="s">${mkN(s)} · ${esc(s.cls)}${g?' <span class="pill gold">★ iqtidorli</span>':''}${tieUp(i)?' <span class="pill gray">▲ qiyin savollar hisobiga</span>':''}</div></div>
        ${i==null?`<span class="pill gray">${rSel.filter(tid=>pct(R(s.id,tid))!=null).length} / ${rSel.length} ta</span>`:one?`<div class="num">${blSm(r)}</div>`:`<div class="num">${pf(comboPct(s.id))}%</div>`}</button>`};
     body=`<div class="card list">${full.slice(0,100).map((s,i)=>row(s,i)).join('')||'<div class="empty">Natija yo’q</div>'}</div>
      ${part.length?`<details class="sec"><summary class="label" style="cursor:pointer">Hammasiga qatnashmaganlar (${part.length})</summary><p class="note">Tanlangan imtihonlardan biriga kelmagan bolalar o’rin olmaydi.</p><div class="card list">${part.map(s=>row(s,null)).join('')}</div></details>`:''}`}
   else if(rMode==='maktab'){const r=S.schools.filter(sc=>!rSchool||sc.id===rSchool).map(sc=>({sc,a:rankAvg(st.filter(s=>s.school_id===sc.id))})).filter(x=>x.a).sort((a,b)=>b.a.v-a.a.v);
-    body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="school:${x.sc.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${x.sc.num}-maktab</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
+    body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="school:${x.sc.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${mkN(x.sc)}</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
   else if(rMode==='iqt'){ // butun tuman (yoki tanlangan maktab) iqtidorlilari — hamma sinflar bitta sahifada
     if(!one)body=`<div class="card empty">Iqtidorlilar bitta imtihon bo’yicha aniqlanadi. Yuqoridan bitta imtihonni tanlang.</div>`;
     else{const tid=rSel[0];const all=X.st.filter(s=>gifted.has(s.id)&&(!rSchool||s.school_id===rSchool));
      const byG=grades.map(g=>[g,all.filter(s=>s.grade===g)]).filter(x=>x[1].length);
-     body=`<div class="card hero"><p class="label">${rSchool?X.sc[rSchool].num+'-maktab':'Butun tuman'} · jami iqtidorlilar</p><div class="big">${all.length}<small> ta</small></div><p class="note">${byG.map(([g,l])=>`${g}-sinf: <b>${l.length}</b>`).join(' · ')||'Bu imtihonda hali iqtidorli yo’q'}</p></div>
+     body=`<div class="card hero"><p class="label">${rSchool?mkN(X.sc[rSchool])+'':'Butun tuman'} · jami iqtidorlilar</p><div class="big">${all.length}<small> ta</small></div><p class="note">${byG.map(([g,l])=>`${g}-sinf: <b>${l.length}</b>`).join(' · ')||'Bu imtihonda hali iqtidorli yo’q'}</p></div>
      ${byG.map(([g,l])=>{const so=[...l].sort((a,b)=>resCmp(R(a.id,tid),R(b.id,tid)));const pl=[];so.forEach((s,i)=>{pl[i]=i&&resCmp(R(so[i-1].id,tid),R(s.id,tid))===0?pl[i-1]:i+1});
-      return `<section class="sec"><div class="sec-h"><p class="label">${g}-sinf</p><span class="pill gold">${l.length} ta</span></div><div class="card list">${so.map((s,i)=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${pl[i]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${s.num}-maktab · ${esc(s.cls)}</div></div><div class="num">${blSm(R(s.id,tid))}</div></button>`).join('')}</div></section>`}).join('')}`}}
+      return `<section class="sec"><div class="sec-h"><p class="label">${g}-sinf</p><span class="pill gold">${l.length} ta</span></div><div class="card list">${so.map((s,i)=>`<button class="row" data-go="stu:${s.id}"><span class="rank">${pl[i]}</span><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${mkN(s)} · ${esc(s.cls)}</div></div><div class="num">${blSm(R(s.id,tid))}</div></button>`).join('')}</div></section>`}).join('')}`}}
   else{const r=S.classes.filter(c=>c.grade===rGrade&&(!rSchool||c.school_id===rSchool)).map(c=>({c,a:rankAvg(st.filter(s=>s.class_id===c.id))})).filter(x=>x.a).sort((a,b)=>b.a.v-a.a.v);
-    body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="class:${x.c.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${X.sc[x.c.school_id].num}-maktab · ${esc(x.c.name)}</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
+    body=`<div class="card list">${r.map((x,i)=>`<button class="row" data-go="class:${x.c.id}"><span class="rank">${i+1}</span><div class="m"><div class="n">${mkN(X.sc[x.c.school_id])} · ${esc(x.c.name)}</div><div class="s">${x.a.c} ta bola</div></div><div class="num">${pf(x.a.v)}%</div></button>`).join('')||'<div class="empty">Natija yo’q</div>'}</div>`}
   const t1=one?S.tests.find(t=>t.id===rSel[0]):null;
   return ['Reyting',one?t1?.name||'':`${rSel.length} ta imtihon birgalikda`,`
   <div class="card pad"><p class="label" style="margin:0">Qaysi bosqich yoki imtihonlar bo’yicha?</p><div class="chips">${ok.map(t=>`<button class="chip" data-rt="${t.id}" aria-pressed="${rSel.includes(t.id)}">${rSel.includes(t.id)?'✓ ':''}${esc(t.name)}</button>`).join('')||'<span class="note">Hali natija yo’q</span>'}</div>
    <p class="note" style="margin:0">${one?'Bittasini tanlasangiz — shu imtihon bo’yicha. Bir nechtasini belgilasangiz — birgalikda (o’rtacha foiz) hisoblanadi.':'Birgalikda: tanlangan imtihonlardagi foizlarning o’rtachasi. Hammasiga qatnashgan bolalargina o’rin oladi.'}</p></div>
-  <div class="seg"><button data-rsc="0" aria-pressed="${!rSchool}">Butun tuman</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-rsc="${sc.id}" aria-pressed="${rSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>
+  <div class="seg"><button data-rsc="0" aria-pressed="${!rSchool}">Butun tuman</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-rsc="${sc.id}" aria-pressed="${rSchool===sc.id}">${mkN(sc)}</button>`).join('')}</div>
   ${rMode==='iqt'?'':`<div class="seg">${grades.map(g=>`<button data-rg="${g}" aria-pressed="${rGrade===g}">${g}-sinf</button>`).join('')}</div>`}
   <div class="seg">${[['bola','O’quvchilar'],['maktab','Maktablar'],['sinf','Sinflar'],['iqt','★ Iqtidorlilar']].map(([k,l])=>`<button data-rm="${k}" aria-pressed="${rMode===k}">${l}</button>`).join('')}</div>
   ${one&&t1&&present(X.st,t1.id).length?`<button class="btn sec" data-act="rankDl" data-id="${t1.id}">⬇ Natijalarni yuklab olish</button>`:''}
@@ -1205,7 +1217,7 @@ function topStu(min=topMin,g=topGrade,sc=topSchool){
    .sort((a,b)=>pct(R(b.id))-pct(R(a.id))||a.name.localeCompare(b.name,'uz'))}
 function topList(){const l=topStu();const many=S.schools.length>1;
   return `<div class="sec-h"><p class="label">${topMin}% va undan yuqori</p><span class="pill gold">${l.length} ta bola</span></div>
-  ${l.length?`<div class="card list">${l.map((s,i)=>stuRow(s,i,{rank:true,sub:s=>`${many?s.num+'-maktab · ':''}${s.cls}`})).join('')}</div>`:`<div class="card empty">Bu chegaradan yuqori natija yo’q. Foizni pasaytirib ko’ring.</div>`}`}
+  ${l.length?`<div class="card list">${l.map((s,i)=>stuRow(s,i,{rank:true,sub:s=>`${many?mkN(s)+' · ':''}${s.cls}`})).join('')}</div>`:`<div class="card empty">Bu chegaradan yuqori natija yo’q. Foizni pasaytirib ko’ring.</div>`}`}
 function scrTop(){
   const grades=[...new Set(X.st.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b);if(topGrade&&!grades.includes(topGrade))topGrade=0;
   if(topSchool&&!X.sc[topSchool])topSchool=0;
@@ -1214,7 +1226,7 @@ function scrTop(){
    <input id="topMin" type="number" inputmode="numeric" min="0" max="100" value="${topMin}" style="width:84px;padding:8px;border-radius:10px;border:1px solid var(--line,#ccd);font:inherit;text-align:center"></label>
    <p class="note" style="margin:0">Masalan 70 — 70% va undan yuqori olgan barcha bolalar chiqadi.</p></div>
   ${grades.length>1?`<div class="seg"><button data-tg="0" aria-pressed="${!topGrade}">Hammasi</button>${grades.map(g=>`<button data-tg="${g}" aria-pressed="${topGrade===g}">${g}-sinflar</button>`).join('')}</div>`:''}
-  ${S.schools.length>1?`<div class="seg"><button data-ts="0" aria-pressed="${!topSchool}">Barcha maktablar</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-ts="${sc.id}" aria-pressed="${topSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
+  ${S.schools.length>1?`<div class="seg"><button data-ts="0" aria-pressed="${!topSchool}">Barcha maktablar</button>${[...S.schools].sort((a,b)=>a.num-b.num).map(sc=>`<button data-ts="${sc.id}" aria-pressed="${topSchool===sc.id}">${mkN(sc)}</button>`).join('')}</div>`:''}
   ${dlBtn('top')}
   <section class="sec" id="topRes">${topList()}</section>`]}
 
@@ -1227,7 +1239,7 @@ function scrEntry(){
   ${pq?`<div class="offline">${pq} ta natija hali yuborilmagan. Internet kelishi bilan o’zi yuboriladi.</div>`:''}
   <div class="card pad"><div class="sec-h"><span class="note">Kiritildi</span><b class="num">${done} / ${st.length}</b></div><div class="bar" style="margin:0"><i style="width:${st.length?done/st.length*100:0}%"></i></div></div>
   <label class="search">${I.search}<input id="q" type="search" autocomplete="off" placeholder="Familiya yoki ism…" value="${esc(q)}" aria-label="Bolani qidirish"></label>
-  <div class="seg"><button data-qs="0" aria-pressed="${qSchool===0}">Hammasi</button>${S.schools.map(sc=>`<button data-qs="${sc.id}" aria-pressed="${qSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>
+  <div class="seg"><button data-qs="0" aria-pressed="${qSchool===0}">Hammasi</button>${S.schools.map(sc=>`<button data-qs="${sc.id}" aria-pressed="${qSchool===sc.id}">${mkN(sc)}</button>`).join('')}</div>
   <div id="res">${entryList()}</div>
   ${P('maktab')||P('kiritish')?`<button class="lnk" data-act="studentEdit" data-quick="1" style="align-self:flex-start">+ Ro’yxatda yo’q bolani qo’shish</button>`:''}`]}
 function entryList(){
@@ -1239,7 +1251,7 @@ function entryList(){
   return hits.length?`<div class="card list">${hits.map(entryRow).join('')}</div>`:`<div class="empty">Topilmadi. Harflarni tekshiring yoki bolani ro’yxatga qo’shing.</div>`}
 function entryRow(s){const r=R(s.id);const qd=queue().some(x=>x.student_id===s.id);
   const tag=qd?`<span class="pill gold">yuborilmagan</span>`:!r?'':r.absent?`<span class="pill gray">kelmadi</span>`:`<span class="pill ok">${r.score==null?'?':bl(r)}</span>`;
-  return `<button class="row" data-act="enter" data-id="${s.id}"><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${s.num}-maktab · ${esc(s.cls)}</div></div>${tag}</button>`}
+  return `<button class="row" data-act="enter" data-id="${s.id}"><div class="m"><div class="n">${esc(s.name)}</div><div class="s">${mkN(s)} · ${esc(s.cls)}</div></div>${tag}</button>`}
 // offline queue
 const queue=()=>ls.get('queue',[]);
 async function flushQueue(){let qd=queue();if(!qd.length)return;const left=[];
@@ -1258,7 +1270,7 @@ function drawEntry(){
   const {s,qn}=E; const marked=E.bits.filter(x=>x==='1').length; const filled=E.ans.filter(a=>a!=='-').length;
   const keyKnown=E.key&&!E.key.includes('?');
   const sc=E.mode==='ball'?E.total:E.mode==='belgi'?marked:keyKnown?E.ans.filter((a,i)=>a===E.key[i]).length:null;
-  openSheet(`<div class="sh-top"><div class="m"><h2>${esc(s.name)}</h2><div class="s">${s.num}-maktab · ${esc(s.cls)}${E.existed?' · avval kiritilgan':''}${E.wasBall!=null?` · hozir faqat ball: ${E.wasBall}`:''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  openSheet(`<div class="sh-top"><div class="m"><h2>${esc(s.name)}</h2><div class="s">${mkN(s)} · ${esc(s.cls)}${E.existed?' · avval kiritilgan':''}${E.wasBall!=null?` · hozir faqat ball: ${E.wasBall}`:''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
    <div class="seg"><button data-mode="ball" aria-pressed="${E.mode==='ball'}">Soni</button><button data-mode="belgi" aria-pressed="${E.mode==='belgi'}">Belgilash</button><button data-mode="harf" aria-pressed="${E.mode==='harf'}">Harflar</button></div>
    <div class="card score">${E.mode==='ball'&&sc==null?`<b>—</b><span class="note">/ ${qn} to’g’ri</span>`:sc!=null?`<b>${sc}</b><span class="note">/ ${qn} to’g’ri</span>`:`<b>${filled}</b><span class="note">/ ${qn} javob yozildi</span>`}<div class="r">${(()=>{const w=vinfo(testId,s.grade)?.w;const b=E.mode==='belgi'?E.bits:E.mode==='harf'&&keyKnown?E.ans.map((a,i)=>a===E.key[i]?'1':'0'):null;const t100=curTest()?.scoring==='100';const p=!t100?null:b?wPts(w,b):E.mode==='ball'&&sc!=null?Math.round(sc/qn*200)/2:null;return `${p!=null?`<b style="font-size:20px">${num(p)}</b> ball`:''}${E.mode==='harf'?`<div>${qn-filled} ta javobsiz</div>`:''}`})()}</div></div>
    ${E.mode==='ball'?`<p class="note">Bola nechta savolni to’g’ri yechgan bo’lsa, shu sonni bosing.${curTest()?.scoring==='100'?' Qaysi savollar to’g’riligi noma’lum bo’lgani uchun ball taxminan, ulush bo’yicha hisoblanadi — aniq ball uchun “Belgilash”dan foydalaning.':''}</p>
@@ -1321,7 +1333,7 @@ const SIDE_IC={savat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
  backup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>',
  resimport:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>'};
-const SIDE_N={savat:'O’chirilganlar',reyting:'Reyting',yuqori:'Yuqori natijalar',tests:'Sinovlar va imtihonlar',bank:'Testlar bazasi',pins:'PIN’lar',team:'Jamoa',history:'O’zgarishlar tarixi',certs:'Sertifikatlar',mashq:'Mashg’ulotlar',settings:'Sozlamalar',backup:'Zaxira nusxa',resimport:'Natijalar importi',demo:'Namuna kabinet'};
+const SIDE_N={savat:'O’chirilganlar',reyting:'Reyting',yuqori:'Yuqori natijalar',tests:'Sinovlar va imtihonlar',bank:'Testlar bazasi',pins:'PIN’lar',team:'Jamoa',history:'O’zgarishlar tarixi',certs:'Sertifikatlar',mashq:'Mashg’ulotlar',settings:'Sozlamalar',backup:'Zaxira nusxa',resimport:'Natijalar importi',demo:'Namuna kabinet',timport:'Tuman ro’yxati'};
 function sideExtra(){
   const top=stack[0]||'';
   const links=isTeam()?moreItems().map(([k])=>`<button class="sl" data-side="${k}" aria-current="${top===k}">${SIDE_IC[k]||I.chev}${SIDE_N[k]||k}</button>`).join(''):'';
@@ -1337,9 +1349,9 @@ const KIND_L={mcert:'Sertifikat',school:'Maktab',class:'Sinf',test:'Sinov',itest
 function openDel(kind,id){
   let title,what,need,hint;
   if(kind==='school'){const sc=X.sc[id];const cls=S.classes.filter(c=>c.school_id===id);const st=X.st.filter(s=>s.school_id===id);const res=st.filter(s=>S.tests.some(t=>R(s.id,t.id))).length;
-    title=`${sc.num}-maktabni o’chirish`;what=`${cls.length} ta sinf, ${st.length} ta o’quvchi, ${res} ta bolaning natijalari, sertifikatlari va ichki sinovlari. Direktor va sinf rahbarlari saytga kira olmay qoladi.`;need=String(sc.num);hint=`Tasdiqlash uchun maktab raqamini yozing: <b>${sc.num}</b>`}
+    title=`${mkN(sc)}ni o’chirish`;what=`${cls.length} ta sinf, ${st.length} ta o’quvchi, ${res} ta bolaning natijalari, sertifikatlari va ichki sinovlari. Direktor va sinf rahbarlari saytga kira olmay qoladi.`;need=String(sc.num);hint=`Tasdiqlash uchun maktab raqamini yozing: <b>${sc.num}</b>`}
   if(kind==='class'){const c=X.cl[id];const st=X.st.filter(s=>s.class_id===id);
-    title=`${X.sc[c.school_id]?.num}-maktab · ${c.name} sinfini o’chirish`;what=`${st.length} ta o’quvchi va ularning natijalari. Sinf rahbari saytga kira olmay qoladi.`;need=c.name;hint=`Tasdiqlash uchun sinf nomini yozing: <b>${esc(c.name)}</b>`}
+    title=`${mkN(X.sc[c.school_id])} · ${c.name} sinfini o’chirish`;what=`${st.length} ta o’quvchi va ularning natijalari. Sinf rahbari saytga kira olmay qoladi.`;need=c.name;hint=`Tasdiqlash uchun sinf nomini yozing: <b>${esc(c.name)}</b>`}
   if(kind==='test'){const t=S.tests.find(x=>x.id===id);const n=X.st.filter(s=>R(s.id,id)).length;
     title=`“${esc(t.name)}” sinovini o’chirish`;what=`${n} ta bolaning natijalari, kalitlar, e’lonlar va sertifikatlar.`;need='o’chirish';hint='Tasdiqlash uchun <b>o’chirish</b> deb yozing'}
   openSheet(`<div class="sh-top"><div class="m"><h2>${title}</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
@@ -1367,7 +1379,7 @@ function scrPins(){
   let l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool));
   const has=l.filter(x=>x.user?.pin), no=l.filter(x=>!x.user?.pin).sort((a,b)=>(!b.phone&&b.kind==='ota')-(!a.phone&&a.kind==='ota'));
   const view=pinHas==='no'?no:has; const ceo=S.me.role==='ceo'||isDir();
-  if(isDir())return ['Sinf rahbarlari PIN’i',`${S.schools[0]?.num}-maktab`,`
+  if(isDir())return ['Sinf rahbarlari PIN’i',`${mkN(S.schools[0])}`,`
   <div class="card pad"><div class="note" style="margin:0">Har bir sinf rahbari saytga <b>o’z telefon raqami + PIN</b> bilan kiradi. PIN berib, uni rahbarga ayting yoki SMS matnini yuboring. Rahbar <b>@YoshXorazmiylarBot</b> orqali ham o’zi olishi mumkin — buning uchun raqami sinf sahifasida to’g’ri yozilgan bo’lishi kerak.</div></div>
   <div class="seg"><button data-ph="no" aria-pressed="${pinHas==='no'}">Berilmagan (${no.length})</button><button data-ph="yes" aria-pressed="${pinHas==='yes'}">Berilgan (${has.length})</button></div>
   ${pinHas==='no'&&no.filter(x=>x.phone).length>1?`<button class="btn pri" data-act="pinBulk">Hammasiga PIN berish (${no.filter(x=>x.phone).length})</button>`:''}
@@ -1375,7 +1387,7 @@ function scrPins(){
    ${x.user?.pin?`<span class="num" style="font-family:var(--display);letter-spacing:.08em">${esc(x.user.pin)}</span><button class="btn sec sm" data-act="pinMenu" data-k="${x.kind}" data-r="${esc(x.ref)}">…</button>`:x.phone?`<button class="btn pri sm" data-act="pinIssue" data-k="${x.kind}" data-r="${esc(x.ref)}">PIN berish</button>`:''}</div>`).join('')||'<div class="empty">Hali sinf yo’q</div>'}</div>`];
   return ['PIN’lar',ceo?'Faqat siz PIN berasiz':'Ko’rish uchun',`
   <div class="seg">${[['ota','Ota-onalar'],['rahbar','Sinf rahbarlari'],['direktor','Direktorlar'],['jamoa','Jamoa']].map(([k,n])=>`<button data-pk="${k}" aria-pressed="${pinKind===k}">${n}</button>`).join('')}</div>${limMore(view,'pins')}
-  ${pinKind!=='jamoa'?`<div class="seg"><button data-ps="0" aria-pressed="${!pinSchool}">Hammasi</button>${S.schools.map(sc=>`<button data-ps="${sc.id}" aria-pressed="${pinSchool===sc.id}">${sc.num}-maktab</button>`).join('')}</div>`:''}
+  ${pinKind!=='jamoa'?`<div class="seg"><button data-ps="0" aria-pressed="${!pinSchool}">Hammasi</button>${S.schools.map(sc=>`<button data-ps="${sc.id}" aria-pressed="${pinSchool===sc.id}">${mkN(sc)}</button>`).join('')}</div>`:''}
   <div class="seg"><button data-ph="no" aria-pressed="${pinHas==='no'}">Berilmagan (${no.length})</button><button data-ph="yes" aria-pressed="${pinHas==='yes'}">Berilgan (${has.length})</button></div>
   ${ceo&&pinKind==='jamoa'?`<div class="card pad"><div class="note">Jamoa a’zosi qo’shilganda unga PIN avtomatik beriladi va “Berilgan” ro’yxatida chiqadi. Huquqlarini “Jamoa” bo’limida o’zgartirasiz.</div><button class="btn pri" data-act="teamEdit">+ Jamoa a’zosi qo’shish</button></div>`:''}
   ${ceo&&pinHas==='no'&&no.filter(x=>x.phone||x.kind!=='ota').length>1?`<button class="btn pri" data-act="pinBulk">Ro’yxatdagi hammasiga PIN berish (${no.filter(x=>x.phone||x.kind!=='ota').length})</button>`:''}
@@ -1416,7 +1428,7 @@ function histLine(h){const d=h.detail;
   if(h.action==='natija.ochirish')return `${esc(h.stu||'')}: ${d.old?.absent?'kelmadi':esc(d.old?.score)} — o’chirildi`;
   if(h.action.startsWith('sertifikat.'))return `${esc(d.name||'')}${d.code?' · № '+esc(d.code):''}${d.new_code?' → № '+esc(d.new_code):''}${d.soni?esc(d.soni)+' ta bola':''}${d.reason?' · '+esc(d.reason):''}`;
   return esc(h.stu||d.name||d.child||'')}
-function histSub(h){const d=h.detail,p=[];if(h.num)p.push(h.num+'-maktab');if(h.cls)p.push(esc(h.cls));
+function histSub(h){const d=h.detail,p=[];if(h.num)p.push(mkN(h)+'');if(h.cls)p.push(esc(h.cls));
   if(h.action.startsWith('kalit'))p.push(`${esc(d.grade)}-sinf${d.qayta_hisoblandi?` · ${d.qayta_hisoblandi} ta natija qayta hisoblandi`:''}`);
   if(h.action==='oquvchi.kochirish')p.push(`${esc(d.name||'')}: ${esc(d.from||'')} → ${esc(d.to||'')}`);
   if(h.action==='natija.kelmadi_hammasi')p.push(`${esc(d.soni)} ta`);
@@ -1432,7 +1444,7 @@ function scrHistory(){
    <div style="display:flex;gap:8px"><input id="hQ" placeholder="🔍 Bola, ustoz yoki maktab" value="${esc(HF.q)}" style="flex:1;min-width:0"><button class="btn sec sm" data-act="hSearch">Izlash</button></div>
    <div class="seg" style="overflow-x:auto;flex-wrap:nowrap">${chip('','Hammasi')}${chip('n','Natijalar')}${chip('d','⚠ Xavfli')}${chip('c','Sertifikatlar')}${chip('p','PIN va jamoa')}</div>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><select id="hUser" aria-label="Kim">${people.map(([v,t])=>`<option value="${v}" ${HF.user===v?'selected':''}>${esc(v===''?'Kim: hamma':t)}</option>`).join('')}</select>
-   <select id="hSch" aria-label="Maktab"><option value="">Maktab: hammasi</option>${(S.schools||[]).map(x=>`<option value="${x.id}" ${String(HF.school)===String(x.id)?'selected':''}>${x.num}-maktab</option>`).join('')}</select></div></div>`;
+   <select id="hSch" aria-label="Maktab"><option value="">Maktab: hammasi</option>${(S.schools||[]).map(x=>`<option value="${x.id}" ${String(HF.school)===String(x.id)?'selected':''}>${mkN(x)}</option>`).join('')}</select></div></div>`;
   const G=histGroups(HIST);let out='',day='';
   G.forEach((g,i)=>{const h=g.items[0],dd=histDay(h.at);if(dd!==day){if(day)out+='</div>';const n=G.filter(x=>histDay(x.items[0].at)===dd).length;out+=`<div class="sec-h" style="margin-top:6px"><b>${esc(dd)}</b><span class="note">${n} ta ish</span></div><div class="card list">`;day=dd}
     const many=g.items.length>1,danger=H_DANGER(h.action),open=!!HOPEN[h.id];
@@ -1470,7 +1482,7 @@ const TG_HINT='📱 <b>Telegram ochilgan</b> raqamni yozing. PIN kod @YoshXorazm
 // direktor: o'z maktabini boshqarish kartasi
 function dirManage(){const sc=S.schools[0];if(!sc)return'';const l=X.st;const noPh=l.filter(s=>!kidPhones(s).length).length;
   return `<section class="sec"><p class="label">Maktabni boshqarish</p><div class="card list">
-   <div class="row"><div class="m"><div class="n">${sc.num}-maktab${sc.name?' · '+esc(sc.name):''}</div><div class="s">Direktor: ${esc(sc.director_name)||'—'}</div></div><button class="btn sec sm" data-act="schoolEdit" data-id="${sc.id}">Tahrirlash</button></div>
+   <div class="row"><div class="m"><div class="n">${mkN(sc)}${sc.name&&sc.num<101?' · '+esc(sc.name):''}</div><div class="s">Direktor: ${esc(sc.director_name)||'—'}</div></div><button class="btn sec sm" data-act="schoolEdit" data-id="${sc.id}">Tahrirlash</button></div>
    <div class="row"><div class="m"><div class="n">${S.classes.length} ta sinf · ${l.length} ta o’quvchi</div><div class="s">${noPh?`<span style="color:var(--wrong)">${noPh} ta bolaning ota-ona telefoni yo’q</span>`:'Hamma bolaning ota-ona telefoni bor ✓'}</div></div></div></div>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="classEdit" data-school="${sc.id}">+ Sinf qo’shish</button><button class="btn sec" data-act="studentEdit" data-class="${S.classes[0]?.id||''}">+ O’quvchi qo’shish</button></div>
    <button class="btn pri" data-go="pins">🔑 Sinf rahbarlariga PIN berish</button>
@@ -1480,10 +1492,10 @@ function dirManage(){const sc=S.schools[0];if(!sc)return'';const l=X.st;const no
 function scrDirHome(){
   if(homeClass&&!S.classes.some(c=>c.id===homeClass))homeClass=0;
   const sc=S.schools[0]; const t=S.tests[0]; const l=homeClass?X.st.filter(s=>s.class_id===homeClass):X.st; const hc=homeClass?X.cl[homeClass]:null;
-  if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div></section></div><aside class="dside">${sideDir()}</aside></div>`];
+  if(!t)return [`${mkN(sc)}`,'Direktor',`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div></section></div><aside class="dside">${sideDir()}</aside></div>`];
   testId=t.id;
   const dist=[...new Set(l.map(s=>s.grade))].sort((a,b)=>a-b).map(g=>[g,S.district?.[t.id+':'+g]]).filter(x=>x[1]!=null);
-  return [`${sc.num}-maktab`,t.name,`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
+  return [`${mkN(sc)}`,t.name,`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
   ${S.classes.length>1?`<div class="seg"><button data-hc="0" aria-pressed="${!homeClass}">Hammasi</button>${[...S.classes].sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<button data-hc="${c.id}" aria-pressed="${homeClass===c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
   ${kpis([[l.length,'o’quvchi'],[present(l).length,'qatnashdi'],[avgPct(l)==null?'—':avgPct(l)+'%',hc?`${esc(hc.name)} o’rtacha`:'maktab o’rtacha']])}
   ${present(X.st).length?dlBtn('school',sc.id):''}
@@ -1506,9 +1518,9 @@ function itAvg(t,l){const v=l.map(s=>itPct(t,IR(t.id,s.id))).filter(x=>x!=null);
 function itList(schoolId,opts={}){
   const its=(S.itests||[]).filter(t=>!schoolId||t.school_id===schoolId);
   return `<div class="card list">${its.map(t=>{const l=itStudents(t).filter(s=>!opts.classId||s.class_id===opts.classId);const n=l.filter(s=>{const r=IR(t.id,s.id);return r&&!r.absent}).length;const v=itAvg(t,l);
-    return `<button class="row" data-go="itest:${t.id}"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}${itScope(t)?' · '+itScope(t):''} · ${n} ta bola${isTeam()&&!schoolId?` · ${X.sc[t.school_id]?.num}-maktab`:''}</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>${v!=null?`<div class="num">${pf(v)}%</div>`:''}${I.chev}</button>`}).join('')||'<div class="empty">Hali ichki sinov yo’q</div>'}</div>`}
+    return `<button class="row" data-go="itest:${t.id}"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}${itScope(t)?' · '+itScope(t):''} · ${n} ta bola${isTeam()&&!schoolId?` · ${mkN(X.sc[t.school_id])}`:''}</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>${v!=null?`<div class="num">${pf(v)}%</div>`:''}${I.chev}</button>`}).join('')||'<div class="empty">Hali ichki sinov yo’q</div>'}</div>`}
 function scrItests(){const sc=S.schools[0];
-  return ['Ichki sinovlar',`${sc?.num}-maktab`,`<div class="card pad"><p style="margin:0">Maktabingizda o’zingiz o’tkazgan sinovlar: nazorat ishlari, chorak sinovlari, olimpiada tayyorgarligi. Natijalarni siz, sinf rahbarlari, ota-onalar va loyiha jamoasi ko’radi. “Yosh Xorazmiylar” reytingiga qo’shilmaydi.</p></div>
+  return ['Ichki sinovlar',`${mkN(sc)}`,`<div class="card pad"><p style="margin:0">Maktabingizda o’zingiz o’tkazgan sinovlar: nazorat ishlari, chorak sinovlari, olimpiada tayyorgarligi. Natijalarni siz, sinf rahbarlari, ota-onalar va loyiha jamoasi ko’radi. “Yosh Xorazmiylar” reytingiga qo’shilmaydi.</p></div>
   ${ED()?`<button class="btn pri" data-act="itEdit" data-school="${sc?.id||''}">+ Yangi ichki sinov</button>`:''}${itList(0)}`]}
 function itSection(schoolId,opts={}){const its=(S.itests||[]).filter(t=>t.school_id===schoolId);if(!its.length&&!(ED()&&opts.add))return'';
   return `<section class="sec"><div class="sec-h"><p class="label">Maktab ichki sinovlari</p>${ED()&&opts.add?`<button class="lnk" data-act="itEdit" data-school="${schoolId}">+ Yangi</button>`:''}</div>${itList(schoolId,opts)}</section>`}
@@ -1545,10 +1557,10 @@ document.addEventListener('change',async e=>{const el=e.target;if(!el.dataset||e
   try{await api('iresult.save',v===''?{itest_id:tid,student_id:+el.dataset.ir,clear:1}:{itest_id:tid,student_id:+el.dataset.ir,score:v});el.style.borderColor='var(--accent)';
     const r=(S.iresults||[]).find(x=>x.itest_id===tid&&x.student_id===+el.dataset.ir);if(v==='')S.iresults=(S.iresults||[]).filter(x=>x!==r);else if(r){r.score=+v;r.absent=0}else (S.iresults=S.iresults||[]).push({itest_id:tid,student_id:+el.dataset.ir,score:+v,absent:0})}
   catch(err){el.style.borderColor='var(--wrong)';toast(err.message,true)}});
-function scrDirAnalysis(){const l=X.st;return ['Tahlil',`${S.schools[0]?.num}-maktab`,`${hardBox(l,'Maktab bolalari eng qiynalgan savollar')}
+function scrDirAnalysis(){const l=X.st;return ['Tahlil',`${mkN(S.schools[0])}`,`${hardBox(l,'Maktab bolalari eng qiynalgan savollar')}
   <section class="sec"><p class="label">Sinovlar tarixi</p><div class="card list">${S.tests.map(t=>`<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${present(l,t.id).length} ta bola qatnashdi</div></div><div class="num">${pf(avgPct(l,t.id)??'—')}%</div></div>`).join('')||'<div class="empty">Yo’q</div>'}</div></section>`]}
 function scrRahbar(){const c=S.classes[0];if(!c)return['Sinfim','',''];if(S.tests[0])testId=S.tests[0].id;
-  if(!S.tests.length)return [`${c.name} sinf`,`${S.schools[0]?.num}-maktab`,`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${rahbarPhones(c)}${itSection(c.school_id,{classId:c.id})}<section class="sec"><p class="label">O’quvchilar</p><div class="card list">${X.st.map(s=>`<div class="row"><div class="m"><div class="n">${esc(s.name)}</div></div></div>`).join('')}</div></section>`];
+  if(!S.tests.length)return [`${c.name} sinf`,`${mkN(S.schools[0])}`,`<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan.</p></div>${rahbarPhones(c)}${itSection(c.school_id,{classId:c.id})}<section class="sec"><p class="label">O’quvchilar</p><div class="card list">${X.st.map(s=>`<div class="row"><div class="m"><div class="n">${esc(s.name)}</div></div></div>`).join('')}</div></section>`];
   const v=scrClass(c.id,'rahbar');const t=S.tests[0],my=avgPct(X.st),sch=S.district?.[t.id+':school:'+c.grade],dis=S.district?.[t.id+':'+c.grade];
   const bar=(l,x,col)=>`<div class="r"><span>${l}</span><div class="track"><i style="width:${x}%;background:${col}"></i></div><b class="num">${pf(x)}%</b></div>`;
   const cmp=my!=null&&(sch!=null||dis!=null)?`<section class="sec"><p class="label">Solishtirma · ${esc(t.name)}</p><div class="card cmp">${bar(`${esc(c.name)} sinf`,my,'var(--accent)')}${sch!=null?bar(`${c.grade}-sinflar · maktab`,sch,'var(--gold)'):''}${dis!=null?bar(`${c.grade}-sinflar · tuman`,dis,'var(--low)'):''}</div></section>`:'';
@@ -1565,7 +1577,7 @@ function scrRahHome(){const c=S.classes[0];if(!c)return['Sinfim','',''];if(S.tes
   const todo=rahTodo();const t=S.tests[0];const my=t?avgPct(l):null,sch=t?S.district?.[t.id+':school:'+c.grade]:null,dis=t?S.district?.[t.id+':'+c.grade]:null;
   const bar=(lb,x,col)=>`<div class="r"><span>${lb}</span><div class="track"><i style="width:${x}%;background:${col}"></i></div><b class="num">${pf(x)}%</b></div>`;
   const gifted=t?l.filter(s=>giftedSet().has(s.id)):[];const withPin=l.filter(s=>PACC(s.id).pin).length,inSite=l.filter(s=>PACC(s.id).in).length;
-  return [`${c.name} sinf`,`${sc?.num}-maktab · ${l.length} o’quvchi`,`
+  return [`${c.name} sinf`,`${mkN(sc)} · ${l.length} o’quvchi`,`
   ${searchBox('O’quvchi ismi yoki familiyasi…')}${tabrikCard('rahbar')}
   ${kpis([[l.length,'o’quvchi'],[withPin,'ota-ona PIN olgan'],[inSite,'ota-ona kirgan']])}
   <section class="sec"><p class="label">Kutilayotgan ishlar</p>${todo.length?`<div class="card list">${todo.map(([go,n,sb])=>`<button class="row" data-${go==='phones'?'go':'tab'}="${go}"><div class="m"><div class="n">${n}</div>${sb?`<div class="s">${sb}</div>`:''}</div>${I.chev}</button>`).join('')}</div>`:'<div class="card empty">Hammasi joyida ✓ Kutilayotgan ish yo’q</div>'}</section>
@@ -1676,7 +1688,7 @@ function scrParent(){
       ${cAvg!=null?`<section class="sec"><p class="label">Sinf bilan solishtirma</p><div class="card cmp"><div class="r"><span>Farzandingiz</span><div class="track"><i style="width:${p}%;background:var(--accent)"></i></div><b class="num">${pf(p)}%</b></div><div class="r"><span>Sinf o’rtachasi</span><div class="track"><i style="width:${cAvg}%;background:var(--low)"></i></div><b class="num">${pf(cAvg)}%</b></div></div>
       <p class="note">${rank?(rank[0]<=Math.ceil(rank[1]/2)?`Tumandagi ${s.grade}-sinflar orasida ${rank[0]}-o’rin (${rank[1]} ta bola).`:''):'Tumandagi o’rni sinov yakunlangach chiqadi.'} Boshqa bolalarning ismi va bali ko’rinmaydi.</p></section>`:''}
       <section class="sec"><p class="label">Savollar bo’yicha</p>${qGrid(r)}</section>`}}
-  return [s.name,`${s.num}-maktab · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}</div><div class="note">${s.num}-maktab · ${esc(s.cls)}</div></div></div>${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
+  return [s.name,`${mkN(s)} · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
 // ota-ona: farzandining maktab ichki sinov natijalari
 function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!its.length)return'';
   return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${pf(p)}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
@@ -1701,7 +1713,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   const kids=m.role==='ota'?(S.students||[]).map(k=>{const kc=cl[k.class_id];return esc(k.name)+(kc?` · ${esc(kc.name)}`:'')}).join('<br>'):'';
   openSheet(`<div class="sh-top"><div class="m"><h2>Mening ma’lumotlarim</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(m.avatar,56,m.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:17px">${esc(m.name||'—')}</div><div style="margin-top:4px"><span class="pill ok">${esc(role)}</span></div></div><button class="btn sec sm" data-act="avPick">${String(m.avatar||'').startsWith('data:')?'Surat':'📷 Surat qo’yish'}</button></div>
-  <div class="card list">${kv('Telefon',esc(ph(m.phone)))}${kv('Maktab',s?`${s.num}-maktab`:'')}${kv('Sinf',c?esc(c.name):'')}${kv('Farzandlari',kids)}${kv('PIN berilgan',dt(m.pin_at))}${kv('Saytda',m.created_at?dt(m.created_at)+' dan beri':'')}</div>
+  <div class="card list">${kv('Telefon',esc(ph(m.phone)))}${kv('Maktab',s?`${mkN(s)}`:'')}${kv('Sinf',c?esc(c.name):'')}${kv('Farzandlari',kids)}${kv('PIN berilgan',dt(m.pin_at))}${kv('Saytda',m.created_at?dt(m.created_at)+' dan beri':'')}</div>
   ${rights?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">HUQUQLARIM</div><div class="card list">${rights}</div>`:''}
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
@@ -1804,7 +1816,7 @@ function drawThread(){
   const lastMine=[...msgs].reverse().find(m=>m.user_id===S.me.id);
   const seen=lastMine&&readBy.some(r=>r.at>=lastMine.at);
   openSheet(`<div class="sh-top"><div class="m"><h2 style="font-size:18px">${esc(t.title)}</h2><div class="s">${t.kind==='jamoa'?(TOPIC_L[t.topic]||'')+' · '+(t.status==='hal'?'hal qilingan':'ochiq'):''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   ${student&&result?`<div class="card pad" style="flex-direction:row;align-items:center"><div class="m" style="flex:1"><b>${esc(student.name)}</b><div class="note">${student.num}-maktab · ${esc(student.cls)} · ${esc(result.name)}</div></div><div class="num">${result.absent?'kelmadi':result.score+'/'+result.qn}</div></div>`:''}
+   ${student&&result?`<div class="card pad" style="flex-direction:row;align-items:center"><div class="m" style="flex:1"><b>${esc(student.name)}</b><div class="note">${mkN(student)} · ${esc(student.cls)} · ${esc(result.name)}</div></div><div class="num">${result.absent?'kelmadi':result.score+'/'+result.qn}</div></div>`:''}
    <div class="msgs">${msgs.map(m=>{const me=m.user_id===S.me.id;const can=me||S.me.role==='ceo';
     return `<div class="bubble ${me?'me':''}"><div class="who"><span style="display:inline-flex;align-items:center;gap:6px">${avHtml((THV.avs||{})[m.user_id],22,names[m.user_id])}${me?'Siz':esc(names[m.user_id])} · ${fmtDate(m.at)}</span>${can?`<button class="mm" data-act="msgMenu" data-id="${m.id}" aria-label="Xabar amallari">⋯</button>`:''}</div>${m.text?`<div>${esc(m.text)}</div>`:''}${m.image?`<img src="${esc(m.image)}" alt="Biriktirilgan rasm" data-zoom>`:''}${m.audio?(AUD[m.id]?`<audio controls autoplay src="${esc(AUD[m.id])}" style="width:100%;max-width:280px;margin-top:4px"></audio>`:`<button class="btn sec sm" data-act="audPlay" data-id="${m.id}" style="margin-top:4px">▶ Ovozli xabarni tinglash</button>`):''}${m.edited?'<div class="ed">tahrirlangan</div>':''}
      ${msgMenu===m.id?`<div class="ma">${me&&m.text?`<button data-act="msgEdit" data-id="${m.id}">Tahrirlash</button>`:''}<button class="del" data-act="msgDel" data-id="${m.id}">O’chirish</button></div>`:''}</div>`}).join('')}</div>
@@ -1853,7 +1865,7 @@ async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;drawTgReq()}
 function drawTgReq(){const pend=TREQ.filter(r=>r.status==='kutilmoqda');const done=TREQ.filter(r=>r.status!=='kutilmoqda').slice(0,20);
   openSheet(`<div class="sh-top"><div class="m"><h2>PIN so’rovlari</h2><div class="s">Telegram orqali, raqami ro’yxatda yo’q ota-onalar</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   ${pend.map(r=>{const opts=X.st.filter(s=>s.class_id===r.class_id).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
-    return `<div class="card pad"><div><b>${esc(r.child)}</b><div class="note">${r.cls?.num}-maktab · ${esc(r.cls?.name)} · ${ph(r.phone)} · ${fmtDate(r.at)}</div></div>
+    return `<div class="card pad"><div><b>${esc(r.child)}</b><div class="note">${mkN(r.cls)} · ${esc(r.cls?.name)} · ${ph(r.phone)} · ${fmtDate(r.at)}</div></div>
     <label class="field"><span class="label">Ro’yxatdagi qaysi bola?</span><select id="tr${r.id}"><option value="">— tanlang —</option>${opts.map(s=>`<option value="${s.id}" ${norm(s.name).split(' ')[0]===norm(r.child).split(' ')[0]?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
     <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px"><button class="btn dan sm" data-act="trNo" data-id="${r.id}">Rad etish</button><button class="btn pri sm" data-act="trYes" data-id="${r.id}">Tasdiqlash va PIN yuborish</button></div></div>`}).join('')||'<div class="card empty">Yangi so’rov yo’q</div>'}
   ${done.length?`<p class="label">Ko’rib chiqilganlar</p><div class="card list">${done.map(r=>`<div class="row"><div class="m"><div class="n">${esc(r.child)}</div><div class="s">${ph(r.phone)} · ${r.status==='tasdiqlandi'?'→ '+esc(r.student||''):'rad etildi'}</div></div></div>`).join('')}</div>`:''}`)}
@@ -1997,18 +2009,18 @@ function dlRows(list,withSchool){
   const p=present(list).filter(s=>R(s.id).score!=null).sort((a,b)=>resCmp(R(a.id),R(b.id))||a.name.localeCompare(b.name,'uz'));
   let place=0,prev=null;
   return p.map((s,i)=>{const r=R(s.id);if(!prev||resCmp(prev,r)!==0){place=i+1;prev=r}
-    return{o:place,name:s.name,sch:withSchool?s.num+'-maktab':'',cls:s.cls||'',score:r.score,qn:r.qn,pct:pct(r),ok:r.ok,nq:r.nq}})}
+    return{o:place,name:s.name,sch:withSchool?mkN(s)+'':'',cls:s.cls||'',score:r.score,qn:r.qn,pct:pct(r),ok:r.ok,nq:r.nq}})}
 function dlBuild(scope){
   const [k,a,b]=scope.split(':');const t=curTest();const out={test:t?.name||'',sections:[],title:'',file:''};
   const grades=list=>[...new Set(list.map(s=>s.grade))].filter(Boolean).sort((x,y)=>x-y);
-  if(k==='C'){const c=X.cl[+a];const sc=X.sc[c.school_id];out.title=`${sc.num}-maktab · ${c.name} sinf`;out.file=`${sc.num}-maktab_${c.name}`;
+  if(k==='C'){const c=X.cl[+a];const sc=X.sc[c.school_id];out.title=`${mkN(sc)} · ${c.name} sinf`;out.file=`${mkN(sc)}_${c.name}`;
     out.sections.push({h:`${c.name} sinf`,rows:dlRows(X.st.filter(s=>s.class_id===c.id))})}
-  else if(k==='G'){const sc=X.sc[+a];out.title=`${sc.num}-maktab · ${b}-sinflar`;out.file=`${sc.num}-maktab_${b}-sinflar`;
+  else if(k==='G'){const sc=X.sc[+a];out.title=`${mkN(sc)} · ${b}-sinflar`;out.file=`${mkN(sc)}_${b}-sinflar`;
     out.sections.push({h:`${b}-sinflar (umumiy)`,rows:dlRows(X.st.filter(s=>s.school_id===sc.id&&s.grade===+b))})}
-  else if(k==='S'){const sc=X.sc[+a];const l=X.st.filter(s=>s.school_id===sc.id);out.title=`${sc.num}-maktab`;out.file=`${sc.num}-maktab`;
+  else if(k==='S'){const sc=X.sc[+a];const l=X.st.filter(s=>s.school_id===sc.id);out.title=`${mkN(sc)}`;out.file=`${mkN(sc)}`;
     grades(l).forEach(g=>out.sections.push({h:`${g}-sinflar (umumiy)`,rows:dlRows(l.filter(s=>s.grade===g))}))}
   else if(k==='T'){const min=+a,g=+b,sc=+scope.split(':')[3]||0;const many=S.schools.length>1;
-    out.title=`${sc?X.sc[sc].num+'-maktab':many?'Barcha maktablar':(X.sc[S.schools[0]?.id]?.num??'')+'-maktab'} · ${min}% va yuqori`;out.file=`Yuqori_${min}foiz${g?'_'+g+'-sinflar':''}${sc?'_'+X.sc[sc].num+'-maktab':''}`;out.school=many&&!sc;out.cnt='Soni';
+    out.title=`${sc?mkN(X.sc[sc])+'':many?'Barcha maktablar':(X.sc[S.schools[0]?.id]?.num??'')+'-maktab'} · ${min}% va yuqori`;out.file=`Yuqori_${min}foiz${g?'_'+g+'-sinflar':''}${sc?'_'+mkN(X.sc[sc])+'':''}`;out.school=many&&!sc;out.cnt='Soni';
     const l=topStu(min,g,sc);grades(l).forEach(gr=>out.sections.push({h:`${gr}-sinflar`,rows:dlRows(l.filter(s=>s.grade===gr),out.school)}))}
   else if(k==='DG'){out.title=`Tuman · ${a}-sinflar`;out.file=`Tuman_${a}-sinflar`;out.school=1;
     out.sections.push({h:`${a}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===+a),true)})}
@@ -2222,7 +2234,7 @@ function certFiltered(){
   l=l.filter(c=>!cfClass||c.s.class_id===cfClass);
   l.sort((a,b)=>(a.s.num-b.s.num)||a.s.cls.localeCompare(b.s.cls,'uz',{numeric:true})||a.s.name.localeCompare(b.s.name,'uz'));
   return {l,tests,schools,grades,classes}}
-function certLabel(){const p=[];p.push(cfSchool?X.sc[cfSchool]?.num+'-maktab':(isTeam()?'Butun tuman':''));if(cfGrade)p.push(cfGrade+'-sinflar');if(cfClass)p.push(X.cl[cfClass]?.name+' sinf');return p.filter(Boolean).join(' · ')}
+function certLabel(){const p=[];p.push(cfSchool?mkN(X.sc[cfSchool])+'':(isTeam()?'Butun tuman':''));if(cfGrade)p.push(cfGrade+'-sinflar');if(cfClass)p.push(X.cl[cfClass]?.name+' sinf');return p.filter(Boolean).join(' · ')}
 function scrCerts(){
   const {l,tests,schools,grades,classes}=certFiltered();
   const seg=(k,cur,items,all)=>`<div class="seg" style="overflow-x:auto;flex-wrap:nowrap"><button data-cf="${k}:0" aria-pressed="${!cur}">${all}</button>${items.map(([v,t])=>`<button data-cf="${k}:${v}" aria-pressed="${cur===v}" style="white-space:nowrap">${esc(t)}</button>`).join('')}</div>`;
@@ -2233,7 +2245,7 @@ function scrCerts(){
   return ['Sertifikatlar',`${l.length} ta`,`${modeSeg}
   ${!S.assetsReady?`<div class="offline">Logotip, imzo yoki muhr rasmi hali yuklanmagan. ${S.me.role==='ceo'?'Ko’proq → Sozlamalar bo’limida yuklang.':'Sertifikat ularsiz chiqadi.'}</div>`:''}
   ${tests.length>1?seg('t',cfTest,tests.map(id=>[id,S.tests.find(t=>t.id===id)?.name||'Sinov']),'Barcha sinovlar'):''}
-  ${schools.length>1?seg('s',cfSchool,schools.map(x=>[x.id,x.num+'-maktab']),isTeam()?'Butun tuman':'Hammasi'):''}
+  ${schools.length>1?seg('s',cfSchool,schools.map(x=>[x.id,mkN(x)+'']),isTeam()?'Butun tuman':'Hammasi'):''}
   ${grades.length>1?seg('g',cfGrade,grades.map(g=>[g,g+'-sinflar']),'Hamma sinflar'):''}
   ${classes.length>1?seg('c',cfClass,classes.map(c=>[c.id,c.name]),`Barcha ${cfGrade}-sinflar`):''}
   ${l.filter(c=>!c.status).length?`<button class="btn pri" data-act="certPdf">⬇ ${l.filter(c=>!c.status).length>1?`Hammasini PDF qilib yuklab olish (${l.filter(c=>!c.status).length} ta)`:'PDF qilib yuklab olish'}</button><p class="note" style="margin:0">${esc(certLabel())}${certLabel()?' · ':''}har bir sertifikat alohida A4 sahifada, chop etishga tayyor.</p>`:''}
@@ -2241,7 +2253,7 @@ function scrCerts(){
    return `<div class="card pad"><label class="field"><span class="label">Berilgan sana${l.length>1?` (ro’yxatdagi ${l.length} ta sertifikat uchun)`:''}</span><input type="date" id="certDate" value="${top}"></label>
    ${mixed?'<p class="note" style="margin:0">Bu ro’yxatda sanalar har xil. Saqlasangiz, hammasiga bir xil sana qo’yiladi.</p>':''}<p class="note" style="margin:0">Odatda natijalar e’lon qilingan kun qo’yiladi. Sertifikatni topshiradigan kuningiz boshqa bo’lsa, shu yerda o’zgartiring.</p>
    <button class="btn sec sm" data-act="certDate" style="align-self:flex-start">Sanani saqlash</button></div>`})():''}
-  <div class="card list">${l.map(c=>`<div class="row"${c.status?' style="opacity:.6"':''}><div class="m"><div class="n">${esc(c.s.name)} ${certPill(c.status)}</div><div class="s">${c.code} · ${c.s.num}-maktab · ${esc(c.s.cls)}${c.status?`<br>${esc(c.reason||'')}`:''}</div></div>${c.status?'':`<button class="btn sec sm" data-act="certView" data-c="${c.code}">👁 Ko’rish</button><button class="btn sec sm" data-act="certPng" data-c="${c.code}" aria-label="Yuklab olish">⬇</button>${canCert()?`<button class="btn sec sm" data-act="rvOpen" data-c="${c.code}" aria-label="Bekor qilish">⋯</button>`:''}`}</div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
+  <div class="card list">${l.map(c=>`<div class="row"${c.status?' style="opacity:.6"':''}><div class="m"><div class="n">${esc(c.s.name)} ${certPill(c.status)}</div><div class="s">${c.code} · ${mkN(c.s)} · ${esc(c.s.cls)}${c.status?`<br>${esc(c.reason||'')}`:''}</div></div>${c.status?'':`<button class="btn sec sm" data-act="certView" data-c="${c.code}">👁 Ko’rish</button><button class="btn sec sm" data-act="certPng" data-c="${c.code}" aria-label="Yuklab olish">⬇</button>${canCert()?`<button class="btn sec sm" data-act="rvOpen" data-c="${c.code}" aria-label="Bekor qilish">⋯</button>`:''}`}</div>`).join('')||'<div class="empty">Sertifikatlar maktab natijalari e’lon qilinishi bilan o’sha maktabning iqtidorli o’quvchilariga beriladi.</div>'}</div>`]}
 function tabrikCard(role){
   const t=S.tests.find(x=>(S.gifted||[]).some(k=>+k.split(':')[0]===x.id)); if(!t)return'';
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
@@ -2444,9 +2456,9 @@ let TB=null; // yuklanayotgan test
 const tScope=t=>{try{return t?.scope?JSON.parse(t.scope):null}catch(e){return null}};
 const covers=(t,c)=>{const sc=tScope(t);return !!c&&(!sc||sc.c.includes(c.id)||sc.s.includes(c.school_id))};
 function scopeLabel(t){const sc=tScope(t);if(!sc)return 'hamma maktablar';
-  const p=sc.s.map(id=>X.sc[id]?`${X.sc[id].num}-maktab`:'').filter(Boolean);
+  const p=sc.s.map(id=>X.sc[id]?`${mkN(X.sc[id])}`:'').filter(Boolean);
   const bySch={};sc.c.forEach(id=>{const c=X.cl[id];if(c&&!sc.s.includes(c.school_id))(bySch[c.school_id]||=[]).push(c.name)});
-  Object.entries(bySch).forEach(([sid,l])=>p.push(`${X.sc[sid]?.num}-maktab (${l.join(', ')})`));return p.join(' · ')||'—'}
+  Object.entries(bySch).forEach(([sid,l])=>p.push(`${mkN(X.sc[sid])} (${l.join(', ')})`));return p.join(' · ')||'—'}
 function scrBank(){const l=S.bank||[];const gs=[...new Set(l.map(b=>b.grade))].sort((a,b)=>a-b);
   const KL={pdf:'📄 Tayyor PDF',baza:'🧩 Bazadan tuzilgan',paket:'📦 Paketdan',matn:'📝 Matn fayldan'};
   return ['Testlar bazasi',`${l.length} ta test`,`<p class="note" style="margin:0">Test bazaga o’z nomi bilan tushadi va hech bir imtihonga o’zi tegmaydi. Imtihonga “Imtihonlar” bo’limida, 1-qadamda beriladi — kaliti va titullari o’zi moslashadi.</p>
@@ -2486,7 +2498,7 @@ function testGradeRows(t){return testGrades(t).map(g=>{const vi=vinfo(t.id,g);
 function scopeHtml(t){const sc=tScope(t)||{s:[],c:[]};
   return `<details class="card pad"${tScope(t)?' open':''}><summary style="cursor:pointer;font-weight:600">Qamrov: ${t.id?esc(scopeLabel(t)):'hamma maktablar'}</summary>
   <p class="note" style="margin:0">Hech narsa belgilanmasa — hamma maktablarda o’tadi. Maktab belgilansa, uning hamma sinflari kiradi; aks holda faqat belgilangan sinflar.</p>
-  ${S.schools.map(x=>`<div style="border-top:1px solid var(--line);padding-top:8px"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" name="scS" value="${x.id}" ${sc.s.includes(x.id)?'checked':''}>${x.num}-maktab (butun maktab)</label>
+  ${S.schools.map(x=>`<div style="border-top:1px solid var(--line);padding-top:8px"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" name="scS" value="${x.id}" ${sc.s.includes(x.id)?'checked':''}>${mkN(x)} (butun maktab)</label>
    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-left:24px">${S.classes.filter(c=>c.school_id===x.id).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).map(c=>`<label class="pill gray" style="display:inline-flex;gap:4px;align-items:center"><input type="checkbox" name="scC" value="${c.id}" ${sc.c.includes(c.id)?'checked':''}>${esc(c.name)}</label>`).join('')}</div></div>`).join('')}</details>`}
 function readScope(){const s=[...document.querySelectorAll('input[name=scS]:checked')].map(i=>+i.value);
   const c=[...document.querySelectorAll('input[name=scC]:checked')].map(i=>+i.value).filter(id=>!s.includes(X.cl[id]?.school_id));return {s,c}}
@@ -2526,7 +2538,7 @@ function drawTitul(pdf,it,oy){
 function titulItems(cid,spares,t){const c=X.cl[cid],sc=X.sc[c.school_id];
   const vi=vinfo(t.id,c.grade),vs=varsOf(t.id,c.grade),qn=vi?.qn||20,nopt=vi?.nopt||4;
   const l=X.st.filter(s=>s.class_id===cid).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
-  const base={test:t.name,sch:`${sc.num}-maktab`,cls:c.name,qn,nopt};
+  const base={test:t.name,sch:`${mkN(sc)}`,cls:c.name,qn,nopt};
   return l.map((s,i)=>{const v=vs[i%vs.length];return {...base,name:s.name,v,qr:`YX:${t.id}:${s.id}:${v}:${qn}:${nopt}`}})
    .concat(Array.from({length:spares},(_,k)=>{const v=vs[(l.length+k)%vs.length];return {...base,name:'',v,qr:`YZ:${t.id}:${cid}:${v}:${qn}:${nopt}:${k+1}`}}))}
 // sinf/maktab uchun ochiq sinov yoki imtihonni tanlash (bitta bo'lsa — o'zi tanlanadi)
@@ -2535,12 +2547,12 @@ function pickExam(kind,id){
   const l=S.tests.filter(t=>t.status!=='yakunlandi'&&cls.some(c=>covers(t,c)));
   if(!l.length){toast(kind==='school'?'Bu maktab uchun ochiq sinov yoki imtihon yo’q':'Bu sinf uchun ochiq sinov yoki imtihon yo’q',true);return}
   if(l.length===1){if(kind==='scan')scanOpen(id,l[0].id);else openTitul(kind,id,l[0].id);return}
-  openSheet(`<div class="sh-top"><div class="m"><h2>Qaysi imtihon?</h2><div class="s">${kind==='school'?`${X.sc[id].num}-maktab`:`${X.sc[cls[0].school_id].num}-maktab · ${esc(cls[0].name)}`}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  openSheet(`<div class="sh-top"><div class="m"><h2>Qaysi imtihon?</h2><div class="s">${kind==='school'?`${mkN(X.sc[id])}`:`${mkN(X.sc[cls[0].school_id])} · ${esc(cls[0].name)}`}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card list">${l.map(t=>`<button class="row" data-act="pickT" data-k="${kind}" data-c="${id}" data-t="${t.id}"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${[t.date,STATUS.find(x=>x[0]===t.status)?.[1],scopeLabel(t)].filter(Boolean).map(esc).join(' · ')}</div></div>${I.chev}</button>`).join('')}</div>`)}
 function openTitul(kind,id,tid){const t=S.tests.find(x=>x.id===tid);if(!t){toast('Imtihon topilmadi',true);return}
   const cls=kind==='class'?[X.cl[id]]:S.classes.filter(c=>c.school_id===id&&covers(t,c)).sort((a,b)=>a.grade-b.grade||a.name.localeCompare(b.name,'uz',{numeric:true}));
   const gs=[...new Set(cls.map(c=>c.grade))].sort((a,b)=>a-b);const n=cls.reduce((a,c)=>a+X.st.filter(s=>s.class_id===c.id).length,0);
-  openSheet(`<div class="sh-top"><div class="m"><h2>Titullar</h2><div class="s">${esc(t.name)} · ${kind==='class'?`${X.sc[cls[0].school_id].num}-maktab · ${esc(cls[0].name)}`:`${X.sc[id].num}-maktab · ${cls.length} sinf`}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  openSheet(`<div class="sh-top"><div class="m"><h2>Titullar</h2><div class="s">${esc(t.name)} · ${kind==='class'?`${mkN(X.sc[cls[0].school_id])} · ${esc(cls[0].name)}`:`${mkN(X.sc[id])} · ${cls.length} sinf`}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card list">${gs.map(g=>{const vi=vinfo(t.id,g);const vs=varsOf(t.id,g);
     return `<div class="row"><div class="m"><div class="n">${g}-sinf · ${vi?.qn||20} ta savol</div><div class="s">${vs.length>1?`${vs.length} variant (${VLs(vs)}) — bolalar ro’yxat bo’yicha navbatma-navbat oladi`:'1 variant'}</div>${vi?'':`<div class="s" style="color:var(--wrong)">Bu sinf uchun kalit yo’q — titulda 20 ta savol bo’ladi. Avval test yuklang.</div>`}</div></div>`}).join('')}</div>
   <p class="note" style="margin:0">Har bir bolaga ismi, sinfi va QR kodi yozilgan titul chiqadi: <b>${n} ta</b>. Bitta A4 varaqqa ikkitadan joylashadi — chop etib, o’rtasidan qirqing. Chop etishda “Asl o’lcham” (100%) ni tanlang.</p>
@@ -2558,7 +2570,7 @@ async function titulGo(kind,id,tid){const sp=Math.max(0,Math.min(10,parseInt(val
       drawTitul(pdf,it,half*TIH);
       if(half===0){pdf.setDrawColor(150);pdf.setLineWidth(.2);pdf.setLineDashPattern([2,2],0);pdf.line(5,TIH,TIW-5,TIH);pdf.setLineDashPattern([],0);pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(150);pdf.text(pdfTxt('qirqish chizig‘i'),TIW-6,TIH-1,{align:'right'})}
       half++})});
-  pdf.save(plain(`Titullar_${kind==='class'?X.sc[cls[0].school_id].num+'-maktab_'+cls[0].name:X.sc[id].num+'-maktab'}_${t.name}`).replace(/[^\w-]+/g,'_')+'.pdf');closeSheet()}
+  pdf.save(plain(`Titullar_${kind==='class'?X.sc[cls[0].school_id].num+'-maktab_'+cls[0].name:mkN(X.sc[id])+''}_${t.name}`).replace(/[^\w-]+/g,'_')+'.pdf');closeSheet()}
 
 // ---------------- OMR: rasmdan titulni o'qish
 function omrGray(cv){const c=cv.getContext('2d',{willReadFrequently:true}),w=cv.width,h=cv.height,id=c.getImageData(0,0,w,h),d=id.data,g=new Uint8Array(w*h);
@@ -2737,7 +2749,7 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const c=X.cl[SC.c
     ${left.length&&P('kiritish')?`<button class="btn sec" data-sa="absRest">Qolgan ${left.length} tasini “Kelmadi” deb belgilash</button>`:''}<button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   const r=SC.res,q=r.qr,keyLen=q.qn;
   el.innerHTML=`${top}<div class="scan-body">
-   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div><div class="note">${r.st.num}-maktab · ${esc(r.st.cls)}</div>`
+   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div><div class="note">${mkN(r.st)} · ${esc(r.st.cls)}</div>`
      :`<div class="n" style="font-weight:700">Zaxira titul</div><div class="note">Bola ismini titulga qo’lda yozgan</div>`}</div><span class="pill gold">${VL(q.v)}-variant</span></div>
     ${r.st?'':(()=>{const left=scanSt().filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));return `${left.length?`<p class="note" style="margin:0">Titulda yozilgan bola ro’yxatda bo’lsa, ismini bosing:</p><div class="spk">${left.map(s=>`<button data-sa="pick" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div><p class="note" style="margin:0">Ro’yxatda yo’q bo’lsa — familiya va ismini yozing, u shu sinfga yangi o’quvchi bo’lib qo’shiladi:</p>`:''}<label class="field"><input id="scName" type="text" autocomplete="off" placeholder="Familiya Ism"></label>`})()}
     ${r.other?`<div class="note" style="color:var(--wrong)">Bu bola ${esc(r.st.cls)} sinfdan. Natija o’z sinfiga yoziladi.</div>`:''}
@@ -2801,9 +2813,9 @@ function scrExam(id){
    ${canKey()?`<button class="lnk" data-xv="bank" style="align-self:flex-start">Testlar bazasiga o’tish</button>`:''}`;
   const s2=`<p class="note" style="margin:0">Har bir bolaga ismi va QR kodi yozilgan titul chiqadi, A4 ga ikkitadan. Chop etishda “Asl o’lcham (100%)”ni tanlang.</p>
    <div class="card list">${e.schools.map(sid=>{const n=e.st.filter(s=>s.school_id===sid).length,k=e.cls.filter(c=>c.school_id===sid).length;
-    return `<div class="row"><div class="m"><div class="n">${X.sc[sid]?.num}-maktab</div><div class="s">${k} sinf · ${n} o’quvchi</div></div><button class="btn sec sm" data-act="xTitul" data-k="school" data-id="${sid}" data-t="${t.id}">🖨 Titullar</button></div>`}).join('')}</div>`;
+    return `<div class="row"><div class="m"><div class="n">${mkN(X.sc[sid])}</div><div class="s">${k} sinf · ${n} o’quvchi</div></div><button class="btn sec sm" data-act="xTitul" data-k="school" data-id="${sid}" data-t="${t.id}">🖨 Titullar</button></div>`}).join('')}</div>`;
   const s3=`${e.schools.map(sid=>{const l=e.st.filter(s=>s.school_id===sid),d=l.filter(s=>R(s.id,t.id)).length,cl=e.cls.filter(c=>c.school_id===sid).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true}));
-    return `<details class="card xsch"${e.schools.length===1?' open':''}><summary><div class="m"><div class="n">${X.sc[sid]?.num}-maktab</div><div class="s">${d} / ${l.length} tekshirildi</div><div class="bar" style="margin:4px 0 0"><i style="width:${l.length?d/l.length*100:0}%"></i></div></div></summary>
+    return `<details class="card xsch"${e.schools.length===1?' open':''}><summary><div class="m"><div class="n">${mkN(X.sc[sid])}</div><div class="s">${d} / ${l.length} tekshirildi</div><div class="bar" style="margin:4px 0 0"><i style="width:${l.length?d/l.length*100:0}%"></i></div></div></summary>
      <div class="list">${cl.map(c=>{const cs=l.filter(s=>s.class_id===c.id),cd=cs.filter(s=>R(s.id,t.id)).length;
       return `<div class="row xcls"><div class="m"><div class="n">${esc(c.name)} <span class="note">${cd} / ${cs.length}</span></div></div>
        ${P('kiritish')?`<button class="btn pri sm" data-act="scan" data-id="${c.id}" data-t="${t.id}">📷 Skaner</button><button class="btn sec sm" data-go="entry:${c.id}">✎ Qo’lda</button><button class="btn sec sm" data-act="xTitul" data-k="class" data-id="${c.id}" data-t="${t.id}" aria-label="Titullar">🖨</button>`:''}</div>`}).join('')}</div>
@@ -2826,7 +2838,7 @@ function scrExam(id){
 // sinf bo'yicha qo'lda kiritish (imtihon → tekshirish → "Qo'lda")
 function scrClassEntry(cid){const c=X.cl[cid],t=curTest();if(!c||!t)return ['Topilmadi','',''];
   const l=X.st.filter(s=>s.class_id===cid).sort((a,b)=>a.name.localeCompare(b.name,'uz'));const d=l.filter(s=>R(s.id)).length;
-  return [`${X.sc[c.school_id]?.num}-maktab · ${c.name}`,t.name,`<div class="card pad"><div class="sec-h"><span class="note">Kiritildi</span><b class="num">${d} / ${l.length}</b></div><div class="bar" style="margin:0"><i style="width:${l.length?d/l.length*100:0}%"></i></div></div>
+  return [`${mkN(X.sc[c.school_id])} · ${c.name}`,t.name,`<div class="card pad"><div class="sec-h"><span class="note">Kiritildi</span><b class="num">${d} / ${l.length}</b></div><div class="bar" style="margin:0"><i style="width:${l.length?d/l.length*100:0}%"></i></div></div>
    <div class="card list">${l.map(entryRow).join('')}</div>${absBtn('class',cid,l.length-d)}`]}
 
 // ================================================================ MISOLLAR BAZASI: mavzular daraxti, rasmli misollar, paket, test tuzish, PDF test
@@ -3231,7 +3243,7 @@ function screen(){
     if(k==='exam')return scrExam(+v); if(k==='pbt')return scrPBTopic(v); if(k==='tuzish')return scrTZ(); if(k==='entry')return v?scrClassEntry(+v):scrEntry();
     if(k==='tests')return scrTests(); if(k==='bank')return scrBank(); if(k==='pins')return scrPins(); if(k==='team')return scrTeam(); if(k==='history')return scrHistory();
     if(k==='savat')return scrTrash(); if(k==='rtopic')return scrRahTopic(v); if(k==='rtahlil')return scrRahbarAnalysis();
-    if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='demo')return scrDemo(); if(k==='resimport')return scrResImport();
+    if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='demo')return scrDemo(); if(k==='timport')return scrTImport(); if(k==='resimport')return scrResImport();
     if(k==='certs')return scrCerts(); if(k==='mashq')return scrExTeam(); if(k==='settings')return scrSettings(); if(k==='reyting')return scrRanking(); if(k==='yuqori')return scrTop();}
   const r=S.me.role;
   if(tab==='xabar')return scrMessages();
@@ -3341,6 +3353,22 @@ const NP_TROPHY='/a/kubok.webp?v=1';
 const NP_REG='/a/registon.webp?v=1';
 const NP_CROWN='/a/toj.png?v=1';
 const UZR=[["uz-qr", "Qoraqalpog‘iston Respublikasi", 122, 115, "M216 196L226 210L218 214L215 214L211 208L205 201L200 198L190 196L187 200L184 200L181 196L178 195L166 184L163 178L160 177L157 172L157 169L151 167L146 169L147 171L146 172L144 170L139 169L138 167L141 166L141 160L143 159L142 157L140 156L137 152L131 152L124 153L117 150L116 149L115 143L112 140L109 141L104 140L95 128L94 129L93 133L91 134L84 132L78 134L79 136L84 139L90 150L87 151L86 150L86 146L84 144L81 142L77 142L76 140L73 141L70 143L71 146L69 151L67 152L68 154L60 156L60 151L52 146L47 148L40 165L36 167L35 177L37 181L37 186L38 189L41 191L36 196L28 193L0 190L14 20L99 0L101 1L100 6L95 12L93 19L88 29L88 33L90 41L87 47L88 50L89 52L92 52L97 49L103 41L102 40L100 40L101 37L103 36L104 39L106 38L104 35L105 29L106 29L107 24L102 27L101 25L103 22L107 18L105 15L104 11L106 4L128 21L119 39L120 43L133 57L132 60L131 61L129 65L129 67L137 66L142 64L143 62L141 61L142 58L146 58L147 54L145 44L147 40L148 35L179 58L183 68L210 99L212 100L215 106L217 108L226 110L226 111L206 150L205 160L210 169L202 174L201 176L216 196Z"], ["uz-an", "Andijon viloyati", 572, 208, "M566 197L569 196L570 194L572 195L576 196L576 198L578 198L581 201L590 201L590 203L595 200L597 202L600 201L599 204L588 210L587 215L585 215L584 217L582 219L577 217L574 215L573 215L574 219L577 222L576 224L575 225L570 222L569 218L564 216L556 216L554 213L549 212L548 214L545 210L546 209L545 207L547 204L556 202L561 203L565 202L566 197Z"], ["uz-bu", "Buxoro viloyati", 282, 249, "M294 309L292 307L287 309L285 308L270 298L261 288L230 266L225 260L224 255L224 253L222 241L216 237L223 228L225 224L223 221L218 214L226 210L216 196L228 192L231 192L244 211L252 214L257 217L268 223L270 227L274 225L279 217L281 216L283 217L283 222L285 224L295 225L296 220L306 218L307 216L309 224L312 226L315 227L327 227L327 235L324 235L320 244L315 244L312 243L310 244L311 247L310 250L312 252L309 253L307 256L304 259L301 264L304 269L308 272L310 271L315 274L316 278L320 281L321 284L311 293L310 295L312 298L312 299L299 304L294 309Z"], ["uz-ji", "Jizzax viloyati", 410, 243, "M444 246L442 247L446 249L444 252L445 256L444 262L444 270L444 272L441 274L441 275L435 277L414 273L411 274L408 277L405 277L405 280L403 280L398 276L398 272L400 271L400 267L405 265L403 259L389 257L387 254L384 254L384 252L385 249L383 246L382 240L382 238L381 236L372 235L378 222L376 217L373 216L371 214L371 208L371 207L375 205L377 205L410 201L413 203L416 200L420 207L423 206L422 215L419 218L422 219L429 224L429 227L426 228L426 231L428 231L424 241L425 245L434 244L444 241L444 246Z"], ["uz-qa", "Qashqadaryo viloyati", 366, 309, "M401 290L400 293L401 294L409 295L412 297L413 302L408 304L407 305L409 310L408 316L405 315L403 316L401 321L398 323L395 327L394 332L390 336L386 337L384 342L379 346L378 351L377 352L374 349L370 349L365 347L362 344L349 339L347 339L344 341L339 341L324 331L316 324L303 318L294 309L299 304L312 299L312 298L310 295L311 293L321 284L325 283L340 283L342 281L342 280L345 280L347 283L350 286L351 290L355 290L360 288L366 286L370 289L376 284L383 285L384 290L389 290L390 288L401 290Z"], ["uz-nw", "Navoiy viloyati", 312, 215, "M375 205L371 207L371 208L371 214L373 216L376 217L378 222L372 235L371 232L368 229L363 232L360 230L357 234L358 237L357 239L357 245L355 252L357 253L354 256L346 258L340 256L338 254L333 253L331 264L328 264L325 263L324 265L320 266L320 267L322 270L324 273L322 278L325 283L324 283L321 284L320 281L316 278L315 274L310 271L308 272L304 269L301 264L304 259L307 256L309 253L312 252L310 250L311 247L310 244L312 243L315 244L320 244L324 235L327 235L327 227L326 227L312 226L309 224L307 216L306 218L296 220L295 225L285 224L283 222L283 217L281 216L279 217L274 225L270 227L268 223L257 217L252 214L244 211L231 192L228 192L216 196L201 176L202 174L210 169L205 160L206 150L226 111L226 110L217 108L212 100L251 93L292 96L306 89L309 88L321 102L329 107L339 126L349 121L349 146L347 148L348 166L348 167L365 166L367 178L373 203L375 205Z"], ["uz-ng", "Namangan viloyati", 533, 196, "M545 210L540 213L535 218L528 215L530 212L523 212L517 216L517 214L512 213L512 211L515 212L514 211L505 203L505 197L503 195L503 191L502 191L502 189L504 185L509 181L512 182L514 185L515 191L517 191L520 193L524 193L528 194L530 196L530 193L531 192L534 195L535 193L537 195L538 193L537 185L538 184L541 186L543 185L544 180L543 177L544 174L546 175L546 179L548 178L553 184L554 190L557 189L559 191L562 189L564 190L566 197L565 202L561 203L556 202L547 204L545 207L546 209L545 210Z"], ["uz-sa", "Samarqand viloyati", 362, 265, "M403 280L402 289L401 290L390 288L389 290L384 290L383 285L376 284L370 289L366 286L360 288L355 290L351 290L350 286L347 283L345 280L342 280L342 281L340 283L325 283L322 278L324 273L322 270L320 267L320 266L324 265L325 263L328 264L331 264L332 258L331 258L333 253L334 253L338 254L340 256L346 258L354 256L357 253L355 252L357 245L357 239L358 237L357 234L360 230L363 232L368 229L371 232L372 235L381 236L383 246L385 249L384 252L384 254L387 254L389 257L403 259L405 265L400 267L400 271L398 272L398 276L403 280Z"], ["uz-su", "Surxondaryo viloyati", 406, 346, "M377 352L378 351L379 346L384 342L386 337L390 336L394 332L395 327L398 323L401 321L403 316L405 315L408 316L409 310L407 305L408 304L413 302L419 303L422 302L425 303L427 302L431 309L429 311L427 311L428 314L426 316L427 323L429 328L433 332L438 336L440 339L436 350L432 352L430 357L422 370L421 375L422 380L421 386L420 384L415 383L412 384L411 382L409 382L406 385L401 387L399 384L396 383L395 380L392 378L382 379L380 380L374 380L373 378L375 376L373 372L373 360L377 353L377 352Z"], ["uz-si", "Sirdaryo viloyati", 446, 237, "M446 249L454 247L456 248L456 250L453 250L450 252L449 250L450 254L453 258L452 260L449 255L448 255L450 259L449 262L446 260L445 261L445 256L444 252L446 249ZM459 243L457 243L444 246L444 241L434 244L425 245L424 241L428 231L426 231L426 228L429 227L429 224L436 228L439 226L441 227L442 223L441 221L440 221L439 216L439 212L442 210L444 212L445 215L448 215L453 221L454 222L456 222L455 223L457 223L459 226L458 229L460 232L459 238L460 241L459 243Z"], ["uz-ta", "Toshkent viloyati", 482, 195, "M504 185L502 189L502 191L503 191L503 195L505 197L505 203L502 202L501 207L499 209L490 216L484 218L481 221L478 222L473 216L470 215L467 216L466 219L466 224L464 226L462 228L467 236L467 239L464 239L467 244L464 244L459 243L460 241L459 238L460 232L458 229L459 226L457 223L455 223L456 222L454 222L453 221L448 215L445 215L444 212L442 210L444 209L445 205L448 203L449 200L452 200L455 197L455 193L454 190L460 185L466 185L466 181L474 175L483 172L491 165L493 161L495 159L496 156L501 153L504 156L506 155L510 147L512 147L515 146L519 142L521 142L528 145L527 147L523 149L519 153L514 155L514 159L513 160L509 161L505 165L502 170L492 179L494 181L499 181L504 185Z"], ["uz-fa", "Farg‘ona viloyati", 538, 233, "M556 250L552 248L555 246L556 246L556 250ZM534 245L536 244L537 246L535 248L536 250L536 252L533 253L531 252L530 253L529 252L530 249L526 244L527 241L529 241L530 243L534 245ZM545 210L548 214L549 212L554 213L556 216L564 216L569 218L570 222L565 224L565 227L561 230L561 231L563 233L557 233L555 237L553 239L552 239L550 234L549 234L548 237L544 236L543 234L540 233L537 233L535 232L534 235L529 235L527 235L526 237L514 240L513 239L511 235L509 233L507 234L505 233L505 231L504 229L505 227L507 226L519 214L521 214L523 212L530 212L528 215L535 218L540 213L545 210Z"], ["uz-kh", "Xorazm viloyati", 179, 197, "M218 214L223 221L225 224L223 228L216 237L211 227L209 220L208 214L205 208L197 203L191 200L189 200L188 203L184 207L182 206L178 203L174 204L172 203L170 202L156 203L143 195L142 193L143 189L146 186L143 180L142 178L144 176L148 178L149 176L146 172L147 171L146 169L151 167L157 169L157 172L160 177L163 178L166 184L178 195L181 196L184 200L187 200L190 196L200 198L205 201L211 208L215 214L218 214Z"], ["uz-tk", "Toshkent shahri", 463, 192, "M466 193L462 196L458 194L459 190L461 188L465 189L465 191L466 193Z"]];
+// ======== TUMAN RO'YXATINI YUKLASH (bir martalik, faqat CEO) ========
+let TIMP={data:null,plan:null,done:null,busy:false,err:''};
+function scrTImport(){
+  const p=TIMP.plan,d=TIMP.done;
+  const box=(t,v)=>`<div class="card pad" style="flex:1;min-width:130px;gap:2px"><div style="font-size:24px;font-weight:800">${nfm(v)}</div><div class="note">${t}</div></div>`;
+  const sum=x=>`<div style="display:flex;flex-wrap:wrap;gap:10px">${box('yangi qo’shiladi',x.added)}${box('saytda bor — ma’lumoti to’ldiriladi',x.matched)}${box('boshqa sinfga ko’chadi',x.moved)}${box('yangi maktab',x.schoolsNew)}${box('yangi sinf',x.classesNew)}${box('birlashtiriladi (takror)',x.merged)}${box('tekshirish belgisi',x.flagged)}${x.skipped?box('o’tkazib yuborildi',x.skipped):''}</div>`;
+  return ['Tuman ro’yxatini yuklash','Bir martalik · faqat CEO',`
+  <div class="card pad"><p style="margin:0">Claude tayyorlagan <b>tuman ro’yxati</b> faylini (.json) tanlang. Avval sayt nima o’zgarishini <b>ko’rsatadi</b>, siz tasdiqlaganingizdan keyingina kiritadi. Kiritishdan oldin butun bazaning nusxasi avtomatik olinadi.</p>
+  <p class="note" style="margin:8px 0 0">Kiritiladi: familiya, ism, otasining ismi, sinf, ID. Kiritilmaydi: JShShIR, hujjat, tug’ilgan sana, millat, telefon.</p></div>
+  ${d?`<div class="card pad" style="border-color:#16a34a;background:#f0fdf4"><b>✓ Kiritildi</b></div>${sum(d)}`:p?`<p class="label" style="margin:6px 2px 0">Ko’rib chiqish — hali hech narsa o’zgarmadi</p>${sum(p)}
+   <button class="btn pri" data-act="timpGo" ${TIMP.busy?'disabled':''}>${TIMP.busy?'Kiritilmoqda…':'✓ Tasdiqlash va kiritish'}</button>`:`<label class="btn pri" style="text-align:center;cursor:pointer">📂 Faylni tanlash<input type="file" id="timpF" accept=".json,application/json" hidden></label>`}
+  ${TIMP.busy&&!p?'<p class="note">Fayl tekshirilmoqda…</p>':''}${TIMP.err?`<p class="note" style="color:#dc2626">${esc(TIMP.err)}</p>`:''}`]}
+document.addEventListener('change',async e=>{if(e.target.id!=='timpF')return;const f=e.target.files[0];if(!f)return;TIMP.err='';TIMP.busy=true;render();
+  try{TIMP.data=JSON.parse(await f.text());TIMP.plan=await api('tuman.import',{data:TIMP.data,dry:true})}catch(x){TIMP.err=x.message||'Fayl o’qilmadi'}TIMP.busy=false;render()});
+async function timpGo(){if(!TIMP.data||!confirm('Ro’yxat bazaga kiritilsinmi? Oldin avtomatik zaxira nusxa olinadi.'))return;TIMP.busy=true;render();
+  try{TIMP.done=await api('tuman.import',{data:TIMP.data,dry:false});TIMP.plan=null;toast('Ro’yxat kiritildi ✓');await load()}catch(x){TIMP.err=x.message}TIMP.busy=false;render()}
 // ======== NAMUNA KABINET (faqat CEO) ========
 let DEMOI=null;
 const DEMO_PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxatini ko’rish',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish',sertifikat:'Sertifikat berish va bekor qilish'};
@@ -3403,13 +3431,13 @@ const npAgo=t=>{const m=Math.max(1,Math.round((Date.now()-Date.parse(t))/60000))
 function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
   const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC={maktab:'school',sinf:'school',oquvchi:'user',natija:'clip',sertifikat:'award',pin:'key',sinov:'clip',test:'file',e:'chat'};
   return RECENT.slice(0,5).map(h=>{const k=Object.keys(IC).find(x=>h.action.startsWith(x))||'clock';const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
-    return `<div class="nr">${npIc(IC[k]||'clock')}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+d.num+'-maktab':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
+    return `<div class="nr">${npIc(IC[k]||'clock')}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+mkN(d)+'':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
 function nToday(d){const b=d?.bugun||{};const r=[['Yangi maktab ulandi',b.sch],['Yangi foydalanuvchi',b.users],['Yangi obuna',b.obuna],['O’tkazilgan testlar',b.tests]];
   return `<div class="nc"><div class="nc-h"><h3><img class="hi" src="${NP_CROWN}" alt="">Bugungi muhim ko’rsatkichlar</h3></div>${r.map(([l,v])=>`<div class="ntd"><span class="ok">✓</span><span>${l}</span><b>${nfm(v??0)}</b></div>`).join('')}</div>`}
 function nGrades(){const g=[2,3,4].map(k=>[k,X.st.filter(s=>s.grade===k).length]);const mx=Math.max(1,...g.map(x=>x[1]));const top=Math.ceil(mx/4)*4||4;const C=[['#38bdf8','#2563eb'],['#86efac','#16a34a'],['#c4b5fd','#7c3aed']];
   return `<div class="nc"><div class="nc-h"><h3>${nic('users','#2563eb',2.4)}Sinflar bo’yicha o’quvchilar soni</h3></div><div class="ngb"><div class="ngy">${[4,3,2,1,0].map(i=>`<span>${nfm(Math.round(top*i/4))}</span>`).join('')}</div>${g.map(([k,n],i)=>`<div class="ngc"><b>${nfm(n)}</b><i style="height:${n/top*100}%;background:linear-gradient(${C[i][0]},${C[i][1]})"></i><span>${k}-sinf</span></div>`).join('')}</div></div>`}
 function nActive(){const t=curTest();const l=t?S.schools.filter(s=>!s.test).map(sc=>({sc,v:avgPct(X.st.filter(s=>s.school_id===sc.id),t.id)})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,5):[];
-  return `<div class="nc"><div class="nc-h"><h3>🏅 Eng faol maktablar <small>(o’rtacha natija)</small></h3></div>${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${x.sc.num}-maktab (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
+  return `<div class="nc"><div class="nc-h"><h3>🏅 Eng faol maktablar <small>(o’rtacha natija)</small></h3></div>${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${mkN(x.sc)} (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
 function nGifted(){const t=curTest();const n=t?X.st.filter(s=>{const p=pct(R(s.id,t.id));return p!=null&&p>=70}).length:0;
   return `<button class="nc ngf" data-side="yuqori"><div class="nc-h"><h3><img class="hi" src="${NP_CROWN}" alt="">Iqtidorli o’quvchilar</h3></div><div class="ngf-b">${typeof NP_GIFT!=='undefined'&&NP_GIFT?`<img src="${NP_GIFT}" alt="">`:''}<b>${nfm(n)}</b><span>&gt; 70%</span></div></button>`}
 function nRegions(){const t=curTest();const v=t?avgPct(X.st.filter(s=>!X.sc[s.school_id]?.test),t.id):null;
@@ -3469,13 +3497,13 @@ function nToday(d){const b=d?.bugun||{};const r=[['Yangi maktab ulandi',b.sch],[
 function nGrades(){const g=[2,3,4].map(k=>[k,X.st.filter(s=>s.grade===k).length]);const mx=Math.max(1,...g.map(x=>x[1]));const top=Math.ceil(mx/5)*5||5;const C=[['#4cc3ff','#1d8cf0'],['#7be08f','#2fb34a'],['#c9a2ff','#9b5cf6']];
   return `<div class="nc e-gr">${hT('grp','#2563eb','Sinflar bo’yicha o’quvchilar soni')}<div class="ngb"><div class="ngy">${[5,4,3,2,1,0].map(i=>`<span>${nfm(Math.round(top*i/5))}</span>`).join('')}</div>${g.map(([k,n],i)=>`<div class="ngc"><b>${nfm(n)}</b><i style="height:${n/top*100}%;background:linear-gradient(${C[i][0]},${C[i][1]})"></i><span>${k}-sinf</span></div>`).join('')}</div></div>`}
 function nActive(){const t=curTest();const l=t?S.schools.filter(s=>!s.test).map(sc=>({sc,v:avgPct(X.st.filter(s=>s.school_id===sc.id),t.id)})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,5):[];
-  return `<div class="nc e-act">${hT('medal','#2563eb','Eng faol maktablar <small>(o’rtacha natija)</small>')}${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${x.sc.num}-maktab (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
+  return `<div class="nc e-act">${hT('medal','#2563eb','Eng faol maktablar <small>(o’rtacha natija)</small>')}${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${mkN(x.sc)} (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
 function nGifted(){const t=curTest();const n=t?X.st.filter(s=>{const p=pct(R(s.id,t.id));return p!=null&&p>=70}).length:0;
   return `<button class="nc ngf" data-side="yuqori">${hT('cup','#f5a400','Iqtidorli o’quvchilar')}<div class="ngf-b"><img src="${NP_GIFT}" alt=""><b>${nfm(n)}</b><span>&gt; 70%</span></div></button>`}
 function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
   const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC=[['maktab','school','#2563eb'],['sinf','school','#2563eb'],['oquvchi','user','#7c3aed'],['natija','clip','#7c3aed'],['sertifikat','award','#16a34a'],['pin','key','#16a34a'],['sinov','clip','#7c3aed'],['dars','play','#7c3aed'],['test','file','#2563eb']];
   return RECENT.slice(0,5).map(h=>{const k=IC.find(x=>h.action.startsWith(x[0]))||['','clock','#2563eb'];const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
-    return `<div class="nr">${SV(NPI[k[1]]||EI.clock,k[2],1.9)}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+d.num+'-maktab':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
+    return `<div class="nr">${SV(NPI[k[1]]||EI.clock,k[2],1.9)}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+mkN(d)+'':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
 function nRegions(){const t=curTest();const v=t?avgPct(X.st.filter(s=>!X.sc[s.school_id]?.test),t.id):null;
   return `<div class="nc e-reg">${hT('star','#f5a400','Hududlar kesimida o’zlashtirish')}<div class="nrg"><svg viewBox="0 0 600 390" class="nmap">${UZR.map(([k,n,cx,cy,d])=>`<path d="${d}" fill="${k==='uz-bu'?'#1d6fe0':'#7fb6f5'}" stroke="#fff" stroke-width="1.5"><title>${n}</title></path>`).join('')}<circle cx="295" cy="277" r="7" fill="#f5c400" stroke="#fff" stroke-width="2.5"/></svg>
    <div class="nrl"><div class="nas"><span class="dot"></span><span class="nn">Buxoro viloyati</span><span class="nb"><i style="width:${v??0}%"></i></span><b>${v!=null?Math.round(v)+'%':'—'}</b></div></div></div></div>`}
@@ -3655,7 +3683,7 @@ function formSheet(title,fields,act,extra='',btn='Saqlash'){
    :`<label class="field"><span class="label">${f.label}</span><input id="${f.id}" type="${f.type||'text'}" inputmode="${f.mode||'text'}" value="${esc(f.value??'')}" placeholder="${esc(f.ph||'')}">${f.hint?`<span class="note" style="margin-top:4px;font-size:12.5px">${f.hint}</span>`:''}</label>`).join('')}
   ${extra}<button class="btn pri" data-act="${act}">${btn}</button>`)}
 const val=id=>($('#'+id)?.value||'').trim();
-const classOpts=()=>S.classes.map(c=>[c.id,`${X.sc[c.school_id].num}-maktab · ${c.name}`]);
+const classOpts=()=>S.classes.map(c=>[c.id,`${mkN(X.sc[c.school_id])} · ${c.name}`]);
 
 // ---------------- excel import
 async function loadXLSX(){if(window.XLSX)return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=()=>no(new Error('Excel o’quvchi yuklanmadi. Internetni tekshiring.'));document.head.appendChild(s)})}
@@ -3732,6 +3760,7 @@ document.addEventListener('click',async e=>{
    case 'install':await doInstall();break;
    case 'pushOn':await pushOn();break;
    case 'demoGo':await demoGo(d.r);break;
+   case 'timpGo':await timpGo();break;
    case 'demoExit':await demoExit();break;
    case 'demoReset':if(!confirm('Namuna kabinetdagi hamma o’zgarishlar o’chib, boshlang’ich holatga qaytadi. Davom etasizmi?'))break;await api('demo.reset');DEMOI=null;toast('Namuna tozalandi ✓');render();break;
    case 'nopush':ls.set('nopush',true);render();break;
@@ -3836,7 +3865,7 @@ document.addEventListener('click',async e=>{
    case 'trRestore':{await api('trash.restore',{id:+d.id});TRASH=null;toast('Qaytarildi');await load();break}
    case 'trPurgeAll':{if(!confirm(`Savatdagi ${TRASH.length} ta narsaning hammasi butunlay o’chirilsinmi? Ularni keyin qaytarib bo’lmaydi.`))break;if(!confirm('Rostdan ham hammasini o’chiraymi? Bu oxirgi so’rov.'))break;const r=await api('trash.purgeAll');TRASH=null;toast(r.n+' ta narsa butunlay o’chirildi');render();break}
    case 'trPurge':{if(!confirm('Butunlay o’chirilsinmi? Keyin qaytarib bo’lmaydi.'))break;await api('trash.purge',{id:+d.id});TRASH=null;toast('Butunlay o’chirildi');render();break}
-   case 'absRest':{const n=+d.n,where=d.k==='class'?`${X.cl[+d.id]?.name} sinfida`:`${X.sc[+d.id]?.num}-maktabda`;
+   case 'absRest':{const n=+d.n,where=d.k==='class'?`${X.cl[+d.id]?.name} sinfida`:`${mkN(X.sc[+d.id])}da`;
      if(!confirm(`${where} natijasi kiritilmagan ${n} ta bola “Kelmadi” deb belgilanadi.\n\nBarcha kelgan bolalar natijasi kiritib bo’lindimi?`))break;
      const r=await api('results.absentRest',{test_id:testId,[d.k==='class'?'class_id':'school_id']:+d.id});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();break}
    case 'toCheck':{const t=S.tests.find(x=>x.id===+d.id);if(!t)break;if(!confirm('Barcha maktablarda sinov o’tkazildimi? Sinov Tekshiruv bosqichiga o’tadi.'))break;

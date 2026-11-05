@@ -289,7 +289,7 @@ function state(u) {
     out.schools = all('SELECT * FROM schools ORDER BY num').filter(x => x.id !== DM.school);
     out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name').filter(x => x.school_id !== DM.school);
     const okC = new Set(out.classes.map(c => c.id));
-    out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').filter(x => okC.has(x.class_id)).map(s => ({ ...s, avatar: kidPh(s.avatar) }));
+    out.students = all('SELECT id,class_id,name,phone,avatar,patronymic,flag FROM students WHERE active=1 ORDER BY name').filter(x => okC.has(x.class_id)).map(s => ({ ...s, avatar: kidPh(s.avatar) }));
     const okS = new Set(out.students.map(x => x.id));
     out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq FROM results').filter(r => okS.has(r.student_id) || !one('SELECT 1 FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND c.school_id=?', r.student_id, DM.school));
     if (!P.ceo && !P.kalit) for (const r of out.results) r.answers = r.answers ? r.answers.replace(/[A-E]/g, '•') : r.answers; // javoblar + belgilar = kalit; kalit huquqi yo'qlarga berilmaydi
@@ -1859,6 +1859,81 @@ function recipients(t, fromId) {
   if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
+// ======== TUMAN RO'YXATI: rasmiy ro'yxatdan 1–4-sinflarni bir martada kiritish (faqat CEO) ========
+// Faqat familiya, ism, otasining ismi, sinf va ID saqlanadi. JShShIR, hujjat, tug'ilgan sana, millat va telefonlar KIRITILMAYDI.
+try { db.exec("ALTER TABLE students ADD COLUMN patronymic TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE students ADD COLUMN ext_id TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE students ADD COLUMN flag TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec('CREATE INDEX IF NOT EXISTS ix_students_ext ON students(ext_id)'); } catch (e) { }
+const impKey = n => String(n || '').toLowerCase().replace(/[`‘’'ʻʼ´]/g, '').replace(/x/g, 'h').replace(/q/g, 'k').replace(/\s+/g, ' ').trim();
+function tumanImport(u, data, dry) {
+  const schools = Array.isArray(data?.schools) ? data.schools : [], rows = Array.isArray(data?.rows) ? data.rows : [], fx = data?.fixes || {};
+  if (!schools.length || !rows.length) bad('Fayl noto‘g‘ri: maktablar yoki o‘quvchilar topilmadi');
+  const DS = demoIds().school;
+  const st = { schoolsNew: 0, classesNew: 0, added: 0, matched: 0, moved: 0, renamed: 0, merged: 0, flagged: 0, skipped: 0, bySchool: {} };
+  db.exec('BEGIN');
+  try {
+    const sid = {};
+    for (const s of schools) {
+      let r = s.num ? one('SELECT id FROM schools WHERE num=?', +s.num) : one('SELECT id FROM schools WHERE lower(name)=lower(?)', String(s.name));
+      if (!r) {
+        let num = +s.num || 0; if (!num) { num = 101; while (one('SELECT 1 FROM schools WHERE num=?', num)) num++; }
+        r = { id: Number(run('INSERT INTO schools(num,name,created_at) VALUES(?,?,?)', num, s.num ? '' : str(s.name, 120), now()).lastInsertRowid) }; st.schoolsNew++;
+      }
+      if (r.id === DS) bad('Namuna maktab bilan to‘qnashuv'); sid[s.key] = r.id;
+    }
+    const clsId = (school, name) => { const cn = clsName(name); if (!cn) return 0; let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', school, cn);
+      if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', school, cn, gradeOf(cn)).lastInsertRowid) }; st.classesNew++; } return c.id; };
+    const findSt = (key, cls, name) => one('SELECT s.* FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1 AND c.school_id=? AND c.name=? AND s.name=?', sid[key], clsName(cls), name);
+    // 1) qo'lda aniqlangan tuzatishlar: ikki marta yozilganlarni birlashtirish, ism to'g'rilash, belgi qo'yish
+    for (const m of fx.merge || []) {
+      const k = findSt(m.school, m.cls, m.keep), d = findSt(m.school, m.cls, m.drop); if (!k || !d || k.id === d.id) continue;
+      for (const r of all('SELECT * FROM results WHERE student_id=?', d.id)) {
+        const kr = one('SELECT * FROM results WHERE test_id=? AND student_id=?', r.test_id, k.id);
+        if (!kr) run('UPDATE results SET student_id=? WHERE id=?', k.id, r.id);
+        else if (kr.absent && !r.absent) { run('DELETE FROM results WHERE id=?', kr.id); run('UPDATE results SET student_id=? WHERE id=?', k.id, r.id); }
+        else run('DELETE FROM results WHERE id=?', r.id);
+      }
+      for (const t of ['notes', 'rnotes', 'ex_answers', 'iresults', 'certificates']) { try { run(`UPDATE OR IGNORE ${t} SET student_id=? WHERE student_id=?`, k.id, d.id); } catch (e) { } }
+      run('UPDATE students SET active=0 WHERE id=?', d.id); st.merged++;
+    }
+    for (const m of fx.rename || []) { const s = findSt(m.school, m.cls, m.from); if (s) { run('UPDATE students SET name=? WHERE id=?', m.to, s.id); st.renamed++; } }
+    for (const m of fx.flag || []) { const s = findSt(m.school, m.cls, m.name); if (s) { run('UPDATE students SET flag=? WHERE id=?', str(m.note, 200), s.id); st.flagged++; } }
+    const moveTo = {}; for (const m of fx.move || []) { const s = findSt(m.school, m.cls, m.name); if (s) moveTo[m.id] = s.id; }
+    // 2) asosiy ro'yxat
+    const claimed = new Set();
+    const pool = {}; // maktab -> saytdagi faol bolalar
+    for (const key of Object.keys(sid)) pool[key] = all('SELECT s.id,s.name,s.ext_id,c.name cls FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1 AND c.school_id=?', sid[key]);
+    for (const r of rows) {
+      const school = sid[r.s]; if (!school) { st.skipped++; continue; }
+      const name = fixName(r.n, 120), pat = fixName(r.p || '', 120), ext = str(r.id, 40), cid = clsId(school, r.c);
+      if (!cid || name.split(' ').length < 2) { st.skipped++; continue; }
+      const bs = (st.bySchool[r.s] ||= { added: 0, matched: 0 });
+      let ex = (ext && one('SELECT id,class_id FROM students WHERE ext_id=? AND active=1', ext)) || (moveTo[ext] ? one('SELECT id,class_id FROM students WHERE id=?', moveTo[ext]) : null);
+      if (!ex) { const k = impKey(name), p = pool[r.s] || [];
+        const c = p.filter(x => !claimed.has(x.id) && !x.ext_id && impKey(x.name) === k);
+        const pick = c.find(x => x.cls === clsName(r.c)) || c[0]; if (pick) ex = one('SELECT id,class_id FROM students WHERE id=?', pick.id); }
+      if (ex) {
+        claimed.add(ex.id); if (ex.class_id !== cid) st.moved++;
+        run("UPDATE students SET name=?,patronymic=?,ext_id=?,class_id=?,flag=CASE WHEN ? THEN '' ELSE flag END WHERE id=?", name, pat, ext, cid, moveTo[ext] === ex.id ? 1 : 0, ex.id);
+        st.matched++; bs.matched++;
+      } else {
+        run('INSERT INTO students(class_id,name,patronymic,ext_id,phone,active,created_at) VALUES(?,?,?,?,?,1,?)', cid, name, pat, ext, '', now()); st.added++; bs.added++;
+      }
+    }
+    if (dry) db.exec('ROLLBACK');
+    else { db.exec('COMMIT'); log(u.id, 'royxat.import', { tuman: true, added: st.added, matched: st.matched, moved: st.moved, merged: st.merged, schools: st.schoolsNew }); }
+  } catch (e) { try { db.exec('ROLLBACK'); } catch (x) { } throw e; }
+  return st;
+}
+A['tuman.import'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo, 'Tuman ro‘yxatini faqat CEO kiritadi');
+  if (!b.dry) { // kiritishdan oldin butun bazaning nusxasi (Zaxira nusxa bo'limidan tiklasa bo'ladi)
+    fs.mkdirSync(BACKUPS, { recursive: true });
+    const safe = path.join(BACKUPS, `oldin-${now().slice(0, 19).replace(/:/g, '-')}.db`); db.exec(`VACUUM INTO '${safe.replace(/'/g, "''")}'`);
+  }
+  return tumanImport(u, b.data, !!b.dry);
+};
 // ======== NAMUNA KABINET: CEO har bir rolning kabinetini o'sha odam ko'zi bilan ko'radi ========
 // Namuna ma'lumotlar (yashirin maktab, sinflar, bolalar, foydalanuvchilar) haqiqiy ro'yxat, reyting, statistika va xabarlarga qo'shilmaydi.
 // Namuna foydalanuvchilar active=0 — ular bilan PIN orqali kirib bo'lmaydi, faqat CEO o'z sessiyasidan "ko'zi bilan" ochadi.
@@ -2160,7 +2235,9 @@ function readBody(req, limit = 8e6) {
   return new Promise((res, rej) => { const parts = []; let n = 0; req.on('data', c => { n += c.length; if (n > limit) { rej(new HttpErr(413, 'Juda katta')); req.destroy(); return; } parts.push(c); }); req.on('end', () => res(Buffer.concat(parts).toString('utf8'))); req.on('error', rej); });
 }
 function send(res, code, obj, headers = {}) {
-  const body = typeof obj === 'string' || Buffer.isBuffer(obj) ? obj : JSON.stringify(obj);
+  let body = typeof obj === 'string' || Buffer.isBuffer(obj) ? obj : JSON.stringify(obj);
+  // katta javoblar (masalan, butun tuman ro'yxati) siqib yuboriladi — telefon interneti tejaladi
+  if (typeof body === 'string' && body.length > 20000 && !headers['Content-Encoding'] && /\bgzip\b/.test(res.req?.headers?.['accept-encoding'] || '')) { body = require('node:zlib').gzipSync(body, { level: 5 }); headers = { ...headers, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' }; }
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(body);
 }
 function cookie(req, n) { const m = (req.headers.cookie || '').match(new RegExp('(?:^|; )' + n + '=([^;]+)')); return m ? m[1] : ''; }
