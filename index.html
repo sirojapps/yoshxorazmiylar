@@ -705,6 +705,24 @@ html,body{overscroll-behavior-y:contain}
 /* tepa panel ingichkaroq (5-noyabr) */
 body.nui .nph-d>div,body.nui .nph-mn{line-height:1.1;display:flex;flex-direction:column;gap:1px}body.nui .nph-d small,body.nui .nph-mn small{display:block;margin:0}
 body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20px;height:20px}body.nui .nph-d b{font-size:12.5px;line-height:1.15}body.nui .nph-d small{font-size:11px;line-height:1.1}body.nui .nph-mn b{font-size:12.5px;line-height:1.15}body.nui .nph-mn small{font-size:11px;line-height:1.1}body.nui .nph-me .av{width:32px!important;height:32px!important}body.nui .nph-bell{width:34px;height:34px}body.nui .nph-bell svg{width:21px;height:21px}body.nui .nph-q{width:26px;height:26px;font-size:14px}body.nui .nph-s{height:32px}body.nui .nph-b{font-size:22px}.nph-out{width:34px;height:34px}.nph-out svg{width:20px;height:20px}
+
+/* chap menyu: kompyuterda yig'ish (faqat belgilar) + telefonda silliq surish (5-noyabr) */
+@media (min-width:900px){
+ body.nui .nph-b{display:grid!important;place-items:center;flex:none;width:40px;height:40px;border:0;background:none;font-size:22px;color:#0f2350;cursor:pointer;border-radius:10px}body.nui .nph-b:hover{background:#e2ebf8}
+ body.nui .np{transition:width .28s cubic-bezier(.32,.72,0,1)}body.nui .app{transition:margin-left .28s cubic-bezier(.32,.72,0,1)}
+ body.nui.npc{--sb:76px}
+ body.nui.npc .np-h>div,body.nui.npc .np-role,body.nui.npc .np-reg,body.nui.npc .npi span,body.nui.npc .npi .chv,body.nui.npc .npi i,body.nui.npc .npsub,body.nui.npc .np-old{display:none!important}
+ body.nui.npc .np-h{justify-content:center;padding:12px 0 8px}body.nui.npc .np-h img{width:44px;height:44px}
+ body.nui.npc .np-sc{padding:0 12px}body.nui.npc .npi{justify-content:center;padding:0;position:relative}
+ body.nui.npc .npi em{position:absolute;top:1px;right:4px;padding:1px 5px;font-size:10px}
+ body.nui.npc .np-f{padding-left:10px;padding-right:10px}body.nui.npc .np-out{justify-content:center;font-size:0;gap:0}
+}
+@media (max-width:899px){
+ body.nui .np{will-change:transform;transition:transform .32s cubic-bezier(.32,.72,0,1)!important}
+ body.nui .np-dim{transition:opacity .32s ease}
+ body.nui.np-drag .np{box-shadow:4px 0 14px rgba(15,35,80,.18)}
+ body.nui.np-drag .nbn,body.nui.np-drag .nph,body.nui.np-drag .top,body.nui.np-drag .tabs{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
 </style>
 </head>
 <body>
@@ -3339,9 +3357,9 @@ function npTree(){const tarix=P('tarix');return [
 Object.assign(NPI,{cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M8 11h2M14 11h2"/>'});
 function npPanel(){darsLoad();
   const rows=npTree().map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const open=sub&&NP_EXP[i];
-    if(soon)return `<div class="npi soon">${npIc(ic)}<span>${l}</span><i>${soon}</i></div>`;
+    if(soon)return `<div class="npi soon" title="${l} (tez kunda)">${npIc(ic)}<span>${l}</span><i>${soon}</i></div>`;
     const right=badge?`<em>${badge}</em>`:`<b class="chv${open?' o':''}">›</b>`;
-    return `<button class="npi${on?' on':''}" ${sub?`data-act="npExp" data-i="${i}"`:a}>${npIc(ic)}<span>${l}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
+    return `<button class="npi${on?' on':''}" title="${l}" ${sub?`data-act="npExp" data-i="${i}"`:a}>${npIc(ic)}<span>${l}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
   return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
    <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
    <div class="np-role"><img class="crn" src="${NP_CROWN}" alt=""><div><b>CEO kabineti</b><small>Super Administrator</small></div></div>
@@ -3481,20 +3499,25 @@ document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.
 (function(){const b=document.createElement('div');b.id='netbar';b.hidden=true;document.body.appendChild(b);let t;
  const show=(on)=>{clearTimeout(t);b.className=on?'ok':'off';b.textContent=on?'Internet qaytdi':'Internet yo’q';b.hidden=false;if(on)t=setTimeout(()=>b.hidden=true,2500)};
  addEventListener('offline',()=>{show(false);buzz(40)});addEventListener('online',()=>show(true));if(!navigator.onLine)show(false)})();
-(function(){let sx=0,sy=0,dx=0,st=0,mode='',el=null,dim=null,y0=0,pd=0,ptr=null;
+(function(){let sx=0,sy=0,dx=0,st=0,mode='',el=null,dim=null,y0=0,pd=0,ptr=null,w=300,lx=0,lt=0,vx=0,raf=0;
  const mob=()=>innerWidth<900;
- addEventListener('touchstart',e=>{const tch=e.touches[0];sx=tch.clientX;sy=tch.clientY;dx=0;pd=0;st=Date.now();mode='';el=null;
-  if(mob()&&document.body.classList.contains('np-open')){el=document.querySelector('.np');dim=document.querySelector('.np-dim');mode='np?';return}
+ const paint=()=>{raf=0;if(!el)return;const t=mode==='edge'?Math.min(0,-w+dx):dx;el.style.transform=`translate3d(${t}px,0,0)`;if(dim)dim.style.opacity=String(Math.max(0,Math.min(1,1+t/w)))};
+ const trk=x=>{const n=performance.now(),dt=n-lt;if(dt>0)vx=.7*((x-lx)/dt)+.3*vx;lx=x;lt=n};
+ addEventListener('touchstart',e=>{const tch=e.touches[0];sx=tch.clientX;sy=tch.clientY;dx=0;pd=0;st=Date.now();mode='';el=null;vx=0;lx=sx;lt=performance.now();
+  if(mob()&&document.body.classList.contains('np-open')){el=document.querySelector('.np');dim=document.querySelector('.np-dim');w=el?el.offsetWidth:300;mode='np?';return}
+  if(mob()&&document.body.classList.contains('nui')&&sx<28&&$('#sheet').hidden&&document.querySelector('.np')){el=document.querySelector('.np');dim=document.querySelector('.np-dim');w=el.offsetWidth;mode='edge?';return}
   if(S&&scrollY<=0&&$('#sheet').hidden&&!document.getElementById('darsOv')&&!document.getElementById('scan')?.offsetParent&&!e.target.closest('input,textarea,select,.np,[contenteditable]'))mode='pr?'},{passive:true});
  addEventListener('touchmove',e=>{if(!mode)return;const tch=e.touches[0],x=tch.clientX-sx,y=tch.clientY-sy;
-  if(mode==='np?'){if(Math.abs(x)>10||Math.abs(y)>10)mode=Math.abs(x)>Math.abs(y)&&x<0?'np':'';if(mode==='np'){el.style.transition='none'}}
-  if(mode==='np'){dx=Math.min(0,x);el.style.transform=`translateX(${dx}px)`;if(dim)dim.style.opacity=String(Math.max(0,1+dx/el.offsetWidth));if(e.cancelable)e.preventDefault();return}
+  if(mode==='np?'){if(Math.abs(x)>8||Math.abs(y)>8)mode=Math.abs(x)>Math.abs(y)&&x<0?'np':'';if(mode==='np'){el.style.transition='none';if(dim)dim.style.transition='none';document.body.classList.add('np-drag')}}
+  if(mode==='edge?'){if(Math.abs(x)>8||Math.abs(y)>8)mode=x>0&&x>Math.abs(y)?'edge':'';if(mode==='edge'){el.style.transition='none';el.style.transform=`translate3d(${-w}px,0,0)`;document.body.classList.add('np-open','np-drag');if(dim){dim=document.querySelector('.np-dim');dim.style.transition='none';dim.style.opacity='0'}}}
+  if(mode==='np'||mode==='edge'){trk(tch.clientX);dx=mode==='np'?Math.min(0,x):Math.max(0,Math.min(w,x));if(!raf)raf=requestAnimationFrame(paint);if(e.cancelable)e.preventDefault();return}
   if(mode==='pr?'){if(Math.abs(x)>10||Math.abs(y)>10)mode=y>0&&y>Math.abs(x)*1.3&&scrollY<=0?'pr':''}
   if(mode==='pr'){pd=Math.max(0,y);if(!ptr){ptr=document.createElement('div');ptr.id='ptr';ptr.innerHTML='<span>↓</span>';document.body.appendChild(ptr)}
    const h=Math.min(90,pd*.5);ptr.style.transform=`translate(-50%,${h}px)`;ptr.style.opacity=String(Math.min(1,h/60));ptr.classList.toggle('go',h>=60);if(e.cancelable)e.preventDefault()}},{passive:false});
  addEventListener('touchend',()=>{
-  if(mode==='np'&&el){const w=el.offsetWidth,fast=dx<-40&&Date.now()-st<250;el.style.transition='';el.style.transform='';if(dim)dim.style.opacity='';
-   if(dx<-w*.35||fast){NP_OPEN=false;document.body.classList.remove('np-open');buzz(8);navSync()}}
+  if((mode==='np'||mode==='edge')&&el){if(raf){cancelAnimationFrame(raf);raf=0}document.body.classList.remove('np-drag');el.style.transition='';el.style.transform='';if(dim){dim.style.transition='';dim.style.opacity=''}
+   if(mode==='np'){if(dx<-w*.35||vx<-.35){NP_OPEN=false;document.body.classList.remove('np-open');buzz(8);navSync()}}
+   else if(dx>w*.35||vx>.35){NP_OPEN=true;buzz(8);navSync()}else{document.body.classList.remove('np-open')}}
   if(mode==='pr'&&ptr){const p=ptr;ptr=null;if(Math.min(90,pd*.5)>=60){p.classList.add('spin');p.style.transform='translate(-50%,60px)';buzz(10);
     Promise.resolve(load()).finally(()=>{p.remove();toast('Yangilandi ✓')})}else p.remove()}
   mode=''},{passive:true});
@@ -3512,7 +3535,7 @@ function render(){
   document.body.dataset.theme=THEME[tab]||'sky';
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
-  document.body.classList.toggle('nui',NUI());document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
+  document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
   $('#app').innerHTML=`${NUI()?npHead():''}<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
@@ -3697,9 +3720,9 @@ document.addEventListener('click',async e=>{
    case 'meInfo':NP_OPEN=false;document.body.classList.remove('np-open');openMeInfo();break;
    case 'nRange':NRANGE=+d.n;render();break;
    case 'npSoon':toast('Bu bo’lim tez kunda qo’shiladi');break;
-   case 'npExp':NP_EXP[d.i]=!NP_EXP[d.i];ls.set('npexp',NP_EXP);render();break;
+   case 'npExp':if(innerWidth>=900&&document.body.classList.contains('npc')){ls.set('npc',false);document.body.classList.remove('npc');NP_EXP[d.i]=true;ls.set('npexp',NP_EXP);render();break}NP_EXP[d.i]=!NP_EXP[d.i];ls.set('npexp',NP_EXP);render();break;
    case 'npHelp':openSheet(`<div class="sh-top"><div class="m"><h2>Yordam</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div><div class="card pad"><p style="margin:0">Savol yoki muammo bo’lsa: <b>+998 94 753 99 33</b></p><p class="note">Ota-onalar PIN kodni @YoshXorazmiylarBot orqali oladi.</p></div>`);break;
-   case 'npOpen':NP_OPEN=true;document.body.classList.add('np-open');navSync();break;
+   case 'npOpen':if(innerWidth>=900){const c=!document.body.classList.contains('npc');ls.set('npc',c);document.body.classList.toggle('npc',c);break}NP_OPEN=true;document.body.classList.add('np-open');navSync();break;
    case 'npClose':NP_OPEN=false;document.body.classList.remove('np-open');break;
    case 'npDars':DARS_NP=NP_OPEN;NP_OPEN=false;document.body.classList.remove('np-open');darsOpen('');break;
    case 'npOn':ls.set('newui',true);closeSheet();NP_OPEN=false;render();toast('Yangi panel yoqildi');break;
