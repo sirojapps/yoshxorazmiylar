@@ -795,6 +795,14 @@ body.nui .np-regw{position:absolute!important;left:0;right:0;bottom:0;height:cal
 body.nui .np-regw::before{content:'';position:absolute;inset:0;background:url(/a/panel-fon.webp?v=1) no-repeat center bottom/100% auto;-webkit-mask-image:linear-gradient(transparent,#000 56px);mask-image:linear-gradient(transparent,#000 56px)}
 body.nui .np-regw img,body.nui .np-reg{position:relative;z-index:1}
 body.nui .np-sc{padding-bottom:calc(var(--mh) + 44px)!important}
+
+/* hamma kabinetlarda bir xil osmon fon; eski suzuvchi belgilar va dog'lar yo'q (5-noyabr) */
+body:not(.lgx) #atmo{display:none!important}
+body:not(.lgx){background:#e4f2fd!important}
+body:not(.lgx)::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:#e4f2fd url(/a/fon-keng.webp?v=1) center top/100% auto no-repeat}
+@media (orientation:portrait){body:not(.lgx)::before{background-image:url(/a/fon-tik.webp?v=1)}}
+/* telefon va tik planshetda yangi banner, o'lchami avvalgi banner bilan aynan bir xil */
+@media (max-width:899px){body.nui .npb img{aspect-ratio:1000/320!important;height:auto!important;object-fit:cover!important;object-position:50% 50%!important}}
 </style>
 </head>
 <body>
@@ -3544,7 +3552,7 @@ function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
    <button class="nph-bell" data-tab="xabar" aria-label="Xabarlar">${SV(EI.bell,'#1e3a8a',1.9)}${n?`<em>${n>99?'99+':n}</em>`:''}</button>
    <button class="nph-q" data-act="npHelp" aria-label="Yordam">?</button>
    <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,46,S.me.name)}<div class="nph-mn"><b>${esc(S.me.role==='ceo'?(S.me.name||'CEO'):(S.me.name||''))}</b><small>${npRoleL()}</small></div><span class="nph-c">${SV(EI.chev,'#0f2350',2.4)}</span></button><button class="nph-out" data-act="logoutAsk" aria-label="Chiqish" title="Saytdan chiqish">${npIc('out')}</button></div>`}
-function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="${NP_BANNER_M2}"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
+function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="/a/banner-tel.webp?v=1"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
 const hT=(ic,c,t,ex='')=>`<div class="nc-h"><h3>${SV(EI[ic],c,2.2)}${t}</h3>${ex}</div>`;
 function nToday(d){const b=d?.bugun||{};const r=[['Yangi maktab ulandi',b.sch],['Yangi foydalanuvchi',b.users],['Yangi obuna',b.obuna],['O’tkazilgan testlar',b.tests]];
   return `<div class="nc e-today">${hT('cup','#f5a400','Bugungi muhim ko’rsatkichlar')}${r.map(([l,v])=>`<div class="ntd"><span class="ok">✓</span><span>${l}</span><b>${nfm(v??0)}</b></div>`).join('')}</div>`}
