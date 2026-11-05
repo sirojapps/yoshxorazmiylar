@@ -742,6 +742,21 @@ addEventListener('appinstalled',()=>{DPI=null;toast('Ilova o’rnatildi! Endi te
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 const instBtn=(cls='btn sec')=>isApp()?'':`<button class="${cls}" data-act="install">${isPC()?'💻':'📲'} ${instL()}</button>`;
 const instBanner=()=>isApp()||ls.get('noinst',false)?'':`<div class="card inst"><button class="go" data-act="install"><img src="/icon-192.png?v=2" alt=""><span>${instL()}</span></button><button class="ib" data-act="noinst" aria-label="Yopish">${I.x}</button></div>`;
+// --- telefon bildirishnomalari (xabarnomalar) ---
+const pushOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const pushB64=k=>{const s=atob(k.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-k.length%4)%4));return Uint8Array.from(s,c=>c.charCodeAt(0))};
+async function pushSync(){if(!pushOk()||Notification.permission!=='granted'||!S)return;try{const reg=await navigator.serviceWorker.ready;let s=await reg.pushManager.getSubscription();if(!s){const {key}=await api('push.key');s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushB64(key)})}await api('push.sub',s.toJSON())}catch(e){}}
+async function pushOn(){
+  if(!pushOk()){toast(isIOS()&&!isApp()?'iPhone’da avval saytni “Bosh ekranga qo’shish” orqali ilova qilib o’rnating':'Bu brauzer bildirishnomalarni qo’llamaydi',true);return}
+  let p='default';try{p=await Notification.requestPermission()}catch(e){}
+  if(p==='granted'){await pushSync();toast('Xabarnomalar yoqildi ✓')}else if(p==='denied')toast('Bildirishnoma brauzerda taqiqlangan. Brauzer sozlamalaridan ruxsat bering',true);
+  const sh=$('#sheet'),me=sh&&!sh.hidden&&/Mening ma’lumotlarim/.test(sh.innerHTML);render();if(me)openMeInfo()}
+async function pushOff(){try{const reg=await navigator.serviceWorker?.getRegistration();const s=await reg?.pushManager?.getSubscription();if(s){await api('push.unsub',{endpoint:s.endpoint}).catch(()=>{});await s.unsubscribe()}}catch(e){}}
+const pushBanner=()=>!pushOk()||Notification.permission!=='default'||ls.get('nopush',false)?'':`<div class="card inst"><button class="go" data-act="pushOn"><span style="font-size:22px;flex:none">🔔</span><span>Xabarnomalarni yoqish</span></button><button class="ib" data-act="nopush" aria-label="Yopish">${I.x}</button></div>`;
+function pushRow(){const st=!pushOk()?(isIOS()&&!isApp()?'iPhone’da ishlashi uchun saytni Bosh ekranga ilova qilib o’rnating':'Bu brauzerda ishlamaydi'):Notification.permission==='granted'?'Yoqilgan ✓ Yangi xabar kelsa telefoningizga keladi':Notification.permission==='denied'?'Brauzer sozlamalarida taqiqlangan':'O’chiq';
+  const btn=pushOk()&&Notification.permission==='default'?`<button class="btn pri sm" data-act="pushOn">Yoqish</button>`:'';
+  return `<div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔔 Xabarnomalar</div><div class="note" style="margin-top:2px">${st}</div></div>${btn}</div>`}
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.yx==='open'&&S){tab='xabar';stack=[];closeSheet();render()}});
 async function doInstall(){
   if(DPI){const p=DPI;DPI=null;p.prompt();try{await p.userChoice}catch(e){}render();return}
   const ios=isIOS(),pc=isPC();
@@ -1665,6 +1680,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">YANGI KO’RINISH (SINOV)</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">☰ Yangi panel</div><div class="note" style="margin-top:2px">${ls.get('newui',false)?'Yoqilgan. Faqat sizga ko’rinadi.':'Faqat sizga ko’rinadi, boshqalar eski menyuda qoladi.'}</div></div><button class="btn ${ls.get('newui',false)?'sec':'pri'} sm" data-act="${ls.get('newui',false)?'npOff':'npOn'}">${ls.get('newui',false)?'O’chirish':'Yoqish'}</button></div>`:''}
+  ${pushRow()}
   ${instBtn()}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
 function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<label style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:4px 6px 4px 14px;background:var(--card,#fff)"><input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="flex:1;min-width:0;border:0;outline:0;padding:8px 0;font:inherit;font-size:16px;background:transparent"><button type="button" class="btn sec sm" data-act="pwEyeF" data-f="${id}" style="white-space:nowrap">👁 Ko’rsatish</button></label>`;
@@ -1707,7 +1723,8 @@ function scrMessages(){
     top+=`<button class="row card" data-act="openChat"><div class="m"><div class="n">Jamoa chati</div><div class="s">${chat?.last?esc(chat.last.text.slice(0,60)):'CEO, sardor va jamoa a’zolari uchun'}</div></div>${badge(chat?.unread)}${I.chev}</button>`;
     const jam=TH.filter(t=>t.kind==='jamoa');
     if(thf!=='ochiq'&&thf!=='hal')thf='ochiq';
-    const segs=[['ochiq',`Ochiq (${jam.filter(t=>t.status==='ochiq').length})`],['hal','Hal qilingan']];
+    const unr=st=>jam.filter(t=>t.status===st).reduce((n,t)=>n+(t.unread||0),0),uO=unr('ochiq'),uH=unr('hal');
+    const segs=[['ochiq',`Ochiq (${jam.filter(t=>t.status==='ochiq').length})${uO?` · ${uO} yangi`:''}`],['hal',`Hal qilingan${uH?` · ${uH} yangi`:''}`]];
     top+=`<div class="seg">${segs.map(([k,l])=>`<button data-thf="${k}" aria-pressed="${thf===k}">${l}</button>`).join('')}</div>`;
     list=jam.filter(t=>t.status===thf);
     if(r==='jamoa')top+=`<button class="btn pri" data-act="compose" data-kind="jamoa">+ Yangi murojaat</button>`;
@@ -3488,6 +3505,7 @@ function render(){
   document.body.classList.remove('lgx');
   if(S.me.role==='ota'&&!S.me.consent){renderConsent();return}
   X=idx();
+  if(!window.__pu){window.__pu=1;pushSync();if(location.hash==='#xabar'){tab='xabar';stack=[];history.replaceState(null,'',location.pathname)}}
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
@@ -3499,7 +3517,7 @@ function render(){
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
-   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
+   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
@@ -3663,17 +3681,19 @@ document.addEventListener('click',async e=>{
    case 'back':if(NAVH.length){const h=NAVH.pop();tab=h.tab;stack=h.stack;if(h.np){NP_OPEN=true;document.body.classList.add('np-open')}}else stack.pop();navSync();render();scrollTo(0,0);break;
    case 'close':closeSheet();break;
    case 'install':await doInstall();break;
+   case 'pushOn':await pushOn();break;
+   case 'nopush':ls.set('nopush',true);render();break;
    case 'phoneEdit':openPhone(+d.id);break;
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
-   case 'logout':await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logout':await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
    case 'composeTo':{tab='xabar';stack=[];openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=String(d.id);break}
    case 'rtAns':RT.ans=!RT.ans;render();break;
    case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
-   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'meInfo':NP_OPEN=false;document.body.classList.remove('np-open');openMeInfo();break;
    case 'nRange':NRANGE=+d.n;render();break;
    case 'npSoon':toast('Bu bo’lim tez kunda qo’shiladi');break;

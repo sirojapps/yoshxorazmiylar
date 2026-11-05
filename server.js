@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS exercises(id INTEGER PRIMARY KEY, grade INTEGER NOT N
 CREATE TABLE IF NOT EXISTS ex_answers(exercise_id INTEGER NOT NULL, student_id INTEGER NOT NULL, choice TEXT, correct INTEGER, at TEXT, PRIMARY KEY(exercise_id,student_id));
 CREATE TABLE IF NOT EXISTS certificates(id INTEGER PRIMARY KEY, code TEXT UNIQUE, test_id INTEGER NOT NULL, student_id INTEGER NOT NULL, at TEXT, UNIQUE(test_id,student_id));
 CREATE TABLE IF NOT EXISTS tg_users(chat_id TEXT PRIMARY KEY, phone TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, user_id INTEGER, p256dh TEXT, auth TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS tg_requests(id INTEGER PRIMARY KEY, chat_id TEXT, phone TEXT, class_id INTEGER, child TEXT, status TEXT DEFAULT 'kutilmoqda',
   student_id INTEGER, by INTEGER, at TEXT);
 CREATE TABLE IF NOT EXISTS itests(id INTEGER PRIMARY KEY, school_id INTEGER NOT NULL, name TEXT NOT NULL, day TEXT, qn INTEGER DEFAULT 20, grade INTEGER DEFAULT 0,
@@ -123,7 +124,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar']);
+const KUZ_READ = new Set(['state', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
@@ -1550,6 +1551,7 @@ async function onUpdate(up) {
     tgState.delete(chat);
     run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', chat, st.phone, st.class_id, str(txt, 100), now());
     const c = one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', st.class_id);
+    pushUsers([ceoId(), ...sardorIds()], 'Yangi PIN so‘rovi (Telegram)', '/#xabar', 'tgreq');
     notifyUsers(rahbarsOf(st.class_id).map(r => r.id), `Yangi so‘rov: ${str(txt, 100)} (${c.num}-maktab, ${c.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
     return tgSend(chat, `So‘rovingiz ${c.num}-maktab ${c.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.`);
   }
@@ -1849,6 +1851,53 @@ function recipients(t, fromId) {
   if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
+// ======== Telefon bildirishnomalari (Web Push, tashqi kutubxonasiz) ========
+const b64u = b => Buffer.from(b).toString('base64url');
+function vapid() {
+  let pub = getSet('vapid_pub'), prv = getSet('vapid_prv');
+  if (!pub || !prv) { const e = crypto.createECDH('prime256v1'); e.generateKeys(); pub = b64u(e.getPublicKey()); prv = b64u(e.getPrivateKey()); setSet('vapid_pub', pub); setSet('vapid_prv', prv); }
+  return { pub, prv };
+}
+function vapidAuth(endpoint) {
+  const { pub, prv } = vapid(), P = Buffer.from(pub, 'base64url');
+  const key = crypto.createPrivateKey({ key: { kty: 'EC', crv: 'P-256', d: prv, x: b64u(P.subarray(1, 33)), y: b64u(P.subarray(33, 65)) }, format: 'jwk' });
+  const h = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' })), c = b64u(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'https://yoshxorazmiylar.uz' }));
+  const sig = crypto.sign('sha256', Buffer.from(h + '.' + c), { key, dsaEncoding: 'ieee-p1363' });
+  return `vapid t=${h}.${c}.${b64u(sig)}, k=${pub}`;
+}
+function pushEncrypt(sub, text) { // RFC 8291, aes128gcm
+  const ua = Buffer.from(sub.p256dh, 'base64url'), auth = Buffer.from(sub.auth, 'base64url');
+  const e = crypto.createECDH('prime256v1'); e.generateKeys(); const as = e.getPublicKey(), shared = e.computeSecret(ua);
+  const hmac = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
+  const ikm = hmac(hmac(auth, shared), Buffer.concat([Buffer.from('WebPush: info\0'), ua, as, Buffer.from([1])]));
+  const salt = crypto.randomBytes(16), prk = hmac(salt, ikm);
+  const cek = hmac(prk, Buffer.from('Content-Encoding: aes128gcm\0\x01', 'binary')).subarray(0, 16);
+  const nonce = hmac(prk, Buffer.from('Content-Encoding: nonce\0\x01', 'binary')).subarray(0, 12);
+  const ci = crypto.createCipheriv('aes-128-gcm', cek, nonce);
+  const body = Buffer.concat([ci.update(Buffer.concat([Buffer.from(text), Buffer.from([2])])), ci.final(), ci.getAuthTag()]);
+  const rs = Buffer.alloc(4); rs.writeUInt32BE(4096);
+  return Buffer.concat([salt, rs, Buffer.from([as.length]), as, body]);
+}
+async function pushOne(sub, data) {
+  try {
+    const r = await fetch(sub.endpoint, { method: 'POST', headers: { TTL: '86400', Urgency: 'high', 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', Authorization: vapidAuth(sub.endpoint) }, body: pushEncrypt(sub, JSON.stringify(data)), signal: AbortSignal.timeout(10000) });
+    if (r.status === 404 || r.status === 410) run('DELETE FROM push_subs WHERE endpoint=?', sub.endpoint); // obuna eskirgan
+  } catch (e) { }
+}
+function pushUsers(userIds, body, url = '/#xabar', tag = 'yx') {
+  const ids = [...new Set(userIds)].filter(Boolean); if (!ids.length) return;
+  const subs = all(`SELECT p.* FROM push_subs p JOIN users u ON u.id=p.user_id AND u.active=1 WHERE p.user_id IN (${ids.map(() => '?').join(',')})`, ...ids);
+  for (const s of subs) pushOne(s, { title: 'Yosh Xorazmiylar', body, url, tag });
+}
+A['push.key'] = () => ({ key: vapid().pub });
+A['push.sub'] = (u, b) => {
+  const ep = String(b.endpoint || ''), k = b.keys || {};
+  if (!/^https:\/\/[^\s]{10,900}$/.test(ep) || !/^[A-Za-z0-9_-]{80,100}$/.test(String(k.p256dh || '')) || !/^[A-Za-z0-9_-]{16,30}$/.test(String(k.auth || ''))) bad('Noto‘g‘ri obuna');
+  run('INSERT INTO push_subs(endpoint,user_id,p256dh,auth,at) VALUES(?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,at=excluded.at', ep, u.id, k.p256dh, k.auth, now());
+  return { ok: true };
+};
+A['push.unsub'] = (u, b) => { run('DELETE FROM push_subs WHERE endpoint=? AND user_id=?', String(b.endpoint || ''), u.id); return {}; };
+const PUSH_FROM = { ceo: 'CEO dan', jamoa: 'Jamoadan', direktor: 'Direktordan', rahbar: 'Sinf rahbaridan', ota: 'Ota-onadan' };
 function cleanImage(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+=*$/.test(s) || s.length > 1.5e6) bad('Rasm juda katta yoki noto‘g‘ri'); return s; }
 function cleanAudio(v) { const s = String(v || ''); if (!s) return ''; if (!/^data:audio\/[a-z0-9.+-]+(;[a-z0-9=.,+ -]+)*;base64,[A-Za-z0-9+\/]+=*$/i.test(s) || s.length > 4.5e6) bad('Ovozli xabar juda uzun yoki noto‘g‘ri (eng ko‘pi 3 daqiqa)'); return s; }
 function addMessage(u, t, txt, image, audio = '') {
@@ -1856,8 +1905,9 @@ function addMessage(u, t, txt, image, audio = '') {
   run('INSERT INTO messages(thread_id,user_id,text,image,audio,at) VALUES(?,?,?,?,?,?)', t.id, u.id, txt, image, audio, at);
   run('UPDATE threads SET updated_at=? WHERE id=?', at, t.id);
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, at);
-  if (t.status === 'hal' && t.user_id === u.id) run("UPDATE threads SET status='ochiq' WHERE id=?", t.id);
+  if (t.status === 'hal' && (t.user_id === u.id || !(u.role === 'ceo' || perms(u).sardor))) run("UPDATE threads SET status='ochiq' WHERE id=?", t.id); // hal qilinganga yangi xabar kelsa — qayta ochiladi
   const who = u.role === 'ceo' ? 'CEO' : u.name;
+  pushUsers(recipients(t, u.id), t.kind === 'chat' ? 'Jamoa chatida yangi xabar' : `${PUSH_FROM[u.role] || ''} yangi xabar`.trim(), '/#xabar', 'th' + t.id);
   notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
 const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
@@ -2055,9 +2105,11 @@ const MANIFEST = JSON.stringify({
     { src: '/icon-mask.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
 });
-const SW = `const C='yx-v4';
+const SW = `const C='yx-v5';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.add('/')).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener('push',e=>{let d={};try{d=e.data.json()}catch(x){}e.waitUntil(self.registration.showNotification(d.title||'Yosh Xorazmiylar',{body:d.body||'Yangi xabar',icon:'/icon-192.png',tag:d.tag||'yx',renotify:true,data:{url:d.url||'/'}}))});
+self.addEventListener('notificationclick',e=>{e.notification.close();const url=(e.notification.data&&e.notification.data.url)||'/';e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(l=>{for(const c of l){if('focus' in c){c.postMessage({yx:'open',url:url});return c.focus()}}return clients.openWindow(url)}))});
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin||u.pathname.startsWith('/api/'))return;
  if(r.mode==='navigate'){e.respondWith(fetch(r).then(res=>{if(res.ok&&u.pathname==='/'){const cp=res.clone();caches.open(C).then(c=>c.put('/',cp))}return res}).catch(()=>caches.match('/')));return}
  if(/\\.png$/.test(u.pathname))e.respondWith(caches.match(r).then(m=>m||fetch(r).then(res=>{const cp=res.clone();caches.open(C).then(c=>c.put(r,cp));return res})));
