@@ -742,6 +742,26 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
  body.nui .nph-t small{font-size:clamp(9px,2.5vw,10.5px)!important;overflow:hidden;text-overflow:ellipsis}
  body.nui .nph-bell{margin-left:0!important}
 }
+
+/* chap panel: osmon foni, minimal bo'limlar, faqat tanlangani ajralib turadi (5-noyabr) */
+body.nui .np{background:url(/a/panel-fon.webp?v=1) no-repeat center bottom/100% auto local,linear-gradient(#95d1fe,#95d1fe)!important;border-right:1px solid #cfe2f6!important;overflow-y:auto!important;scrollbar-width:thin}
+body.nui .np-regw .wv{display:none!important}body.nui .np>*,body.nui .np-sc>*{flex-shrink:0}
+body.nui .np-sc{display:flex;flex-direction:column;gap:4px;padding:4px 12px 8px!important;flex:none!important;overflow:visible!important}
+body.nui .npi{height:38px!important;border-radius:12px;background:rgba(255,255,255,.72)!important;border:1px solid rgba(214,227,245,.9);box-shadow:0 1px 2px rgba(15,35,80,.04);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+body.nui .npi:not([data-act="npExp"]) .chv{display:none}body.nui .npi svg{stroke-width:1.6}body.nui .npi small{font-size:11px;color:#64748b;font-weight:400}
+body.nui .npi .chv{transition:transform .2s;opacity:.7}body.nui .npi .chv.o{transform:rotate(90deg)}
+body.nui .np .npi.on{background:linear-gradient(90deg,#1a6af0,#2f8bff)!important;color:#fff!important;border-color:transparent!important;height:42px!important;margin:0!important;box-shadow:0 6px 16px rgba(30,110,240,.32)!important}body.nui .np .npi.on svg{stroke:#fff!important}body.nui .np .npi.on .chv{color:#fff!important}
+body.nui .npi.par{background:rgba(238,244,255,.9)!important;border-color:#c7dafc!important;color:#1d4ed8!important}body.nui .npi.par svg{stroke:#1d4ed8!important}
+body.nui .npi:not(.on):hover{background:rgba(241,246,255,.95)!important;border-color:#cddcf6!important}
+body.nui .npsub{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px 26px!important;padding:2px 0!important;border-left:0!important}
+body.nui .npsi{position:relative;display:flex;align-items:center;height:34px;padding:0 12px 0 14px!important;border-radius:10px;font-size:14px;color:#334155;background:none;border:0;text-align:left;cursor:pointer}
+body.nui .npsi::before{content:'';position:absolute;left:2px;width:6px;height:6px;border-radius:50%;background:#94a3b8}
+body.nui .npsi:hover{background:rgba(241,246,255,.9)}body.nui .npsi:hover::before,body.nui .npsi.on::before{background:#2f8bff}
+body.nui .npsi.on{background:rgba(227,237,255,.95);color:#1d4ed8;font-weight:600}
+body.nui .npi:focus-visible,body.nui .npsi:focus-visible{outline:2px solid #2f8bff;outline-offset:2px}
+@media(min-width:900px){body.nui #darsOv{left:var(--sb)!important;z-index:35!important;box-shadow:-1px 0 0 #dfe8f5}}
+/* tepa panel: yarim shaffof, orqasi xira ko'rinadi, sahifa bilan aralashmaydi */
+body.nui .nph{background:linear-gradient(90deg,rgba(227,237,252,.72) 0%,rgba(238,244,253,.66) 55%,rgba(231,239,252,.72) 100%)!important;-webkit-backdrop-filter:blur(8px) saturate(1.2)!important;backdrop-filter:blur(8px) saturate(1.2)!important;box-shadow:0 1px 0 rgba(211,224,243,.9),0 6px 16px rgba(15,35,80,.06)!important}
 </style>
 </head>
 <body>
@@ -3369,6 +3389,9 @@ document.addEventListener('change',async e=>{if(e.target.id!=='timpF')return;con
   try{TIMP.data=JSON.parse(await f.text());TIMP.plan=await api('tuman.import',{data:TIMP.data,dry:true})}catch(x){TIMP.err=x.message||'Fayl o’qilmadi'}TIMP.busy=false;render()});
 async function timpGo(){if(!TIMP.data||!confirm('Ro’yxat bazaga kiritilsinmi? Oldin avtomatik zaxira nusxa olinadi.'))return;TIMP.busy=true;render();
   try{TIMP.done=await api('tuman.import',{data:TIMP.data,dry:false});TIMP.plan=null;toast('Ro’yxat kiritildi ✓');await load()}catch(x){TIMP.err=x.message}TIMP.busy=false;render()}
+// mavzu darslari oynasi: paneldan boshqa bo'lim bosilsa yopiladi; ochilganda/yopilganda panel belgisi yangilanadi
+document.addEventListener('click',e=>{if(e.target.closest('.np [data-side],.np [data-tab],.np [data-act="dl"]'))document.getElementById('darsOv')?.remove()},true);
+new MutationObserver(m=>{if(S&&m.some(x=>[...x.addedNodes,...x.removedNodes].some(n=>n.id==='darsOv')))render()}).observe(document.body,{childList:true});
 // ======== NAMUNA KABINET (faqat CEO) ========
 let DEMOI=null;
 const DEMO_PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxatini ko’rish',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish',sertifikat:'Sertifikat berish va bekor qilish'};
@@ -3388,25 +3411,21 @@ async function demoExit(){try{await fetch('/api/demo.exit',{method:'POST',creden
 // ======== ETALON (ChatGPT skrinshoti) bo'yicha: chap menyu, tepa panel, bosh sahifa ========
 const npRoleL=()=>S.me.role==='ceo'?'CEO / Super Admin':P('sardor')?'Jamoa sardori':P('kuzatuvchi')?'Kuzatuvchi':'Jamoa a’zosi';
 const NPX={team:1};let NP_EXP=ls.get('npexp',{});
-function npTree(){const tarix=P('tarix'),ceo=S.me.role==='ceo',real=ceo&&!S.me.demo;const us=[...(ceo?[['Jamoa va huquqlar','data-side="team"']]:[]),...(P('pinlar')?[['PIN kodlar','data-side="pins"']]:[])];return [
- ['home','Bosh sahifa','data-tab="bosh"',null,()=>!stack.length&&tab==='bosh'],
+function npTree(){const ceo=S.me.role==='ceo',real=ceo&&!S.me.demo,s0=stack[0]||'',ov=!!document.getElementById('darsOv'),T=k=>()=>!ov&&!stack.length&&tab===k,SD=k=>()=>!ov&&s0===k;
+ const us=[...(ceo?[['Jamoa va huquqlar','data-side="team"',SD('team')]]:[]),...(P('pinlar')?[['PIN kodlar','data-side="pins"',SD('pins')]]:[])];
+ return [['home','Bosh sahifa','data-tab="bosh"',null,T('bosh')],
  ...(us.length?[['users','Foydalanuvchilar',null,us]]:[]),
- ...(real?[['eye','Namuna kabinet','data-side="demo"',null,()=>stack[0]==='demo']]:[]),
- ['school','Maktablar','data-tab="maktab"',null,()=>!stack.length&&tab==='maktab'],
- ['pin','Hududlar (Viloyat/Tuman)',null,null,null,'tez kunda'],
- ['cap','O’quvchilar','data-tab="maktab"'],
- ...(P('pinlar')?[['user','Ustozlar va sinf rahbarlari','data-side="pins"']]:[]),
- ['book','Darslar va mavzular',null,[['Mavzu darslari','data-act="npDars"'],...(canKey()?[['Misollar bazasi','data-tab="baza"']]:[]),['Mashg’ulotlar','data-side="mashq"']]],
- ['play','Video va animatsion darslar','data-act="npDars"'],
- ['clip','Testlar va sinovlar',null,[['Imtihonlar (bosqichlar)','data-tab="imtihon"'],['Testlar bazasi','data-side="tests"']]],
- ['chart','Natijalar va tahlil','data-tab="imtihon"'],
- ...(P('reyting')?[['cup','Reyting va iqtidorlilar',null,[['Reyting','data-side="reyting"'],['Iqtidorli bolalar','data-side="yuqori"']]]]:[]),
- ...(canCert()?[['award','Sertifikatlar','data-side="certs"',null,()=>stack[0]==='certs']]:[]),
- ['chat','Xabarlar va e’lonlar','data-tab="xabar"',null,()=>!stack.length&&tab==='xabar',null,(S.unread||0)+(S.tgPending||0)],
- ['card','Obuna va to’lovlar',null,null,null,'tez kunda'],
+ ...(real?[['eye','Namuna kabinet','data-side="demo"',null,SD('demo')]]:[]),
+ ['school','Maktablar','data-tab="maktab"',null,()=>!ov&&tab==='maktab'&&(!stack.length||/^(school|class|stu):/.test(s0))],
+ ['book','Darslar va mavzular',null,[['Mavzu darslari','data-act="npDars"',()=>ov],...(canKey()?[['Misollar bazasi','data-tab="baza"',T('baza')]]:[]),['Mashg’ulotlar','data-side="mashq"',SD('mashq')]]],
+ ['clip','Testlar va sinovlar',null,[['Imtihonlar (bosqichlar)','data-tab="imtihon"',()=>!ov&&tab==='imtihon'&&(!stack.length||/^exam:/.test(s0))],['Testlar bazasi','data-side="tests"',SD('tests')]]],
+ ...(P('reyting')?[['cup','Reyting va iqtidorlilar',null,[['Reyting','data-side="reyting"',SD('reyting')],['Iqtidorli bolalar','data-side="yuqori"',SD('yuqori')]]]]:[]),
+ ...(canCert()?[['award','Sertifikatlar','data-side="certs"',null,SD('certs')]]:[]),
+ ['chat','Xabarlar va e’lonlar','data-tab="xabar"',null,T('xabar'),null,(S.unread||0)+(S.tgPending||0)],
  ...(ceo||P('yuklash')?[['down','Hisobotlar va eksport','data-act="dl" data-k="district" data-id="0"']]:[]),
- ['shield','Xavfsizlik va audit',null,[...(tarix?[['O’zgarishlar tarixi','data-side="history"']]:[]),...(ceo?[['Zaxira nusxa','data-side="backup"']]:[]),['O’chirilganlar (savat)','data-side="savat"']]],
- ...(ceo?[['set','Tizim sozlamalari','data-side="settings"',null,()=>stack[0]==='settings']]:[])]}
+ ['shield','Xavfsizlik va audit',null,[...(P('tarix')?[['O’zgarishlar tarixi','data-side="history"',SD('history')]]:[]),...(ceo?[['Zaxira nusxa','data-side="backup"',SD('backup')]]:[]),['O’chirilganlar (savat)','data-side="savat"',SD('savat')]]],
+ ...(ceo?[['set','Tizim sozlamalari','data-side="settings"',null,SD('settings')]]:[])]}
+let NP_KEY='';
 Object.assign(NPI,{eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M8 11h2M14 11h2"/>'});
 function npPanel(){darsLoad();
   const rows=npTree().map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const open=sub&&NP_EXP[i];
@@ -3474,11 +3493,12 @@ const EI={cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h1
  grp:'<circle cx="12" cy="12" r="10"/><circle cx="9.5" cy="10" r="2"/><circle cx="15" cy="10.5" r="1.6"/><path d="M6 16.5a3.5 3.5 0 0 1 7 0M13.5 16.5a2.8 2.8 0 0 1 5 0"/>',don:'<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 9 9h-9z"/>',
  chev:'<path d="m6 9 6 6 6-6"/>',cert:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 12 3 3 5-6"/>',card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>'};
 function npPanel(){darsLoad();
-  const rows=npTree().map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const open=sub&&NP_EXP[i];
+  const tree=npTree(),key=JSON.stringify([stack[0]||'',tab,!!document.getElementById('darsOv')]),nav=key!==NP_KEY;NP_KEY=key;
+  const rows=tree.map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const hit=sub?sub.findIndex(x=>x[2]&&x[2]()):-1;if(nav&&hit>=0)NP_EXP[i]=true;const open=sub&&NP_EXP[i];
     const attr=soon?`data-act="npSoon"`:sub?`data-act="npExp" data-i="${i}"`:a;
     const right=badge?`<em>${badge}</em>`:`<b class="chv${open?' o':''}">›</b>`;
     const lbl=l.replace(' (Viloyat/Tuman)','<small> (Viloyat/Tuman)</small>');
-    return `<button class="npi${on?' on':''}" title="${l}" ${attr}>${npIc(ic)}<span>${lbl}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
+    return `<button class="npi${on?' on':''}${hit>=0?' par':''}" title="${l}" ${attr}>${npIc(ic)}<span>${lbl}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa],j)=>`<button class="npsi${j===hit?' on':''}" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
   return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
    <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh <br>Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
    <div class="np-sc">${rows}</div><div class="np-regw"><svg class="wv" viewBox="0 0 300 200" preserveAspectRatio="none"><path d="M0 55 C80 5 180 105 300 25 L300 200 L0 200Z" fill="#dbeafe" opacity=".85"/><path d="M0 40 C90 -5 190 90 300 15" fill="none" stroke="#fff" stroke-width="4" opacity=".95"/><path d="M0 120 C90 70 190 170 300 100 L300 200 L0 200Z" fill="#bfdbfe" opacity=".75"/><path d="M0 160 C100 120 200 200 300 150 L300 200 L0 200Z" fill="#7fb3f5" opacity=".7"/><path d="M0 95 C90 45 190 145 300 70" fill="none" stroke="#fff" stroke-width="3" opacity=".9"/><path d="M0 140 C100 95 200 185 300 125" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/></svg><img class="np-reg" src="${NP_REG}" alt=""></div></aside>`}
@@ -3589,6 +3609,7 @@ function render(){
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
+  window.__npY=document.querySelector('.np')?.scrollTop||0;
   $('#app').innerHTML=`${NUI()?npHead():''}<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
@@ -3596,7 +3617,7 @@ function render(){
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(S.me.demo)$('#app').insertAdjacentHTML('beforeend',demoBar());
-  if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
+  if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());{const _np=document.querySelector('.np');if(_np)_np.scrollTop=window.__npY||0}const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const ri=$('#rq');if(ri){ri.oninput=e=>{rq=e.target.value;render()};if(rfocus){ri.focus();ri.setSelectionRange(ri.value.length,ri.value.length)}}
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
