@@ -205,7 +205,7 @@ function varInfo(testId) {
   return o;
 }
 // imtihonda shu sinf bosqichiga birorta natija (kelmadi ham) kiritilgan bo'lsa, testi va kalitlari qulflanadi
-const gradeLocked = (testId, g) => !!one('SELECT 1 FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND c.grade=? LIMIT 1', testId, g);
+const gradeLocked = (testId, g) => !!one('SELECT 1 FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND c.grade=? AND c.school_id<>? LIMIT 1', testId, g, demoIds().school || -1);
 // Savol ballari: savollar osondan qiyinga, 5 tadan guruh; har guruh bali oshib boradi, jami har doim 100.
 const W_TABLE = { 20: [3.5, 4.5, 5.5, 6.5], 25: [3, 3.5, 4, 4.5, 5], 30: [2, 2.5, 3, 3.5, 4, 5] };
 const r2 = x => Math.round(x * 100) / 100;
@@ -357,7 +357,7 @@ function state(u) {
   for (const t of out.tests) {
     if (!t.finished) continue;
     const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
-      WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL`, t.id);
+      WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL`, t.id).filter(r => u._demo || r.school_id !== demoIds().school); // namuna natijalar haqiqiy tuman ko'rsatkichiga qo'shilmaydi
     for (const g of [...new Set(rows.map(r => r.grade))]) {
       const gr = rows.filter(r => r.grade === g).sort((a, b) => b.score - a.score);
       out.district[t.id + ':' + g] = Math.round(gr.reduce((a, r) => a + r.score / r.qn, 0) / gr.length * 1000) / 10;
@@ -380,7 +380,7 @@ function state(u) {
 function giftedIds(t, schoolId) {
   const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
     WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL AND s.active=1`, t.id).filter(r => !schoolId || r.school_id === schoolId);
-  return rows.filter(r => !one('SELECT 1 FROM schools WHERE id=? AND test=1', r.school_id)).filter(r => r.qn > 0 && r.score / r.qn * 100 >= t.gifted_min - 1e-9).map(r => r.student_id);
+  const DSg = demoIds().school; return rows.filter(r => (DSg && schoolId === DSg && r.school_id === DSg) || !one('SELECT 1 FROM schools WHERE id=? AND test=1', r.school_id)).filter(r => r.qn > 0 && r.score / r.qn * 100 >= t.gifted_min - 1e-9).map(r => r.student_id);
 }
 
 // ---------------------------------------------------------------- actions
@@ -1144,7 +1144,7 @@ A['approve'] = (u, b) => tx(() => {
   need(u.role === 'ceo' || perms(u).sardor, 'Faqat CEO va jamoa sardori tasdiqlaydi');
   b.school_id = +b.school_id || 0; if (!one('SELECT 1 FROM tests WHERE id=?', +b.test_id)) bad('Sinov topilmadi');
   if (b.school_id === 0) { // finishing the whole test needs every school with results announced
-    const pend = all(`SELECT DISTINCT c.school_id id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=?`, b.test_id).filter(x => !announced(b.test_id, x.id));
+    const DSc = demoIds().school; const pend = all(`SELECT DISTINCT c.school_id id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=?`, b.test_id).filter(x => x.id !== DSc && !announced(b.test_id, x.id));
     if (pend.length) bad('Avval hamma maktab natijalari e‘lon qilinishi kerak');
   }
   run('INSERT OR IGNORE INTO approvals(test_id,school_id,user_id,at) VALUES(?,?,?,?)', b.test_id, b.school_id, u.id, now());
@@ -1733,6 +1733,7 @@ try { for (const r of all('SELECT code FROM certificates WHERE code NOT IN (SELE
 const nextCertSeq = pre => Math.max(...['cert_log', 'certificates', 'mcerts'].map(t => one(`SELECT max(CAST(substr(code,-4) AS INTEGER)) n FROM ${t} WHERE code LIKE ?`, pre + '%').n || 0)) + 1;
 const canCert = u => u.role === 'ceo' || can(u, 'sertifikat');
 function assignCerts(testId, schoolId) {
+  if (schoolId && schoolId === demoIds().school) return 0; // namuna maktabga haqiqiy sertifikat berilmaydi
   const t = one('SELECT * FROM tests WHERE id=?', testId); if (!t) return 0;
   const year = (t.date || now()).slice(0, 4); let n = 0;
   for (const sid of giftedIds(t, schoolId)) {
@@ -1870,12 +1871,23 @@ function demoEnsure() {
   if (D.school && one('SELECT 1 FROM schools WHERE id=?', D.school) && Object.keys(D.users).length === 5 && Object.values(D.users).every(id => one('SELECT 1 FROM users WHERE id=?', id))) return D;
   let num = 9000; while (one('SELECT 1 FROM schools WHERE num=?', num)) num++;
   const sid = Number(run("INSERT INTO schools(num,name,director_name,director_phone,test) VALUES(?,?,?,?,1)", num, 'Namuna maktab', 'Namuna Direktor', '').lastInsertRowid);
-  const c2 = Number(run('INSERT INTO classes(school_id,name,grade,teacher_name) VALUES(?,?,?,?)', sid, '2-A', 2, 'Namuna O‘qituvchi').lastInsertRowid);
-  const c3 = Number(run('INSERT INTO classes(school_id,name,grade,teacher_name) VALUES(?,?,?,?)', sid, '3-A', 3, 'Namuna O‘qituvchi 2').lastInsertRowid);
-  const N2 = ['Aliyev Jasur', 'Karimova Madina', 'Rahimov Bekzod', 'Tursunova Sevara', 'Qodirov Sardor', 'Ergasheva Malika', 'Nurmatov Azizbek', 'Xolmatova Dilnoza'];
-  const N3 = ['Sobirov Islom', 'Yusupova Zarina', 'Hamidov Otabek', 'Abdullayeva Nilufar', 'Rustamov Doniyor', 'Mirzayeva Shahzoda', 'Ismoilov Behruz'];
-  N2.forEach((n, i) => run('INSERT INTO students(class_id,name,phone,active) VALUES(?,?,?,1)', c2, n, i < 2 ? DEMO_PHONE : ''));
-  N3.forEach(n => run('INSERT INTO students(class_id,name,phone,active) VALUES(?,?,?,1)', c3, n, ''));
+  // 6 ta sinf, har birida 22–28 bola; bir qismida ota-ona telefoni bor, bir qismida yo'q
+  const FAM = ['Aliyev', 'Karimov', 'Rahimov', 'Tursunov', 'Qodirov', 'Ergashev', 'Nurmatov', 'Xolmatov', 'Sobirov', 'Yusupov', 'Hamidov', 'Abdullayev', 'Rustamov', 'Mirzayev', 'Ismoilov', 'Jo‘rayev', 'Saidov', 'Usmonov', 'Haydarov', 'Normatov', 'Bozorov', 'To‘xtayev', 'Murodov', 'Olimov', 'Sharipov', 'Fayzullayev', 'Qurbonov', 'Raximov', 'Xudoyberdiyev', 'Shukurov'];
+  const BOY = ['Jasur', 'Bekzod', 'Sardor', 'Azizbek', 'Islom', 'Otabek', 'Doniyor', 'Behruz', 'Javohir', 'Shohruh', 'Abdulloh', 'Muhammadali', 'Ibrohim', 'Asadbek', 'Samandar', 'Diyorbek', 'Ulug‘bek', 'Firdavs', 'Amirxon', 'Sanjar'];
+  const GIRL = ['Madina', 'Sevara', 'Malika', 'Dilnoza', 'Zarina', 'Nilufar', 'Shahzoda', 'Gulnoza', 'Mohinur', 'Sarvinoz', 'Robiya', 'Oydin', 'Mubina', 'Hilola', 'Durdona', 'Kamola', 'Zilola', 'Muslima', 'Asal', 'Sabina'];
+  const fem = f => f.endsWith('ov') || f.endsWith('ev') ? f + 'a' : f;
+  const CL = [['2-A', 2, 'Namuna O‘qituvchi'], ['2-B', 2, 'Raximova Nodira'], ['3-A', 3, 'Karimova Feruza'], ['3-B', 3, 'Toshev Anvar'], ['4-A', 4, 'Saidova Gulchehra'], ['4-B', 4, 'Olimova Barno']];
+  const used = new Set(); let ph = 1000, k = 0; const cls = {};
+  for (const [nm, gr, tch] of CL) {
+    const cid = Number(run('INSERT INTO classes(school_id,name,grade,teacher_name) VALUES(?,?,?,?)', sid, nm, gr, tch).lastInsertRowid); cls[nm] = cid;
+    const n = 22 + ((k * 7) % 7);
+    for (let i = 0; i < n; i++, k++) {
+      let name; do { const f = FAM[crypto.randomInt(FAM.length)], g = crypto.randomInt(2); name = g ? fem(f) + ' ' + GIRL[crypto.randomInt(GIRL.length)] : f + ' ' + BOY[crypto.randomInt(BOY.length)]; } while (used.has(name)); used.add(name);
+      const phone = (nm === '2-A' && i === 0) || (nm === '4-B' && i === 0) ? DEMO_PHONE : crypto.randomInt(10) < 6 ? '00' + String(1000000 + ph++) : '';
+      run('INSERT INTO students(class_id,name,phone,active) VALUES(?,?,?,1)', cid, name, phone);
+    }
+  }
+  const c2 = cls['2-A'];
   const mk = (role, name, extra = {}) => Number(run('INSERT INTO users(role,name,phone,pin,school_id,class_id,perms,active,consent_at) VALUES(?,?,?,?,?,?,?,0,?)',
     role, name, extra.phone || '', 'demo-' + crypto.randomBytes(9).toString('hex'), extra.school_id ?? null, extra.class_id ?? null, extra.perms || '{}', extra.consent || null).lastInsertRowid);
   const users = {
@@ -1886,6 +1898,16 @@ function demoEnsure() {
     ota: mk('ota', 'Namuna Ota-ona', { phone: DEMO_PHONE, consent: now() }),
   };
   setSet('demo_school', sid); setSet('demo_users', JSON.stringify(users));
+  // namuna natijalar: mavjud sinovlarga (eng ko'pi 2 ta) to'qima ballar; faqat namuna maktabda qoladi
+  for (const t of all('SELECT id,date FROM tests ORDER BY id DESC LIMIT 2')) {
+    const at = (t.date || '2026-10-24') + 'T10:00:00.000Z';
+    for (const st of all('SELECT s.id,c.grade FROM students s JOIN classes c ON c.id=s.class_id WHERE c.school_id=?', sid)) {
+      const absent = crypto.randomInt(100) < 6 ? 1 : 0; const lvl = crypto.randomInt(100);
+      const sc = absent ? null : Math.max(0, Math.min(20, Math.round((lvl < 15 ? 15 : lvl < 45 ? 10 : 5) + (crypto.randomInt(9) - 3))));
+      try { run('INSERT OR IGNORE INTO results(test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,ok,nq) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', t.id, st.id, absent, 'ball', '', '', sc, 20, users.jamoa, at, sc, 20); } catch (e) { }
+    }
+    try { run('INSERT OR IGNORE INTO announcements(test_id,school_id,at) VALUES(?,?,?)', t.id, sid, at); } catch (e) { }
+  }
   return demoIds();
 }
 function demoWipe() {
