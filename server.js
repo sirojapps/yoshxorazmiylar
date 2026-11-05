@@ -2164,7 +2164,7 @@ const server = http.createServer(async (req, res) => {
         if (req.method !== 'POST') bad('Zaxira nusxa faqat parol bilan yuklab olinadi');
         const pw = String(JSON.parse(await readBody(req) || '{}').pw || '');
         if (pw.length < 8) bad('Parol kamida 8 belgidan iborat bo‘lsin');
-        const name = `yoshxorazmiylar-${today()}`, dir = fs.mkdtempSync(path.join(DATA, 'dl-'));
+        const name = `yoshxorazmiylar-${new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', '_').replace(':', '-')}`, dir = fs.mkdtempSync(path.join(DATA, 'dl-'));
         try {
           const f = path.join(dir, name + '.db'), z = path.join(dir, name + '.zip');
           db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`);
