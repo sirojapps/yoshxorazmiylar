@@ -684,6 +684,18 @@ body.lgx .login .btn.sec{background:rgba(255,255,255,.6)}
  body.lgx .login>img,body.lgx .login>svg{width:140px!important;height:140px!important;max-width:none;border-radius:50%;box-shadow:0 0 0 5px rgba(251,246,234,.9),0 10px 26px rgba(60,40,10,.3)}
  body.lgx .yx-cap{display:none!important}
 }
+
+html,body{overscroll-behavior-y:contain}
+.skw{display:flex;flex-direction:column;gap:12px;padding:6px 0}
+.sk{display:block;height:16px;border-radius:8px;background:linear-gradient(90deg,#e8edf5 25%,#f5f8fc 37%,#e8edf5 63%);background-size:400% 100%;animation:skm 1.3s ease infinite}
+@keyframes skm{0%{background-position:100% 50%}100%{background-position:0 50%}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+#netbar{position:fixed;left:0;right:0;top:0;z-index:9998;text-align:center;font:700 14px/1.2 system-ui,sans-serif;color:#fff;padding:calc(9px + env(safe-area-inset-top,0px)) 12px 9px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+#netbar.off{background:#dc2626}#netbar.ok{background:#16a34a}
+#ptr{position:fixed;left:50%;top:0;z-index:60;width:42px;height:42px;margin-top:-46px;border-radius:50%;background:#fff;box-shadow:0 4px 14px rgba(15,35,80,.22);display:grid;place-items:center;color:#2563eb;font:700 20px system-ui;transform:translate(-50%,0);opacity:0}
+#ptr span{transition:transform .15s}#ptr.go span{transform:rotate(180deg)}
+#ptr.spin span{animation:ptrs .8s linear infinite;border:3px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;width:20px;height:20px;font-size:0}
+@keyframes ptrs{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -698,7 +710,7 @@ body.lgx .login .btn.sec{background:rgba(255,255,255,.6)}
 <text x="310" y="132" font-size="30">x² + 10x = 39</text><text x="310" y="506" font-size="24">(x + 5)² = 64 ⇒ x = 3</text></g></svg>
 <div id="gl"></div></div>
 <div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
-<div class="app" id="app"></div><script>if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
+<div class="app" id="app"><div class="gut skw" style="padding-top:28px"><i class="sk" style="height:120px;border-radius:18px"></i><i class="sk" style="width:60%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:80%"></i></div></div><script>if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <script>
@@ -731,7 +743,7 @@ async function doInstall(){
   <p class="note">Shundan keyin ${pc?'ish stolida':'telefon ekranida'} “Yosh Xorazmiylar” belgisi paydo bo’ladi. PIN kodni bir marta kiritsangiz, keyin qayta so’ralmaydi.</p>
   <button class="btn pri" data-act="close">Tushunarli</button>`);
 }
-let toastT;function toast(t,err){const el=$('#toast');el.textContent=t;el.className='toast'+(err?' err':'');el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,err?4000:2200)}
+let toastT,toastSeq=0;function toast(t,err){toastSeq++;const el=$('#toast');el.textContent=t;el.className='toast'+(err?' err':'');el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,err?4000:2200)}
 async function api(name,body){
   let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),credentials:'same-origin'})}
   catch(e){const er=new Error('Server bilan aloqa yo’q. Internetni tekshiring yoki birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
@@ -739,6 +751,8 @@ async function api(name,body){
   let d={};try{d=await r.json()}catch(e){}
   if(r.status===401&&name!=='login'){S=null;render();throw new Error(d.error||'Qaytadan kiring')}
   if(!r.ok)throw new Error(d.error||'Xatolik');
+  const wk=/\.(delete|remove|revoke|purge|purgeAll|clean)$/.test(name)?'del':/\.(save|add|import|merge|move|phone|restore|date|issue|weights|key|meta|edit|avatar|absentRest|obuna)$|^(approve|unapprove)$/.test(name)?'ok':'';
+  if(wk){const q=toastSeq;setTimeout(()=>{if(toastSeq===q)toast(wk==='del'?'O’chirildi ✓':'Saqlandi ✓')},350)}
   return d;
 }
 const fmtDate=iso=>{if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('uz-UZ',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toTimeString().slice(0,5)};
@@ -942,7 +956,7 @@ function searchRes(){
 // ---------------- kompyuter: o'ng panel ("Bugungi holat")
 let RECENT=null,RECENT_AT=0;
 function loadRecent(){if(!P('tarix'))return;if(RECENT&&Date.now()-RECENT_AT<60000)return;RECENT_AT=Date.now();api('audit',{limit:7}).then(d=>{RECENT=d.rows;const b=$('#recentBox');if(b)b.innerHTML=recentHtml()}).catch(()=>{})}
-function recentHtml(){if(!RECENT)return '<div class="note">Yuklanmoqda…</div>';if(!RECENT.length)return '<div class="note">Hali o’zgarish yo’q</div>';
+function recentHtml(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<div class="note">Hali o’zgarish yo’q</div>';
   const names=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name.split(' ')[0]]));const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
   return RECENT.map(h=>{const d=h.detail||{};let x=d.student_id?stn[d.student_id]||'':d.name||(d.num?d.num+'-maktab':'');
     if(h.action==='natija.kiritish')x+=` · ${d.absent?'kelmadi':d.score+' ball'}`;if(h.action==='natija.tuzatish')x+=` · ${d.old?.absent?'kelmadi':d.old?.score}→${d.new?.absent?'kelmadi':d.new?.score}`;
@@ -1284,7 +1298,7 @@ function openDel(kind,id){
    <button class="btn dan" data-act="delGo" data-k="${kind}" data-id="${id}">O’chirish</button>`);
   setTimeout(()=>$('#delConf')?.focus(),50)}
 function scrTrash(){
-  if(!TRASH){api('trash.list').then(d=>{TRASH=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’chirilganlar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!TRASH){api('trash.list').then(d=>{TRASH=d.rows;render()}).catch(e=>toast(e.message,true));return ['O’chirilganlar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const ceo=S.me.role==='ceo';const left=at=>Math.max(0,30-Math.floor((Date.now()-new Date(at))/864e5));
   return ['O’chirilganlar',`${TRASH.length} ta`,`<p class="note" style="margin:0">${ceo?'Hamma o’chirilganlar shu yerda.':'Siz o’chirganlar shu yerda.'} 30 kundan keyin butunlay o’chib ketadi.</p>
    ${ceo&&TRASH.length>1?`<button class="btn sec" data-act="trPurgeAll" style="color:var(--wrong)">🗑 Hammasini butunlay o’chirish (${TRASH.length} ta)</button>`:''}
@@ -1298,7 +1312,7 @@ function scrTests(){
    ${P('maktab')?`<button class="btn pri" data-act="testEdit">+ Yangi sinov yoki imtihon</button>`:''}`]}
 let PINS=null, pinKind='ota', pinSchool=0, pinHas='no';
 function scrPins(){
-  if(!PINS){api('pins').then(d=>{PINS=d.list;render()}).catch(e=>toast(e.message,true));return ['PIN’lar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!PINS){api('pins').then(d=>{PINS=d.list;render()}).catch(e=>toast(e.message,true));return ['PIN’lar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   if(isDir())pinKind='rahbar';
   let l=PINS.filter(x=>x.kind===pinKind&&(!pinSchool||x.school_id===pinSchool));
   const has=l.filter(x=>x.user?.pin), no=l.filter(x=>!x.user?.pin).sort((a,b)=>(!b.phone&&b.kind==='ota')-(!a.phone&&a.kind==='ota'));
@@ -1360,7 +1374,7 @@ function histSub(h){const d=h.detail,p=[];if(h.num)p.push(h.num+'-maktab');if(h.
   if(h.test&&!h.action.startsWith('sertifikat.'))p.push(esc(h.test));
   p.push(esc(h.who||'—'));return p.join(' · ')}
 function scrHistory(){
-  if(!HIST){histLoad(false);return ['O’zgarishlar tarixi','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!HIST){histLoad(false);return ['O’zgarishlar tarixi','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const stn=Object.fromEntries(X.st.map(s=>[s.id,s.name]));
   const chip=(k,t)=>`<button class="chip-f" data-hk="${k}" aria-pressed="${HF.kind===k}">${t}</button>`;
   const people=[['','Hamma'],['0','Sayt (avtomatik)']].concat((S.team||[]).filter(u=>u.active!==0).map(u=>[String(u.id),u.role==='ceo'?'CEO':u.name]));
@@ -1385,7 +1399,7 @@ function scrHistory(){
 let BK=null;
 const fmtMB=n=>n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' KB';
 function scrBackup(){
-  if(!BK){api('backup.list').then(d=>{BK=d;render()}).catch(e=>toast(e.message,true));return ['Zaxira nusxa','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!BK){api('backup.list').then(d=>{BK=d;render()}).catch(e=>toast(e.message,true));return ['Zaxira nusxa','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const L=BK.last,cnt=c=>`${c.schools??'—'} maktab · ${c.students??'—'} o’quvchi · ${c.results??'—'} natija`;
   const age=L?Math.floor((Date.now()-new Date(L.at))/36e5):null;
   const st=!L?`<div class="card pad warnc"><b>Hali zaxira nusxa yo’q.</b><p class="note" style="margin:6px 0 0">Server birinchi nusxani bugun kechasi oladi. Ertaga shu sahifani yana tekshiring.</p></div>`
@@ -1675,7 +1689,7 @@ function thRow(t){const mine=t.last?.user_id===S.me.id;
    <div class="s">${t.last?(mine?'Siz: ':'')+esc((t.last.text||'').slice(0,70))+(t.last.image?' [rasm]':'')+(t.last.audio?' 🎤 ovozli xabar':''):''}</div></div>
    <div class="num" style="font-weight:500"><small>${ago(t.updated_at)}</small>${t.unread?badge(t.unread):t.status==='hal'&&t.kind==='jamoa'?'<span class="pill ok">hal</span>':''}</div></button>`}
 function scrMessages(){
-  if(!TH){loadThreads();return ['Xabarlar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!TH){loadThreads();return ['Xabarlar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const r=S.me.role, lead=r==='ceo'||P('sardor');
   let top='', list=TH;
   if(isTeam()){
@@ -2137,7 +2151,7 @@ function openRevoke(code,manual){const x=manual?(MC||[]).find(y=>y.code===code):
    ${manual?`<button class="btn pri" data-act="rvReplace" data-c="${esc(code)}">Almashtirish — to’g’risini yangi raqam bilan berish</button><p class="note" style="margin:0">Eskisi QR’da «almashtirilgan, yangisi № …» deb chiqadi.</p>`:''}
    <button class="btn dan" data-act="rvRevoke" data-c="${esc(code)}">Bekor qilish</button><p class="note" style="margin:0">QR’da «⚠ Bekor qilingan» va sababi chiqadi.</p>`)}
 function scrMcerts(){
-  if(!MC){loadMc();return '<div class="empty">Yuklanmoqda…</div>'}
+  if(!MC){loadMc();return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>'}
   return `<button class="btn pri" data-act="mcNew">＋ Yangi sertifikat berish</button>
   <p class="note" style="margin:0">Ism, maktab, sinf, sinov va natijani yozasiz — matn asosiy sertifikatlardagi qoida bilan aynan o’shandek tuziladi. Ramka, logotip, imzo va muhr o’sha.</p>
   ${MC.filter(x=>!x.status).length>1?`<button class="btn sec" data-act="mcPdf">⬇ Hammasini PDF qilib yuklab olish (${MC.filter(x=>!x.status).length} ta)</button>`:''}
@@ -2191,7 +2205,7 @@ function parentTabrik(s,t,r){
 let EXL=null, exKid=null;
 async function loadEx(){try{EXL=await api('ex.list')}catch(e){EXL={rows:[]};toast(e.message,true)}render()}
 function scrExTeam(){
-  if(!EXL){loadEx();return ['Mashg’ulotlar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!EXL){loadEx();return ['Mashg’ulotlar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   return ['Mashg’ulotlar','Kunlik mashqlar',`${P('mashq')?`<button class="btn pri" data-act="exEdit">+ Mashq qo’shish</button>`:''}
   <div class="card list">${EXL.rows.map(e=>`<button class="row" data-act="exEdit" data-id="${e.id}"><div class="m"><div class="n">${e.grade}-sinf · ${e.day.split('-').reverse().join('.')}${e.day>EXL.today?' <span class="pill gray">rejada</span>':''}</div><div class="s">${esc(e.text.slice(0,80))}</div></div><div class="num"><small>${e.done?.n||0} yechdi · ${e.done?.c||0} to’g’ri</small></div></button>`).join('')||'<div class="empty">Hali mashq yo’q</div>'}</div>`]}
 function openExEdit(id){
@@ -2208,7 +2222,7 @@ function openExEdit(id){
    <label class="field"><span class="label">Tushuntirish (javobdan keyin ko’rinadi)</span><textarea id="exE">${esc(e.explain||'')}</textarea></label>
    <button class="btn pri" data-act="exSave">Saqlash</button>${id?`<button class="btn dan" data-act="exDel" data-id="${id}">O’chirish</button>`:''}`)}
 function scrExParent(){
-  if(!EXL){loadEx();return ['Mashq','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!EXL){loadEx();return ['Mashq','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const kids=X.st; if(!kids.some(k=>k.id===exKid))exKid=kids[0]?.id; const kid=kids.find(k=>k.id===exKid);
   const rows=kid?EXL.rows.filter(e=>e.grade===kid.grade):[];
   return ['Mashq',kid?esc(kid.name):'',`${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
@@ -2223,7 +2237,7 @@ function scrExParent(){
 let SET=null;
 async function loadSet(){try{SET=await api('settings.get')}catch(e){toast(e.message,true)}render()}
 function scrSettings(){
-  if(!SET){loadSet();return ['Sozlamalar','',`<div class="empty">Yuklanmoqda…</div>`]}
+  if(!SET){loadSet();return ['Sozlamalar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const img=(k,l)=>`<div class="card pad"><div class="sec-h"><b>${l}</b>${SET[k]?'<span class="pill ok">yuklangan</span>':'<span class="pill gray">yo’q</span>'}</div>${SET[k]?`<img src="${esc(SET[k])}" style="max-height:120px;object-fit:contain;align-self:flex-start;background:#fff;border-radius:8px;padding:6px" alt="">`:''}<button class="btn sec sm" data-act="setImg" data-k="${k}" style="align-self:flex-start">${SET[k]?'Almashtirish':'Rasm yuklash'}</button></div>`;
   return ['Sozlamalar','',`
   <section class="sec"><p class="label">Telegram bot</p><div class="card pad">
@@ -2290,7 +2304,7 @@ document.addEventListener('click',async e=>{
    case 'msgEdit':{editMsg=+d.id;msgMenu=0;drawThread();break}
    case 'msgEditCancel':{editMsg=0;drawThread();break}
    case 'msgEditSave':{const t=val('edText');await api('msg.edit',{id:editMsg,text:t});toast('Tahrirlandi');openThread(THV.thread.id);break}
-   case 'msgDel':{if(!confirm('Xabar o’chirilsinmi? Uni qaytarib bo’lmaydi.'))break;await api('msg.delete',{id:+d.id});toast('O’chirildi');TH=null;openThread(THV.thread.id);break}
+   case 'msgDel':{if(!confirm('Xabar o’chirilsinmi? Uni qaytarib bo’lmaydi.'))break;await api('msg.delete',{id:+d.id});toast('O’chirildi ✓');TH=null;openThread(THV.thread.id);break}
    case 'thStatus':await api('thread.status',{id:THV.thread.id,status:d.s});toast(d.s==='hal'?'Hal qilindi':'Qayta ochildi');openThread(THV.thread.id);break;
    case 'thForward':{const r=await api('thread.forward',{id:THV.thread.id});toast('Jamoaga yuborildi');openThread(r.id);break}
    case 'thProfile':closeSheet();stack.push('stu:'+d.id);render();break;
@@ -2326,12 +2340,12 @@ document.addEventListener('click',async e=>{
    case 'exEdit':openExEdit(+d.id||0);break;
    case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
    case 'exSave':await api('ex.save',{id:CMP.id||undefined,grade:+val('exG'),day:val('exD'),text:val('exT'),image:CMP.exImg,options:[0,1,2,3,4].map(i=>val('exO'+i)),answer:val('exA'),explain:val('exE')});closeSheet();toast('Mashq saqlandi');EXL=null;render();break;
-   case 'exDel':await api('ex.delete',{id:+d.id});closeSheet();toast('O’chirildi');EXL=null;render();break;
+   case 'exDel':await api('ex.delete',{id:+d.id});closeSheet();toast('O’chirildi ✓');EXL=null;render();break;
    case 'setSave':{const v=val(d.src);if(d.k==='bot_token'&&!v){toast('Kalitni kiriting',true);break}const r=await api('settings.save',{key:d.k,value:v});toast(d.k==='bot_token'?`Bot ulandi: @${r.bot_username}`:'Saqlandi');SET=null;await load();break}
-   case 'setSch':for(const k of ['sch_name','sch_about','sch_address','sch_phone','sch_telegram','sch_instagram','sch_facebook','sch_youtube','sch_site'])await api('settings.save',{key:k,value:val('st_'+k)});SET=null;toast('Saqlandi');await load();break;
+   case 'setSch':for(const k of ['sch_name','sch_about','sch_address','sch_phone','sch_telegram','sch_instagram','sch_facebook','sch_youtube','sch_site'])await api('settings.save',{key:k,value:val('st_'+k)});SET=null;toast('Saqlandi ✓');await load();break;
    case 'setCert':for(const k of ['cert_top','cert_title','cert_ribbon','cert_award','cert_tuman','cert_body','cert_wish'])await api('settings.save',{key:k,value:val('st_'+k)});CA=null;toast('Saqlandi. Namunani ko’rib chiqing');SET=null;render();break;
    case 'setCertReset':if(!confirm('Sertifikat matnlari asl holiga qaytarilsinmi?'))break;for(const k of ['cert_top','cert_title','cert_ribbon','cert_award','cert_tuman','cert_body','cert_wish'])await api('settings.save',{key:k,value:''});CA=null;toast('Asl matnga qaytarildi');SET=null;render();break;
-   case 'setSig':await api('settings.save',{key:'signer',value:val('stSig')});await api('settings.save',{key:'signer_role',value:val('stRole')});CA=null;toast('Saqlandi');SET=null;render();break;
+   case 'setSig':await api('settings.save',{key:'signer',value:val('stSig')});await api('settings.save',{key:'signer_role',value:val('stRole')});CA=null;toast('Saqlandi ✓');SET=null;render();break;
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
 });
@@ -2776,7 +2790,7 @@ const pbCnt=(g,c)=>PBM?.counts?.[g]?.[c]||{n:0,p:0};
 async function pbMeta(force){if(PBM&&!PBM.err&&!force)return PBM;try{const old=PBM&&!PBM.err?PBM.total:null;PBM=await api('pb.meta');PBM._t=Date.now();if(old!=null&&old!==PBM.total)PBL=null}catch(e){PBM={err:e.message}}return PBM}
 // boshqa telefondan yuklangan misollar ham ko'rinsin: bazaga kirganda va har 30 soniyada son qayta so'raladi
 let pbRefreshing=false;function pbFresh(){if(PBM&&!PBM.err&&Date.now()-(PBM._t||0)>30000&&!pbRefreshing){pbRefreshing=true;pbMeta(true).then(()=>{pbRefreshing=false;render()})}}
-function pbNeed(){if(!PBM){pbMeta().then(render);return ['Misollar bazasi','','<div class="card empty">Yuklanmoqda…</div>']}pbFresh();if(PBM.err)return ['Misollar bazasi','',`<div class="card empty">${esc(PBM.err)}</div>`];return null}
+function pbNeed(){if(!PBM){pbMeta().then(render);return ['Misollar bazasi','','<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>']}pbFresh();if(PBM.err)return ['Misollar bazasi','',`<div class="card empty">${esc(PBM.err)}</div>`];return null}
 async function mediaUp(blob){
   let r;try{r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob,credentials:'same-origin'})}catch(e){throw new Error('Server bilan aloqa yo’q. Internetni tekshiring.')}
   let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw new Error(d.error||'Fayl yuklanmadi');return d.id}
@@ -2814,7 +2828,7 @@ function scrPBTopic(code){const w=pbNeed();if(w)return w;const t=pbT(code);if(!t
   return [t.name,`${t.g}-sinf · ${t.group}`,`
   ${darsCard(code)}
   ${PBMZ.m?`<details class="card pad"><summary style="cursor:pointer;font-weight:700">📘 Matnli tushuntirish (ochish)</summary>${mavzuHtml(PBMZ.m,t.name)}</details>`:''}
-  ${L.total==null?'<div class="card empty">Yuklanmoqda…</div>':!L.total?`<div class="card empty">Bu mavzuda ${PBPIC?'suratli ':''}misol hali yo’q</div>`:`<p class="note" style="margin:0">${L.total} ta misol${PBPIC?' (faqat suratli)':''}. O’chirish uchun misollarni belgilang.</p>`}
+  ${L.total==null?'<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>':!L.total?`<div class="card empty">Bu mavzuda ${PBPIC?'suratli ':''}misol hali yo’q</div>`:`<p class="note" style="margin:0">${L.total} ta misol${PBPIC?' (faqat suratli)':''}. O’chirish uchun misollarni belgilang.</p>`}
   ${L.rows.map((p,i)=>probHtml(p,{n:i+1,head:`<label class="check" style="padding:0;justify-content:flex-end;font-size:13px"><input type="checkbox" data-pbsel="${p.id}" ${L.sel.has(p.id)?'checked':''}>Tanlash</label>`})).join('')}
   ${L.total!=null&&L.rows.length<L.total?`<button class="btn sec" data-pb="pbMore">Yana ko’rsatish (${L.total-L.rows.length} ta qoldi)</button>`:''}
   <div id="pbSelBar">${pbSelBar()}</div>`]}
@@ -3235,7 +3249,7 @@ const NIC={users:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20v-1a5 5 0 0 1 5-5
 const nic=(k,c='#fff',w=2)=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${NIC[k]}</svg>`;
 function nCard(ic,g,bg,l,v,a){return `<button class="nk" style="background:${bg}" ${a||''}><span class="nk-i" style="background:${g}">${nic(ic)}</span><span class="nk-m"><small>${l}</small><b>${v}</b></span></button>`}
 function nChart(){const d=NST;const head=`<div class="nc-h"><h3>${nic('chart','#2563eb',3)}Platforma faolligi</h3><div class="nseg">${[[1,'Bugun'],[7,'7 kun'],[30,'30 kun'],[365,'1 yil']].map(([n,l])=>`<button data-act="nRange" data-n="${n}" class="${NRANGE===n?'on':''}">${l}</button>`).join('')}</div></div>`;
-  if(!d)return `<div class="nc">${head}<p class="note">Yuklanmoqda…</p></div>`;
+  if(!d)return `<div class="nc">${head}<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div></div>`;
   let v=d.days.slice(-NRANGE);
   if(NRANGE===365){const m={};for(const x of v){const k=x.d.slice(0,7);(m[k]||={d:k+'-01',a:0,n:0});m[k].a+=x.a;m[k].n+=x.n}v=Object.values(m)}
   if(NRANGE===1){const t=v[0];return `<div class="nc">${head}<div class="nbig"><div><b style="color:#2563eb">${nfm(t.a)}</b><span>faol foydalanuvchi</span></div><div><b style="color:#16a34a">${nfm(t.n)}</b><span>yangi ro’yxatdan o’tgan</span></div></div><div class="nlg"><span><i style="background:#2563eb"></i>Faol foydalanuvchilar</span><span><i style="background:#22c55e"></i>Yangi ro’yxatdan o’tganlar</span></div></div>`}
@@ -3316,7 +3330,7 @@ function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
    <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,40,S.me.name)}<div class="nph-mn"><b>${esc(S.me.name||'CEO')}</b><small>CEO / Super Admin</small></div><span class="nph-c">⌄</span></button></div>`}
 function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="${NP_BANNER_M2}"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
 const npAgo=t=>{const m=Math.max(1,Math.round((Date.now()-Date.parse(t))/60000));return m<60?`${m} daqiqa oldin`:m<1440?`${Math.round(m/60)} soat oldin`:`${Math.round(m/1440)} kun oldin`};
-function nRecent(){if(!RECENT)return '<p class="note">Yuklanmoqda…</p>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
+function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
   const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC={maktab:'school',sinf:'school',oquvchi:'user',natija:'clip',sertifikat:'award',pin:'key',sinov:'clip',test:'file',e:'chat'};
   return RECENT.slice(0,5).map(h=>{const k=Object.keys(IC).find(x=>h.action.startsWith(x))||'clock';const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
     return `<div class="nr">${npIc(IC[k]||'clock')}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+d.num+'-maktab':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
@@ -3388,7 +3402,7 @@ function nActive(){const t=curTest();const l=t?S.schools.filter(s=>!s.test).map(
   return `<div class="nc e-act">${hT('medal','#2563eb','Eng faol maktablar <small>(o’rtacha natija)</small>')}${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${x.sc.num}-maktab (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
 function nGifted(){const t=curTest();const n=t?X.st.filter(s=>{const p=pct(R(s.id,t.id));return p!=null&&p>=70}).length:0;
   return `<button class="nc ngf" data-side="yuqori">${hT('cup','#f5a400','Iqtidorli o’quvchilar')}<div class="ngf-b"><img src="${NP_GIFT}" alt=""><b>${nfm(n)}</b><span>&gt; 70%</span></div></button>`}
-function nRecent(){if(!RECENT)return '<p class="note">Yuklanmoqda…</p>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
+function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
   const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC=[['maktab','school','#2563eb'],['sinf','school','#2563eb'],['oquvchi','user','#7c3aed'],['natija','clip','#7c3aed'],['sertifikat','award','#16a34a'],['pin','key','#16a34a'],['sinov','clip','#7c3aed'],['dars','play','#7c3aed'],['test','file','#2563eb']];
   return RECENT.slice(0,5).map(h=>{const k=IC.find(x=>h.action.startsWith(x[0]))||['','clock','#2563eb'];const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
     return `<div class="nr">${SV(NPI[k[1]]||EI.clock,k[2],1.9)}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+d.num+'-maktab':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
@@ -3422,9 +3436,35 @@ const limMore=(a,k)=>a.length>(LIM[k]||LIMN)?`<button class="btn sec" data-act="
 function loginHero(){document.body.classList.add('lgx');const l=document.querySelector('#app .login');if(!l||l.querySelector('.lhero'))return;
   l.insertAdjacentHTML('afterbegin','<div class="lhero"><img src="/a/kirish.webp?v=1" alt="" onerror="this.parentNode.remove();document.body.classList.remove(&quot;lgx&quot;)"></div>');
   l.insertAdjacentHTML('beforeend','<div class="lhelp">'+(l.querySelector('#pwIn')?'':'<a class="lbot" href="https://t.me/YoshXorazmiylarBot" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.3 13 1.5 11.5c-1-.3-1-1 .2-1.5l18.8-7.2c.9-.3 1.6.2 1.4 1.5z"/></svg>PIN olish — Telegram bot</a>')+'</div>')}
+
+// ===== qulayliklar: tebranish, internet lentasi, panelni surib yopish, pastga tortib yangilash
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
+document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.btn.sec,.npi:not(.soon)'))buzz(10)},true);
+(function(){const b=document.createElement('div');b.id='netbar';b.hidden=true;document.body.appendChild(b);let t;
+ const show=(on)=>{clearTimeout(t);b.className=on?'ok':'off';b.textContent=on?'Internet qaytdi':'Internet yo’q';b.hidden=false;if(on)t=setTimeout(()=>b.hidden=true,2500)};
+ addEventListener('offline',()=>{show(false);buzz(40)});addEventListener('online',()=>show(true));if(!navigator.onLine)show(false)})();
+(function(){let sx=0,sy=0,dx=0,st=0,mode='',el=null,dim=null,y0=0,pd=0,ptr=null;
+ const mob=()=>innerWidth<900;
+ addEventListener('touchstart',e=>{const tch=e.touches[0];sx=tch.clientX;sy=tch.clientY;dx=0;pd=0;st=Date.now();mode='';el=null;
+  if(mob()&&document.body.classList.contains('np-open')){el=document.querySelector('.np');dim=document.querySelector('.np-dim');mode='np?';return}
+  if(S&&scrollY<=0&&$('#sheet').hidden&&!document.getElementById('darsOv')&&!document.getElementById('scan')?.offsetParent&&!e.target.closest('input,textarea,select,.np,[contenteditable]'))mode='pr?'},{passive:true});
+ addEventListener('touchmove',e=>{if(!mode)return;const tch=e.touches[0],x=tch.clientX-sx,y=tch.clientY-sy;
+  if(mode==='np?'){if(Math.abs(x)>10||Math.abs(y)>10)mode=Math.abs(x)>Math.abs(y)&&x<0?'np':'';if(mode==='np'){el.style.transition='none'}}
+  if(mode==='np'){dx=Math.min(0,x);el.style.transform=`translateX(${dx}px)`;if(dim)dim.style.opacity=String(Math.max(0,1+dx/el.offsetWidth));if(e.cancelable)e.preventDefault();return}
+  if(mode==='pr?'){if(Math.abs(x)>10||Math.abs(y)>10)mode=y>0&&y>Math.abs(x)*1.3&&scrollY<=0?'pr':''}
+  if(mode==='pr'){pd=Math.max(0,y);if(!ptr){ptr=document.createElement('div');ptr.id='ptr';ptr.innerHTML='<span>↓</span>';document.body.appendChild(ptr)}
+   const h=Math.min(90,pd*.5);ptr.style.transform=`translate(-50%,${h}px)`;ptr.style.opacity=String(Math.min(1,h/60));ptr.classList.toggle('go',h>=60);if(e.cancelable)e.preventDefault()}},{passive:false});
+ addEventListener('touchend',()=>{
+  if(mode==='np'&&el){const w=el.offsetWidth,fast=dx<-40&&Date.now()-st<250;el.style.transition='';el.style.transform='';if(dim)dim.style.opacity='';
+   if(dx<-w*.35||fast){NP_OPEN=false;document.body.classList.remove('np-open');buzz(8);navSync()}}
+  if(mode==='pr'&&ptr){const p=ptr;ptr=null;if(Math.min(90,pd*.5)>=60){p.classList.add('spin');p.style.transform='translate(-50%,60px)';buzz(10);
+    Promise.resolve(load()).finally(()=>{p.remove();toast('Yangilandi ✓')})}else p.remove()}
+  mode=''},{passive:true});
+})();
 function render(){
   document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
   if(!S){renderLogin();loginHero();return}
+  document.body.classList.remove('lgx');
   if(S.me.role==='ota'&&!S.me.consent){renderConsent();return}
   X=idx();
   const tabs=TABS[isTeam()?'team':S.me.role]();
@@ -3603,7 +3643,7 @@ document.addEventListener('click',async e=>{
    case 'close':closeSheet();break;
    case 'install':await doInstall();break;
    case 'phoneEdit':openPhone(+d.id);break;
-   case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi');await load();break;
+   case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
    case 'logout':await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
@@ -3641,7 +3681,7 @@ document.addEventListener('click',async e=>{
    case 'tbParse':TB.p=parseTestText($('#tbTxt')?.value||'');tbShow();break;
    case 'tbSave':{const nm=val('tbName');if(!nm){toast('Test nomini yozing',true);$('#tbName')?.focus();break}
      const r=await api('bank.upload',{name:nm,sections:TB.p.secs});closeSheet();toast(`Bazaga yuklandi: ${r.ok.map(x=>x.grade+'-sinf').join(', ')}`);await load();break}
-   case 'bankDel':{const b=(S.bank||[]).find(x=>x.id===+d.id);if(!b||!confirm(`«${b.name}» (${b.grade}-sinf) bazadan o’chirilsinmi? 30 kun ichida savatdan qaytarish mumkin.`))break;await api('bank.delete',{id:b.id});toast('O’chirildi');await load();break}
+   case 'bankDel':{const b=(S.bank||[]).find(x=>x.id===+d.id);if(!b||!confirm(`«${b.name}» (${b.grade}-sinf) bazadan o’chirilsinmi? 30 kun ichida savatdan qaytarish mumkin.`))break;await api('bank.delete',{id:b.id});toast('O’chirildi ✓');await load();break}
    case 'useBankOpen':openUseBank(+d.t,+d.g);break;
    case 'useBank':{await api('test.useBank',{test_id:+d.t,grade:+d.g,bank_id:+d.b||null});closeSheet();toast(+d.b?'Test imtihonga berildi':'Test olib tashlandi');await load();break}
    case 'pickT':{closeSheet();if(d.k==='scan')scanOpen(+d.c,+d.t);else openTitul(d.k,+d.c,+d.t);break}
@@ -3651,13 +3691,13 @@ document.addEventListener('click',async e=>{
    case 'entrySave':await entrySave(!!d.absent);break;
    case 'entryDel':await api('result.delete',{test_id:testId,student_id:E.s.id});closeSheet();toast('Natija o’chirildi');await load();break;
    case 'schoolEdit':{const s=d.id?X.sc[d.id]:{};formSheet(d.id?'Maktabni tahrirlash':'Yangi maktab',isDir()?[{id:'fName',label:'Maktab nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name}]:[{id:'fNum',label:'Maktab raqami',value:s.num,mode:'numeric'},{id:'fName',label:'Qo’shimcha nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name},{id:'fDirP',label:'Direktor telefoni',value:s.director_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'schoolSave',isDir()?'<p class="note">Maktab raqami va direktor telefonini loyiha jamoasi o’zgartiradi.</p>':`<label class="check"><input type="checkbox" id="fTest" ${s.test?'checked':''}><span><b>Sinov uchun maktab</b> — saytni tekshirish uchun ochilgan. Bolalariga sertifikat berilmaydi.</span></label>`);$('#sheet').dataset.id=d.id||'';break}
-   case 'schoolSave':await api('school.save',{id:+$('#sheet').dataset.id||undefined,num:val('fNum'),name:val('fName'),director_name:val('fDir'),director_phone:val('fDirP'),test:!!$('#fTest')?.checked});closeSheet();toast('Saqlandi');await load();break;
+   case 'schoolSave':await api('school.save',{id:+$('#sheet').dataset.id||undefined,num:val('fNum'),name:val('fName'),director_name:val('fDir'),director_phone:val('fDirP'),test:!!$('#fTest')?.checked});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'classEdit':{const c=d.id?X.cl[d.id]:{school_id:+d.school};formSheet(d.id?'Sinfni tahrirlash':'Yangi sinf',[{id:'fCls',label:'Sinf',value:c.name,ph:'3-A'},{id:'fT',label:'Sinf rahbari',value:c.teacher_name},{id:'fTP',label:'Sinf rahbari telefoni',value:c.teacher_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'classSave');Object.assign($('#sheet').dataset,{id:d.id||'',school:c.school_id});break}
-   case 'classSave':await api('class.save',{id:+$('#sheet').dataset.id||undefined,school_id:+$('#sheet').dataset.school,name:val('fCls'),teacher_name:val('fT'),teacher_phone:val('fTP')});closeSheet();toast('Saqlandi');await load();break;
+   case 'classSave':await api('class.save',{id:+$('#sheet').dataset.id||undefined,school_id:+$('#sheet').dataset.school,name:val('fCls'),teacher_name:val('fT'),teacher_phone:val('fTP')});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'studentEdit':{const s=d.id?X.st.find(x=>x.id===+d.id):{class_id:+d.class||S.classes[0]?.id,name:d.quick?q:''};
      formSheet(d.id?'O’quvchini tahrirlash':'Yangi o’quvchi',[{id:'fSN',label:'Familiya va ism',value:s.name},{id:'fSC',label:'Maktab va sinf',type:'select',options:classOpts(),value:s.class_id},{id:'fSP',label:'Ota-ona telefoni'+(!s.phone&&S.hints?.[s.id]?` (ro’yxatda: ${ph(S.hints[s.id])}, tekshirilmagan)`:''),value:s.phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'studentSave',d.id&&ED()?`<button class="btn dan" data-act="studentDel">O’quvchini o’chirish</button>`:'');
      Object.assign($('#sheet').dataset,{id:d.id||'',quick:d.quick||''});break}
-   case 'studentSave':{const quick=$('#sheet').dataset.quick;const r=await api('student.save',{id:+$('#sheet').dataset.id||undefined,name:val('fSN'),class_id:+val('fSC'),phone:val('fSP')});closeSheet();toast('Saqlandi');await load();if(quick&&testId)openEntry(r.id);break}
+   case 'studentSave':{const quick=$('#sheet').dataset.quick;const r=await api('student.save',{id:+$('#sheet').dataset.id||undefined,name:val('fSN'),class_id:+val('fSC'),phone:val('fSP')});closeSheet();toast('Saqlandi ✓');await load();if(quick&&testId)openEntry(r.id);break}
    case 'moveOpen':{const st=X.st.find(x=>x.id===+d.id);if(!st)break;const o=moveOpts(st);
      openSheet(`<div class="sh-top"><div class="m"><h2>Boshqa sinfga ko’chirish</h2><div class="s">${esc(st.name)} · hozir ${esc(st.cls)}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
       <label class="field"><span class="label">Qaysi sinfga?</span><select id="mvTo">${o.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join('')}</select></label>
@@ -3677,14 +3717,14 @@ document.addEventListener('click',async e=>{
      if(!confirm(`${pairs.length} ta ortiqcha nusxa olib tashlanadi. Natijasi bor nusxa qoladi, ortiqchasidagi telefon va boshqa ma’lumotlar unga o’tkaziladi.`))break;
      const r=await api('students.merge',{pairs});toast(`${r.n} ta ortiqcha nusxa olib tashlandi`);await load();break}
    case 'itEdit':openItEdit(+d.id||0,+d.school||S.schools[0]?.id);break;
-   case 'itSave':{const sh=$('#sheet').dataset;const r=await api('itest.save',{id:+sh.id||undefined,school_id:+sh.school,name:val('itN'),subject:val('itS'),day:val('itD'),qn:val('itQ'),grade:val('itG')[0]==='g'?+val('itG').slice(1):0,class_id:val('itG')[0]==='c'?+val('itG').slice(1):0});closeSheet();toast('Saqlandi');await load();if(!sh.id){stack.push('itest:'+r.id);render()}break}
-   case 'itDel':{if(!confirm('Bu ichki sinov va uning hamma natijalari o’chiriladi. 30 kun ichida “O’chirilganlar” bo’limidan qaytarish mumkin. Davom etasizmi?'))break;await api('itest.delete',{id:+d.id});stack.pop();toast('O’chirildi');await load();break}
+   case 'itSave':{const sh=$('#sheet').dataset;const r=await api('itest.save',{id:+sh.id||undefined,school_id:+sh.school,name:val('itN'),subject:val('itS'),day:val('itD'),qn:val('itQ'),grade:val('itG')[0]==='g'?+val('itG').slice(1):0,class_id:val('itG')[0]==='c'?+val('itG').slice(1):0});closeSheet();toast('Saqlandi ✓');await load();if(!sh.id){stack.push('itest:'+r.id);render()}break}
+   case 'itDel':{if(!confirm('Bu ichki sinov va uning hamma natijalari o’chiriladi. 30 kun ichida “O’chirilganlar” bo’limidan qaytarish mumkin. Davom etasizmi?'))break;await api('itest.delete',{id:+d.id});stack.pop();toast('O’chirildi ✓');await load();break}
    case 'irAbs':{const tid=+(stack[stack.length-1]||'').split(':')[1];const r=IR(tid,+d.sid);await api('iresult.save',r?.absent?{itest_id:tid,student_id:+d.sid,clear:1}:{itest_id:tid,student_id:+d.sid,absent:1});await load();break}
    case 'avPick':openAvPick(0);break;
    case 'kidAv':openAvPick(+d.id);break;
    case 'avUpload':{const kid=+d.kid;pickImage(async u=>{try{if(kid){const r=await api('student.avatar',{id:kid,avatar:u});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar='ph:'+r.v}else{await api('me.avatar',{avatar:u,consent:true});S.me.avatar=u}closeSheet();toast('Surat saqlandi');render();if(!kid)openMeInfo()}catch(e){toast(e.message,true)}},kid?200:240);break}
    case 'avNudgeOff':ls.set('avn',1);render();break;
-   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi');render();if(!kid)openMeInfo();break}
+   case 'avSet':{const kid=+d.kid;if(kid){await api('student.avatar',{id:kid,avatar:d.v});const s=(S.students||[]).find(x=>x.id===kid);if(s)s.avatar=''}else{await api('me.avatar',{avatar:d.v});S.me.avatar=d.v}closeSheet();toast('Saqlandi ✓');render();if(!kid)openMeInfo();break}
    case 'pageReload':{b.textContent='Yangilanmoqda…';b.disabled=true;try{if('caches' in window){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch(e){}location.reload();break}
    case 'reload':{const y=scrollY;b.style.opacity='.4';PBM=null;PBL=null;await load();requestAnimationFrame(()=>scrollTo(0,y));toast('Yangilandi');break}
    case 'delOpen':openDel(d.k,+d.id);break;
@@ -3708,7 +3748,7 @@ document.addEventListener('click',async e=>{
      const r=await api('results.absentRest',{test_id:testId,[d.k==='class'?'class_id':'school_id']:+d.id});toast(`${r.n} ta bola “Kelmadi” deb belgilandi`);await load();break}
    case 'toCheck':{const t=S.tests.find(x=>x.id===+d.id);if(!t)break;if(!confirm('Barcha maktablarda sinov o’tkazildimi? Sinov Tekshiruv bosqichiga o’tadi.'))break;
      await api('test.save',{id:t.id,name:t.name,date:t.date,status:'tekshiruv',gifted_top:t.gifted_top,gifted_min:t.gifted_min});toast('Tekshiruvga o’tkazildi');await load();break}
-   case 'testSave':{const r=await api('test.save',{id:+$('#sheet').dataset.id||undefined,name:val('fTN'),date:val('fTD'),status:val('fTS'),gifted_min:val('fTM'),scope:readScope()});const isNew=!$('#sheet').dataset.id;if(!testId){testId=r.id;ls.set('test',testId)}closeSheet();toast('Saqlandi');await load();if(isNew&&isTeam()){tab='imtihon';stack=[];go('exam:'+r.id)}break}
+   case 'testSave':{const r=await api('test.save',{id:+$('#sheet').dataset.id||undefined,name:val('fTN'),date:val('fTD'),status:val('fTS'),gifted_min:val('fTM'),scope:readScope()});const isNew=!$('#sheet').dataset.id;if(!testId){testId=r.id;ls.set('test',testId)}closeSheet();toast('Saqlandi ✓');await load();if(isNew&&isTeam()){tab='imtihon';stack=[];go('exam:'+r.id)}break}
    case 'keyEdit':{const tid=+d.id;const k=S.keys?.[tid]||{};openSheet(`<div class="sh-top"><div class="m"><h2>Kalit kiritish</h2><div class="s">Har sinf uchun javoblar ketma-ket, masalan: ABECDCBDCE…</div></div><button class="ib" data-act="close">${I.x}</button></div>
      ${[2,3,4].map(g=>`<label class="field"><span class="label">${g}-sinf</span><input id="key${g}" value="${esc(k[g]&&!k[g].includes('?')?k[g]:'')}" autocapitalize="characters" placeholder="${k[g]?'kiritilgan':'20 ta harf'}" style="font-family:ui-monospace,monospace;letter-spacing:.1em"></label>`).join('')}
      <p class="note">Kalit o’zgartirilsa, shu sinovdagi harflar bilan kiritilgan natijalar o’zi qayta hisoblanadi.</p><button class="btn pri" data-act="keySave" data-id="${tid}">Saqlash</button>`);break}
@@ -3736,7 +3776,7 @@ document.addEventListener('click',async e=>{
      const kz=()=>{const on=$('#pm_kuzatuvchi').checked;KOFF.concat('sardor').forEach(k=>{const x=$('#pm_'+k);if(!x)return;if(on)x.checked=false;x.disabled=on;x.closest('label').style.opacity=on?.45:1})};
      $('#pm_sardor').onchange=e=>{if(e.target.checked){$('#pm_kuzatuvchi').checked=false;kz();Object.keys(PL).forEach(k=>{if(k!=='pin_korish'&&k!=='yuklash'&&k!=='sertifikat')$('#pm_'+k).checked=true})}};$('#pm_kuzatuvchi').onchange=kz;kz();break}
    case 'teamSave':{PINS=null;const perms={sardor:$('#pm_sardor').checked,kuzatuvchi:$('#pm_kuzatuvchi').checked};S.perms.forEach(k=>perms[k]=$('#pm_'+k)?.checked||false);const r=await api('team.save',{id:+d.id||undefined,name:val('tmN'),phone:val('tmP'),perms});
-     if(r.pin)showPin({pin:r.pin,name:val('tmN'),phone:val('tmP').replace(/\D/g,'').slice(-9)},'jamoa');else{closeSheet();toast('Saqlandi')}await load();break}
+     if(r.pin)showPin({pin:r.pin,name:val('tmN'),phone:val('tmP').replace(/\D/g,'').slice(-9)},'jamoa');else{closeSheet();toast('Saqlandi ✓')}await load();break}
    case 'teamRemove':await api('team.remove',{id:+d.id});closeSheet();toast('Jamoadan chiqarildi');await load();break;
    case 'noteSave':{const t=val('noteText');if(!t)break;await api('note.save',{student_id:+d.id,text:t});toast('Izoh saqlandi');await load();break}
    case 'noteSummary':await api('note.summary',{id:+d.id});await load();break;
