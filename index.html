@@ -777,6 +777,16 @@ body.nui .nph{background:linear-gradient(90deg,rgba(227,237,252,.72) 0%,rgba(238
  body.nui .np-h b{font-size:17px!important}body.nui .np-h small{font-size:10px!important}
  body.nui .npsi{height:32px;font-size:13px}
 }
+
+/* panel: faqat bo'limlar ro'yxati aylanadi; minora va bayroq doim pastda, joyida turadi (5-noyabr) */
+body.nui .np{display:flex!important;flex-direction:column!important;overflow:hidden!important;background-attachment:scroll,scroll!important}
+body.nui .np-h{flex:none!important}
+body.nui .np-sc{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+body.nui .np-regw{flex:none!important;margin-top:auto!important;display:flex;justify-content:center;align-items:flex-end;pointer-events:none}
+body.nui .np-regw img,body.nui .np-reg{width:auto!important;max-width:92%!important;max-height:24vh!important;height:auto!important;margin:0 auto!important;display:block}
+
+/* past ekranlar (yotiq planshet): minora kichikroq, bo'limlarga ko'proq joy */
+@media (max-height:820px){body.nui .np-regw img,body.nui .np-reg{max-height:17vh!important}}
 </style>
 </head>
 <body>
@@ -3627,7 +3637,7 @@ function render(){
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
-  window.__npY=document.querySelector('.np')?.scrollTop||0;
+  window.__npY=document.querySelector('.np-sc')?.scrollTop||0;
   $('#app').innerHTML=`${NUI()?npHead():''}<header class="top gut">${stack.length?`<button class="ib" data-act="back" aria-label="Orqaga">${I.back}</button>`:''}
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
@@ -3635,7 +3645,7 @@ function render(){
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(S.me.demo)$('#app').insertAdjacentHTML('beforeend',demoBar());
-  if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());{const _np=document.querySelector('.np');if(_np)_np.scrollTop=window.__npY||0}const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
+  if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());{const _np=document.querySelector('.np-sc');if(_np)_np.scrollTop=window.__npY||0}const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const ri=$('#rq');if(ri){ri.oninput=e=>{rq=e.target.value;render()};if(rfocus){ri.focus();ri.setSelectionRange(ri.value.length,ri.value.length)}}
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
