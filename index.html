@@ -703,7 +703,7 @@ html,body{overscroll-behavior-y:contain}
 @keyframes ptrs{to{transform:rotate(360deg)}}
 
 /* tepa panel ingichkaroq (5-noyabr) */
-body.nui .nph-d>div,body.nui .nph-mn{line-height:1.1;display:flex;flex-direction:column;gap:1px}body.nui .nph-d small,body.nui .nph-mn small{display:block;margin:0}
+body.nui .nph-d>div,body.nui .nph-mn{line-height:1.1}body.nui .nph-d b,body.nui .nph-mn b{display:block;margin-bottom:1px}body.nui .nph-d small,body.nui .nph-mn small{display:block;margin:0}
 body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20px;height:20px}body.nui .nph-d b{font-size:12.5px;line-height:1.15}body.nui .nph-d small{font-size:11px;line-height:1.1}body.nui .nph-mn b{font-size:12.5px;line-height:1.15}body.nui .nph-mn small{font-size:11px;line-height:1.1}body.nui .nph-me .av{width:32px!important;height:32px!important}body.nui .nph-bell{width:34px;height:34px}body.nui .nph-bell svg{width:21px;height:21px}body.nui .nph-q{width:26px;height:26px;font-size:14px}body.nui .nph-s{height:32px}body.nui .nph-b{font-size:22px}.nph-out{width:34px;height:34px}.nph-out svg{width:20px;height:20px}
 
 /* chap menyu: kompyuterda yig'ish (faqat belgilar) + telefonda silliq surish (5-noyabr) */
@@ -711,7 +711,7 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
  body.nui .nph-b{display:grid!important;place-items:center;flex:none;width:40px;height:40px;border:0;background:none;font-size:22px;color:#0f2350;cursor:pointer;border-radius:10px}body.nui .nph-b:hover{background:#e2ebf8}
  body.nui .np{transition:width .28s cubic-bezier(.32,.72,0,1)}body.nui .app{transition:margin-left .28s cubic-bezier(.32,.72,0,1)}
  body.nui.npc{--sb:76px}
- body.nui.npc .np-h>div,body.nui.npc .np-role,body.nui.npc .np-reg,body.nui.npc .npi span,body.nui.npc .npi .chv,body.nui.npc .npi i,body.nui.npc .npsub,body.nui.npc .np-old{display:none!important}
+ body.nui.npc .np-h>div,body.nui.npc .np-role,body.nui.npc .np-reg,body.nui.npc .np-regw,body.nui.npc .np-x,body.nui.npc .npi span,body.nui.npc .npi .chv,body.nui.npc .npi i,body.nui.npc .npsub,body.nui.npc .np-old{display:none!important}
  body.nui.npc .np-h{justify-content:center;padding:12px 0 8px}body.nui.npc .np-h img{width:44px;height:44px}
  body.nui.npc .np-sc{padding:0 12px}body.nui.npc .npi{justify-content:center;padding:0;position:relative}
  body.nui.npc .npi em{position:absolute;top:1px;right:4px;padding:1px 5px;font-size:10px}
@@ -723,6 +723,14 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
  body.nui.np-drag .np{box-shadow:4px 0 14px rgba(15,35,80,.18)}
  body.nui.np-drag .nbn,body.nui.np-drag .nph,body.nui.np-drag .top,body.nui.np-drag .tabs{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 }
+
+/* namuna kabinet */
+.demo-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;display:flex;align-items:center;gap:10px;background:#6d28d9;color:#fff;padding:8px 8px 8px 16px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(76,29,149,.35);white-space:nowrap;max-width:calc(100vw - 24px)}
+.demo-bar b{font-weight:700}.demo-bar button{border:0;background:#fff;color:#6d28d9;font:inherit;font-weight:700;padding:7px 14px;border-radius:999px;cursor:pointer}
+@media (min-width:900px){.demo-bar{bottom:20px}}
+.dm-card{gap:10px}.dm-h{display:flex;align-items:center;gap:12px}.dm-ic{font-size:28px;width:44px;height:44px;display:grid;place-items:center;background:#eef4ff;border-radius:12px;flex:none}
+.dm-perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;padding-top:8px;border-top:1px solid #e5edf8}
+.dm-chk{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer}.dm-chk input{width:18px;height:18px;accent-color:#2563eb;flex:none}
 </style>
 </head>
 <body>
@@ -1313,7 +1321,7 @@ const SIDE_IC={savat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
  backup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>',
  resimport:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>'};
-const SIDE_N={savat:'O’chirilganlar',reyting:'Reyting',yuqori:'Yuqori natijalar',tests:'Sinovlar va imtihonlar',bank:'Testlar bazasi',pins:'PIN’lar',team:'Jamoa',history:'O’zgarishlar tarixi',certs:'Sertifikatlar',mashq:'Mashg’ulotlar',settings:'Sozlamalar',backup:'Zaxira nusxa',resimport:'Natijalar importi'};
+const SIDE_N={savat:'O’chirilganlar',reyting:'Reyting',yuqori:'Yuqori natijalar',tests:'Sinovlar va imtihonlar',bank:'Testlar bazasi',pins:'PIN’lar',team:'Jamoa',history:'O’zgarishlar tarixi',certs:'Sertifikatlar',mashq:'Mashg’ulotlar',settings:'Sozlamalar',backup:'Zaxira nusxa',resimport:'Natijalar importi',demo:'Namuna kabinet'};
 function sideExtra(){
   const top=stack[0]||'';
   const links=isTeam()?moreItems().map(([k])=>`<button class="sl" data-side="${k}" aria-current="${top===k}">${SIDE_IC[k]||I.chev}${SIDE_N[k]||k}</button>`).join(''):'';
@@ -1472,7 +1480,7 @@ function dirManage(){const sc=S.schools[0];if(!sc)return'';const l=X.st;const no
 function scrDirHome(){
   if(homeClass&&!S.classes.some(c=>c.id===homeClass))homeClass=0;
   const sc=S.schools[0]; const t=S.tests[0]; const l=homeClass?X.st.filter(s=>s.class_id===homeClass):X.st; const hc=homeClass?X.cl[homeClass]:null;
-  if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div>${limMore(view,'pins')}</section></div><aside class="dside">${sideDir()}</aside></div>`];
+  if(!t)return [`${sc?.num}-maktab`,'Direktor',`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}<div class="card hero"><p class="label">Natijalar</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. Tekshiruvdan keyin shu yerda ko’rinadi.</p></div>${dirManage()}<section class="sec"><p class="label">Sinflar</p><div class="card list">${S.classes.map(c=>`<button class="row" data-go="class:${c.id}"><div class="m"><div class="n">${esc(c.name)}</div><div class="s">${X.st.filter(s=>s.class_id===c.id).length} o’quvchi${c.teacher_name?' · '+esc(c.teacher_name):''}</div></div>${I.chev}</button>`).join('')}</div></section></div><aside class="dside">${sideDir()}</aside></div>`];
   testId=t.id;
   const dist=[...new Set(l.map(s=>s.grade))].sort((a,b)=>a-b).map(g=>[g,S.district?.[t.id+':'+g]]).filter(x=>x[1]!=null);
   return [`${sc.num}-maktab`,t.name,`<div class="dash"><div class="dmain">${searchBox('O’quvchi, sinf yoki sinf rahbari…')}${tabrikCard('direktor')}
@@ -1697,7 +1705,6 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   ${rights?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">HUQUQLARIM</div><div class="card list">${rights}</div>`:''}
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
-  ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">YANGI KO’RINISH (SINOV)</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">☰ Yangi panel</div><div class="note" style="margin-top:2px">${ls.get('newui',false)?'Yoqilgan. Faqat sizga ko’rinadi.':'Faqat sizga ko’rinadi, boshqalar eski menyuda qoladi.'}</div></div><button class="btn ${ls.get('newui',false)?'sec':'pri'} sm" data-act="${ls.get('newui',false)?'npOff':'npOn'}">${ls.get('newui',false)?'O’chirish':'Yoqish'}</button></div>`:''}
   ${pushRow()}
   ${instBtn()}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
@@ -3224,7 +3231,7 @@ function screen(){
     if(k==='exam')return scrExam(+v); if(k==='pbt')return scrPBTopic(v); if(k==='tuzish')return scrTZ(); if(k==='entry')return v?scrClassEntry(+v):scrEntry();
     if(k==='tests')return scrTests(); if(k==='bank')return scrBank(); if(k==='pins')return scrPins(); if(k==='team')return scrTeam(); if(k==='history')return scrHistory();
     if(k==='savat')return scrTrash(); if(k==='rtopic')return scrRahTopic(v); if(k==='rtahlil')return scrRahbarAnalysis();
-    if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='resimport')return scrResImport();
+    if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='demo')return scrDemo(); if(k==='resimport')return scrResImport();
     if(k==='certs')return scrCerts(); if(k==='mashq')return scrExTeam(); if(k==='settings')return scrSettings(); if(k==='reyting')return scrRanking(); if(k==='yuqori')return scrTop();}
   const r=S.me.role;
   if(tab==='xabar')return scrMessages();
@@ -3246,7 +3253,7 @@ const THEME={oquv:'mint',baza:'mint',ichki:'sand',bosh:'sky',sinf:'sky',farzand:
   gl.innerHTML=h;
 })();
 // ===== Yangi panel (sinov): faqat CEO yoqsa ko'rinadi, boshqalar eski menyuda qoladi
-const NUI=()=>!!(S&&S.me&&S.me.role==='ceo'&&ls.get('newui',false));
+const NUI=()=>!!(S&&S.me&&(S.me.role==='ceo'||S.me.role==='jamoa'));
 let NP_OPEN=false;
 const NPI={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M10 10h4"/>',pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
  user:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',users:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 4.5a3.5 3.5 0 0 1 0 7M22 20v-1a5 5 0 0 0-4-4.9"/>',
@@ -3334,27 +3341,45 @@ const NP_TROPHY='/a/kubok.webp?v=1';
 const NP_REG='/a/registon.webp?v=1';
 const NP_CROWN='/a/toj.png?v=1';
 const UZR=[["uz-qr", "Qoraqalpog‘iston Respublikasi", 122, 115, "M216 196L226 210L218 214L215 214L211 208L205 201L200 198L190 196L187 200L184 200L181 196L178 195L166 184L163 178L160 177L157 172L157 169L151 167L146 169L147 171L146 172L144 170L139 169L138 167L141 166L141 160L143 159L142 157L140 156L137 152L131 152L124 153L117 150L116 149L115 143L112 140L109 141L104 140L95 128L94 129L93 133L91 134L84 132L78 134L79 136L84 139L90 150L87 151L86 150L86 146L84 144L81 142L77 142L76 140L73 141L70 143L71 146L69 151L67 152L68 154L60 156L60 151L52 146L47 148L40 165L36 167L35 177L37 181L37 186L38 189L41 191L36 196L28 193L0 190L14 20L99 0L101 1L100 6L95 12L93 19L88 29L88 33L90 41L87 47L88 50L89 52L92 52L97 49L103 41L102 40L100 40L101 37L103 36L104 39L106 38L104 35L105 29L106 29L107 24L102 27L101 25L103 22L107 18L105 15L104 11L106 4L128 21L119 39L120 43L133 57L132 60L131 61L129 65L129 67L137 66L142 64L143 62L141 61L142 58L146 58L147 54L145 44L147 40L148 35L179 58L183 68L210 99L212 100L215 106L217 108L226 110L226 111L206 150L205 160L210 169L202 174L201 176L216 196Z"], ["uz-an", "Andijon viloyati", 572, 208, "M566 197L569 196L570 194L572 195L576 196L576 198L578 198L581 201L590 201L590 203L595 200L597 202L600 201L599 204L588 210L587 215L585 215L584 217L582 219L577 217L574 215L573 215L574 219L577 222L576 224L575 225L570 222L569 218L564 216L556 216L554 213L549 212L548 214L545 210L546 209L545 207L547 204L556 202L561 203L565 202L566 197Z"], ["uz-bu", "Buxoro viloyati", 282, 249, "M294 309L292 307L287 309L285 308L270 298L261 288L230 266L225 260L224 255L224 253L222 241L216 237L223 228L225 224L223 221L218 214L226 210L216 196L228 192L231 192L244 211L252 214L257 217L268 223L270 227L274 225L279 217L281 216L283 217L283 222L285 224L295 225L296 220L306 218L307 216L309 224L312 226L315 227L327 227L327 235L324 235L320 244L315 244L312 243L310 244L311 247L310 250L312 252L309 253L307 256L304 259L301 264L304 269L308 272L310 271L315 274L316 278L320 281L321 284L311 293L310 295L312 298L312 299L299 304L294 309Z"], ["uz-ji", "Jizzax viloyati", 410, 243, "M444 246L442 247L446 249L444 252L445 256L444 262L444 270L444 272L441 274L441 275L435 277L414 273L411 274L408 277L405 277L405 280L403 280L398 276L398 272L400 271L400 267L405 265L403 259L389 257L387 254L384 254L384 252L385 249L383 246L382 240L382 238L381 236L372 235L378 222L376 217L373 216L371 214L371 208L371 207L375 205L377 205L410 201L413 203L416 200L420 207L423 206L422 215L419 218L422 219L429 224L429 227L426 228L426 231L428 231L424 241L425 245L434 244L444 241L444 246Z"], ["uz-qa", "Qashqadaryo viloyati", 366, 309, "M401 290L400 293L401 294L409 295L412 297L413 302L408 304L407 305L409 310L408 316L405 315L403 316L401 321L398 323L395 327L394 332L390 336L386 337L384 342L379 346L378 351L377 352L374 349L370 349L365 347L362 344L349 339L347 339L344 341L339 341L324 331L316 324L303 318L294 309L299 304L312 299L312 298L310 295L311 293L321 284L325 283L340 283L342 281L342 280L345 280L347 283L350 286L351 290L355 290L360 288L366 286L370 289L376 284L383 285L384 290L389 290L390 288L401 290Z"], ["uz-nw", "Navoiy viloyati", 312, 215, "M375 205L371 207L371 208L371 214L373 216L376 217L378 222L372 235L371 232L368 229L363 232L360 230L357 234L358 237L357 239L357 245L355 252L357 253L354 256L346 258L340 256L338 254L333 253L331 264L328 264L325 263L324 265L320 266L320 267L322 270L324 273L322 278L325 283L324 283L321 284L320 281L316 278L315 274L310 271L308 272L304 269L301 264L304 259L307 256L309 253L312 252L310 250L311 247L310 244L312 243L315 244L320 244L324 235L327 235L327 227L326 227L312 226L309 224L307 216L306 218L296 220L295 225L285 224L283 222L283 217L281 216L279 217L274 225L270 227L268 223L257 217L252 214L244 211L231 192L228 192L216 196L201 176L202 174L210 169L205 160L206 150L226 111L226 110L217 108L212 100L251 93L292 96L306 89L309 88L321 102L329 107L339 126L349 121L349 146L347 148L348 166L348 167L365 166L367 178L373 203L375 205Z"], ["uz-ng", "Namangan viloyati", 533, 196, "M545 210L540 213L535 218L528 215L530 212L523 212L517 216L517 214L512 213L512 211L515 212L514 211L505 203L505 197L503 195L503 191L502 191L502 189L504 185L509 181L512 182L514 185L515 191L517 191L520 193L524 193L528 194L530 196L530 193L531 192L534 195L535 193L537 195L538 193L537 185L538 184L541 186L543 185L544 180L543 177L544 174L546 175L546 179L548 178L553 184L554 190L557 189L559 191L562 189L564 190L566 197L565 202L561 203L556 202L547 204L545 207L546 209L545 210Z"], ["uz-sa", "Samarqand viloyati", 362, 265, "M403 280L402 289L401 290L390 288L389 290L384 290L383 285L376 284L370 289L366 286L360 288L355 290L351 290L350 286L347 283L345 280L342 280L342 281L340 283L325 283L322 278L324 273L322 270L320 267L320 266L324 265L325 263L328 264L331 264L332 258L331 258L333 253L334 253L338 254L340 256L346 258L354 256L357 253L355 252L357 245L357 239L358 237L357 234L360 230L363 232L368 229L371 232L372 235L381 236L383 246L385 249L384 252L384 254L387 254L389 257L403 259L405 265L400 267L400 271L398 272L398 276L403 280Z"], ["uz-su", "Surxondaryo viloyati", 406, 346, "M377 352L378 351L379 346L384 342L386 337L390 336L394 332L395 327L398 323L401 321L403 316L405 315L408 316L409 310L407 305L408 304L413 302L419 303L422 302L425 303L427 302L431 309L429 311L427 311L428 314L426 316L427 323L429 328L433 332L438 336L440 339L436 350L432 352L430 357L422 370L421 375L422 380L421 386L420 384L415 383L412 384L411 382L409 382L406 385L401 387L399 384L396 383L395 380L392 378L382 379L380 380L374 380L373 378L375 376L373 372L373 360L377 353L377 352Z"], ["uz-si", "Sirdaryo viloyati", 446, 237, "M446 249L454 247L456 248L456 250L453 250L450 252L449 250L450 254L453 258L452 260L449 255L448 255L450 259L449 262L446 260L445 261L445 256L444 252L446 249ZM459 243L457 243L444 246L444 241L434 244L425 245L424 241L428 231L426 231L426 228L429 227L429 224L436 228L439 226L441 227L442 223L441 221L440 221L439 216L439 212L442 210L444 212L445 215L448 215L453 221L454 222L456 222L455 223L457 223L459 226L458 229L460 232L459 238L460 241L459 243Z"], ["uz-ta", "Toshkent viloyati", 482, 195, "M504 185L502 189L502 191L503 191L503 195L505 197L505 203L502 202L501 207L499 209L490 216L484 218L481 221L478 222L473 216L470 215L467 216L466 219L466 224L464 226L462 228L467 236L467 239L464 239L467 244L464 244L459 243L460 241L459 238L460 232L458 229L459 226L457 223L455 223L456 222L454 222L453 221L448 215L445 215L444 212L442 210L444 209L445 205L448 203L449 200L452 200L455 197L455 193L454 190L460 185L466 185L466 181L474 175L483 172L491 165L493 161L495 159L496 156L501 153L504 156L506 155L510 147L512 147L515 146L519 142L521 142L528 145L527 147L523 149L519 153L514 155L514 159L513 160L509 161L505 165L502 170L492 179L494 181L499 181L504 185Z"], ["uz-fa", "Farg‘ona viloyati", 538, 233, "M556 250L552 248L555 246L556 246L556 250ZM534 245L536 244L537 246L535 248L536 250L536 252L533 253L531 252L530 253L529 252L530 249L526 244L527 241L529 241L530 243L534 245ZM545 210L548 214L549 212L554 213L556 216L564 216L569 218L570 222L565 224L565 227L561 230L561 231L563 233L557 233L555 237L553 239L552 239L550 234L549 234L548 237L544 236L543 234L540 233L537 233L535 232L534 235L529 235L527 235L526 237L514 240L513 239L511 235L509 233L507 234L505 233L505 231L504 229L505 227L507 226L519 214L521 214L523 212L530 212L528 215L535 218L540 213L545 210Z"], ["uz-kh", "Xorazm viloyati", 179, 197, "M218 214L223 221L225 224L223 228L216 237L211 227L209 220L208 214L205 208L197 203L191 200L189 200L188 203L184 207L182 206L178 203L174 204L172 203L170 202L156 203L143 195L142 193L143 189L146 186L143 180L142 178L144 176L148 178L149 176L146 172L147 171L146 169L151 167L157 169L157 172L160 177L163 178L166 184L178 195L181 196L184 200L187 200L190 196L200 198L205 201L211 208L215 214L218 214Z"], ["uz-tk", "Toshkent shahri", 463, 192, "M466 193L462 196L458 194L459 190L461 188L465 189L465 191L466 193Z"]];
+// ======== NAMUNA KABINET (faqat CEO) ========
+let DEMOI=null;
+const DEMO_PL={kiritish:'Natija kiritish',maktab:'Maktab, sinf, o’quvchi qo’shish',tuzatish:'Natijani tekshirish va tuzatish',kalit:'Kalitni ko’rish',reyting:'Tuman reytingi',pinlar:'PIN ro’yxatini ko’rish',pin_korish:'PIN raqamlarini ko’rish',tarix:'O’zgarishlar tarixi',xabar:'Xabarlarga javob berish',mashq:'Mashg’ulot qo’shish',yuklash:'Natijalarni yuklab olish',sertifikat:'Sertifikat berish va bekor qilish'};
+const DEMO_C=[['sardor','👑','Jamoa sardori','Sizning dizayningiz — sardorga berilgan huquqlar bilan'],['jamoa','👥','Jamoa a’zosi','Huquqlarni belgilang va kirib ko’ring: menyuda nima paydo bo’ladi, nima yo’qoladi'],['direktor','🏫','Direktor','Maktab direktori kabineti'],['rahbar','👩‍🏫','Sinf rahbari','O’qituvchi (sinf rahbari) kabineti'],['ota','🧒','O’quvchi / ota-ona','Hozircha bola va ota-ona bitta kabinetdan foydalanadi']];
+function scrDemo(){
+  if(!DEMOI){api('demo.info').then(d=>{DEMOI=d;render()}).catch(e=>toast(e.message,true));return ['Namuna kabinet','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i></div>`]}
+  const box=(r)=>{const p=DEMOI.perms[r]||{};const keys=[...Object.keys(DEMO_PL),...(r==='jamoa'?['kuzatuvchi']:[])];
+    return `<div class="dm-perms">${keys.map(k=>`<label class="dm-chk"><input type="checkbox" data-dp="${r}" value="${k}" ${p[k]?'checked':''}><span>${k==='kuzatuvchi'?'Kuzatuvchi (faqat ko’radi)':DEMO_PL[k]}</span></label>`).join('')}</div>`};
+  return ['Namuna kabinet','Har bir kabinetni o’sha odam ko’zi bilan ko’ring',`
+  <div class="card pad"><p style="margin:0">Kartochkani bossangiz, sayt aynan o’sha odam ko’radigandek ochiladi. Namuna ma’lumotlar (maktab, sinflar, bolalar) haqiqiy ro’yxat, reyting va statistikaga qo’shilmaydi. Jamoa sardori va a’zosi kabinetida faqat ko’rish mumkin — o’zgartirish bloklangan.</p></div>
+  ${DEMO_C.map(([r,ic,t,s])=>`<div class="card pad dm-card"><div class="dm-h"><span class="dm-ic">${ic}</span><div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:16px">${t}</div><div class="note" style="margin-top:2px">${s}</div></div><button class="btn pri sm" data-act="demoGo" data-r="${r}">Kirib ko’rish</button></div>${r==='jamoa'||r==='sardor'?box(r):''}</div>`).join('')}
+  <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
+const demoBar=()=>`<div class="demo-bar">👁 Namuna kabinet: <b>${esc(S.me.demo)}</b> ko’zi bilan<button data-act="demoExit">CEO ga qaytish</button></div>`;
+async function demoGo(r){const perms={};document.querySelectorAll(`[data-dp="${r}"]`).forEach(i=>{if(i.checked)perms[i.value]=true});
+  await api('demo.enter',{role:r,perms});try{localStorage.removeItem('yx_nav')}catch(e){};location.reload()}
+async function demoExit(){try{await fetch('/api/demo.exit',{method:'POST',credentials:'same-origin'})}catch(e){}NAV.set({tab:'bosh',stack:['demo']});location.reload()}
 // ======== ETALON (ChatGPT skrinshoti) bo'yicha: chap menyu, tepa panel, bosh sahifa ========
+const npRoleL=()=>S.me.role==='ceo'?'CEO / Super Admin':P('sardor')?'Jamoa sardori':P('kuzatuvchi')?'Kuzatuvchi':'Jamoa a’zosi';
 const NPX={team:1};let NP_EXP=ls.get('npexp',{});
-function npTree(){const tarix=P('tarix');return [
+function npTree(){const tarix=P('tarix'),ceo=S.me.role==='ceo',real=ceo&&!S.me.demo;const us=[...(ceo?[['Jamoa va huquqlar','data-side="team"']]:[]),...(P('pinlar')?[['PIN kodlar','data-side="pins"']]:[])];return [
  ['home','Bosh sahifa','data-tab="bosh"',null,()=>!stack.length&&tab==='bosh'],
- ['users','Foydalanuvchilar',null,[['Jamoa va huquqlar','data-side="team"'],['PIN kodlar','data-side="pins"']]],
+ ...(us.length?[['users','Foydalanuvchilar',null,us]]:[]),
+ ...(real?[['eye','Namuna kabinet','data-side="demo"',null,()=>stack[0]==='demo']]:[]),
  ['school','Maktablar','data-tab="maktab"',null,()=>!stack.length&&tab==='maktab'],
  ['pin','Hududlar (Viloyat/Tuman)',null,null,null,'tez kunda'],
  ['cap','O’quvchilar','data-tab="maktab"'],
- ['user','Ustozlar va sinf rahbarlari','data-side="pins"'],
+ ...(P('pinlar')?[['user','Ustozlar va sinf rahbarlari','data-side="pins"']]:[]),
  ['book','Darslar va mavzular',null,[['Mavzu darslari','data-act="npDars"'],...(canKey()?[['Misollar bazasi','data-tab="baza"']]:[]),['Mashg’ulotlar','data-side="mashq"']]],
  ['play','Video va animatsion darslar','data-act="npDars"'],
  ['clip','Testlar va sinovlar',null,[['Imtihonlar (bosqichlar)','data-tab="imtihon"'],['Testlar bazasi','data-side="tests"']]],
  ['chart','Natijalar va tahlil','data-tab="imtihon"'],
- ['cup','Reyting va iqtidorlilar',null,[['Reyting','data-side="reyting"'],['Iqtidorli bolalar','data-side="yuqori"']]],
- ['award','Sertifikatlar','data-side="certs"',null,()=>stack[0]==='certs'],
+ ...(P('reyting')?[['cup','Reyting va iqtidorlilar',null,[['Reyting','data-side="reyting"'],['Iqtidorli bolalar','data-side="yuqori"']]]]:[]),
+ ...(canCert()?[['award','Sertifikatlar','data-side="certs"',null,()=>stack[0]==='certs']]:[]),
  ['chat','Xabarlar va e’lonlar','data-tab="xabar"',null,()=>!stack.length&&tab==='xabar',null,(S.unread||0)+(S.tgPending||0)],
  ['card','Obuna va to’lovlar',null,null,null,'tez kunda'],
- ['down','Hisobotlar va eksport','data-act="dl" data-k="district" data-id="0"'],
- ['shield','Xavfsizlik va audit',null,[...(tarix?[['O’zgarishlar tarixi','data-side="history"']]:[]),['Zaxira nusxa','data-side="backup"'],['O’chirilganlar (savat)','data-side="savat"']]],
- ['set','Tizim sozlamalari','data-side="settings"',null,()=>stack[0]==='settings']]}
-Object.assign(NPI,{cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M8 11h2M14 11h2"/>'});
+ ...(ceo||P('yuklash')?[['down','Hisobotlar va eksport','data-act="dl" data-k="district" data-id="0"']]:[]),
+ ['shield','Xavfsizlik va audit',null,[...(tarix?[['O’zgarishlar tarixi','data-side="history"']]:[]),...(ceo?[['Zaxira nusxa','data-side="backup"']]:[]),['O’chirilganlar (savat)','data-side="savat"']]],
+ ...(ceo?[['set','Tizim sozlamalari','data-side="settings"',null,()=>stack[0]==='settings']]:[])]}
+Object.assign(NPI,{eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M8 11h2M14 11h2"/>'});
 function npPanel(){darsLoad();
   const rows=npTree().map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const open=sub&&NP_EXP[i];
     if(soon)return `<div class="npi soon" title="${l} (tez kunda)">${npIc(ic)}<span>${l}</span><i>${soon}</i></div>`;
@@ -3425,7 +3450,7 @@ function npPanel(){darsLoad();
     const attr=soon?`data-act="npSoon"`:sub?`data-act="npExp" data-i="${i}"`:a;
     const right=badge?`<em>${badge}</em>`:`<b class="chv${open?' o':''}">›</b>`;
     const lbl=l.replace(' (Viloyat/Tuman)','<small> (Viloyat/Tuman)</small>');
-    return `<button class="npi${on?' on':''}" ${attr}>${npIc(ic)}<span>${lbl}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
+    return `<button class="npi${on?' on':''}" title="${l}" ${attr}>${npIc(ic)}<span>${lbl}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
   return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
    <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh <br>Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
    <div class="np-sc">${rows}</div><div class="np-regw"><svg class="wv" viewBox="0 0 300 200" preserveAspectRatio="none"><path d="M0 55 C80 5 180 105 300 25 L300 200 L0 200Z" fill="#dbeafe" opacity=".85"/><path d="M0 40 C90 -5 190 90 300 15" fill="none" stroke="#fff" stroke-width="4" opacity=".95"/><path d="M0 120 C90 70 190 170 300 100 L300 200 L0 200Z" fill="#bfdbfe" opacity=".75"/><path d="M0 160 C100 120 200 200 300 150 L300 200 L0 200Z" fill="#7fb3f5" opacity=".7"/><path d="M0 95 C90 45 190 145 300 70" fill="none" stroke="#fff" stroke-width="3" opacity=".9"/><path d="M0 140 C100 95 200 185 300 125" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/></svg><img class="np-reg" src="${NP_REG}" alt=""></div></aside>`}
@@ -3436,7 +3461,7 @@ function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
    <div class="nph-d">${SV(EI.cal,'#1e3a8a',1.8)}<div><b>${d.getDate()}-${OYL[d.getMonth()]}, ${d.getFullYear()}-yil</b><small>${HAFTA[d.getDay()]}</small></div></div>
    <button class="nph-bell" data-tab="xabar" aria-label="Xabarlar">${SV(EI.bell,'#1e3a8a',1.9)}${n?`<em>${n>99?'99+':n}</em>`:''}</button>
    <button class="nph-q" data-act="npHelp" aria-label="Yordam">?</button>
-   <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,46,S.me.name)}<div class="nph-mn"><b>${esc(S.me.name||'CEO')}</b><small>CEO / Super Admin</small></div><span class="nph-c">${SV(EI.chev,'#0f2350',2.4)}</span></button></div>`}
+   <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,46,S.me.name)}<div class="nph-mn"><b>${esc(S.me.role==='ceo'?(S.me.name||'CEO'):(S.me.name||''))}</b><small>${npRoleL()}</small></div><span class="nph-c">${SV(EI.chev,'#0f2350',2.4)}</span></button><button class="nph-out" data-act="logoutAsk" aria-label="Chiqish" title="Saytdan chiqish">${npIc('out')}</button></div>`}
 function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="${NP_BANNER_M2}"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
 const hT=(ic,c,t,ex='')=>`<div class="nc-h"><h3>${SV(EI[ic],c,2.2)}${t}</h3>${ex}</div>`;
 function nToday(d){const b=d?.bugun||{};const r=[['Yangi maktab ulandi',b.sch],['Yangi foydalanuvchi',b.users],['Yangi obuna',b.obuna],['O’tkazilgan testlar',b.tests]];
@@ -3542,6 +3567,7 @@ function render(){
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
    <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
+  if(S.me.demo)$('#app').insertAdjacentHTML('beforeend',demoBar());
   if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
   const ri=$('#rq');if(ri){ri.oninput=e=>{rq=e.target.value;render()};if(rfocus){ri.focus();ri.setSelectionRange(ri.value.length,ri.value.length)}}
@@ -3705,6 +3731,9 @@ document.addEventListener('click',async e=>{
    case 'close':closeSheet();break;
    case 'install':await doInstall();break;
    case 'pushOn':await pushOn();break;
+   case 'demoGo':await demoGo(d.r);break;
+   case 'demoExit':await demoExit();break;
+   case 'demoReset':if(!confirm('Namuna kabinetdagi hamma o’zgarishlar o’chib, boshlang’ich holatga qaytadi. Davom etasizmi?'))break;await api('demo.reset');DEMOI=null;toast('Namuna tozalandi ✓');render();break;
    case 'nopush':ls.set('nopush',true);render();break;
    case 'phoneEdit':openPhone(+d.id);break;
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi ✓');await load();break;

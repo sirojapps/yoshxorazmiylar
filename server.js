@@ -89,6 +89,7 @@ db.exec('CREATE TABLE IF NOT EXISTS visits(day TEXT NOT NULL, user_id INTEGER NO
 try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } catch (e) { }
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
+try { db.exec("ALTER TABLE sessions ADD COLUMN as_user INTEGER"); } catch (e) { } // namuna kabinet: CEO kimning ko'zi bilan ko'ryapti
 // qo'lda tayyorlanadigan sertifikatlar: andoza (ramka, logotip, imzo, muhr) o'sha, ism va matnni CEO o'zi yozadi
 db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
@@ -284,10 +285,13 @@ function state(u) {
   const tests = all('SELECT * FROM tests ORDER BY id DESC');
   const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '', phone: u.phone || '', school_id: u.school_id || null, class_id: u.class_id || null, pin_at: u.pin_at || null, created_at: u.created_at || null, has_pass: u.role === 'ceo' ? !!u.pass : undefined }, tests, perms: PERMS };
   if (isTeam(u)) {
-    out.schools = all('SELECT * FROM schools ORDER BY num');
-    out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name');
-    out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').map(s => ({ ...s, avatar: kidPh(s.avatar) }));
-    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq FROM results');
+    const DM = demoIds();
+    out.schools = all('SELECT * FROM schools ORDER BY num').filter(x => x.id !== DM.school);
+    out.classes = all('SELECT * FROM classes ORDER BY school_id,grade,name').filter(x => x.school_id !== DM.school);
+    const okC = new Set(out.classes.map(c => c.id));
+    out.students = all('SELECT id,class_id,name,phone,avatar FROM students WHERE active=1 ORDER BY name').filter(x => okC.has(x.class_id)).map(s => ({ ...s, avatar: kidPh(s.avatar) }));
+    const okS = new Set(out.students.map(x => x.id));
+    out.results = all('SELECT id,test_id,student_id,absent,mode,answers,bits,score,qn,entered_by,at,variant,ok,nq FROM results').filter(r => okS.has(r.student_id) || !one('SELECT 1 FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND c.school_id=?', r.student_id, DM.school));
     if (!P.ceo && !P.kalit) for (const r of out.results) r.answers = r.answers ? r.answers.replace(/[A-E]/g, '•') : r.answers; // javoblar + belgilar = kalit; kalit huquqi yo'qlarga berilmaydi
     out.vinfo = Object.fromEntries(tests.map(t => [t.id, varInfo(t.id)]));
     out.bank = bankList();
@@ -300,7 +304,7 @@ function state(u) {
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
-    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar FROM users WHERE role IN ('ceo','jamoa')").map(x => ({ ...x, perms: perms(x) }));
+    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x) }));
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
     out.hints = hintsMap();
     Object.assign(out, extras(u, out));
@@ -564,7 +568,7 @@ A['test.delete'] = (u, b) => {
   });
 };
 A['trash.list'] = u => {
-  const rows = all('SELECT id,kind,ref_id,label,info,school_id,by,at FROM trash ORDER BY id DESC').filter(r => u.role === 'ceo' || r.by === u.id);
+  const DT = demoIds(); const rows = all('SELECT id,kind,ref_id,label,info,school_id,by,at FROM trash ORDER BY id DESC').filter(r => (u.role === 'ceo' && !u._demo) || r.by === u.id).filter(r => u._demo || !(DT.school && r.school_id === DT.school) && !DT.set.has(r.by));
   const names = {}; for (const r of rows) if (!(r.by in names)) { const x = one('SELECT name,role FROM users WHERE id=?', r.by); names[r.by] = x ? (x.role === 'ceo' ? 'CEO' : x.name) : '—'; }
   return { rows: rows.map(r => ({ ...r, who: names[r.by] })) };
 };
@@ -1196,8 +1200,8 @@ A['pins'] = u => {
     return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin || '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
   }
   need(can(u, 'pinlar'));
-  const show = can(u, 'pin_korish');
-  return { list: pinTargets().map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show && (x.kind !== 'jamoa' || u.role === 'ceo') ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  const show = can(u, 'pin_korish'), DS = demoIds().school;
+  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show && (x.kind !== 'jamoa' || u.role === 'ceo') ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
 };
 A['pin.issue'] = (u, b) => {
   need(u.role === 'ceo' || u.role === 'direktor', 'PIN‘ni CEO yoki direktor beradi');
@@ -1266,12 +1270,14 @@ A['audit'] = (u, b) => {
   if (b.student_id) return { rows: all("SELECT * FROM audit WHERE detail LIKE ? OR (action LIKE 'oquvchi.%' AND detail LIKE ?) ORDER BY id DESC LIMIT 300", '%"student_id":' + (+b.student_id) + '%', '%"id":' + (+b.student_id) + ',%').map(r => ({ ...auditRow(r), who: whoName(r.user_id) })), more: false };
   const kind = AUDIT_KIND[b.kind] || null, uid = b.user_id != null && b.user_id !== '' ? +b.user_id : null, sch = +b.school_id || 0;
   const q = String(b.q || '').toLowerCase().replace(/[`‘’'ʻʼ]/g, "'").trim();
+  const DEMO_SET = demoIds().set;
   const out = []; let before = +b.before || Number.MAX_SAFE_INTEGER, scanned = 0, more = true;
   while (out.length < 120 && scanned < 6000) {
     const rows = all('SELECT * FROM audit WHERE id<? ORDER BY id DESC LIMIT 400', before); if (!rows.length) { more = false; break; }
     for (const r of rows) {
       before = r.id; scanned++;
       if (MINOR_ACTS.includes(r.action) || SYS_ACTS.includes(r.action) || (!r.user_id && !r.action.startsWith('sertifikat.'))) continue;
+      if (DEMO_SET.has(r.user_id)) continue; // namuna kabinetdagi harakatlar tarixga chiqmaydi
       if (kind && !kind(r.action)) continue;
       if (uid != null && r.user_id !== uid) continue;
       const o = auditRow(r);
@@ -1818,6 +1824,7 @@ function visibleThreads(u) {
   else if (u.role === 'direktor') rows = all('SELECT * FROM threads WHERE user_id=? OR school_id=? ORDER BY updated_at DESC LIMIT 1000', u.id, u.school_id);
   else rows = all(`SELECT * FROM threads WHERE kind NOT IN (${inList(PRIVATE_KINDS)}) ORDER BY updated_at DESC LIMIT 1000`, ...PRIVATE_KINDS);
   rows = rows.filter(t => threadAccess(u, t).see);
+  if (!u._demo) { const D = demoIds(); rows = rows.filter(t => !D.set.has(t.user_id) && !(D.school && t.school_id === D.school)); } // namuna kabinet xabarlari haqiqiy ro'yxatga chiqmaydi
   return rows.map(t => {
     const r = one('SELECT at FROM reads WHERE thread_id=? AND user_id=?', t.id, u.id)?.at || '';
     const last = one("SELECT user_id,text,image,audio<>'' AS audio,at FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 1", t.id);
@@ -1851,6 +1858,69 @@ function recipients(t, fromId) {
   if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
+// ======== NAMUNA KABINET: CEO har bir rolning kabinetini o'sha odam ko'zi bilan ko'radi ========
+// Namuna ma'lumotlar (yashirin maktab, sinflar, bolalar, foydalanuvchilar) haqiqiy ro'yxat, reyting, statistika va xabarlarga qo'shilmaydi.
+// Namuna foydalanuvchilar active=0 — ular bilan PIN orqali kirib bo'lmaydi, faqat CEO o'z sessiyasidan "ko'zi bilan" ochadi.
+const DEMO_ROLES = { sardor: 'Jamoa sardori', jamoa: 'Jamoa a‘zosi', direktor: 'Direktor', rahbar: 'Sinf rahbari', ota: 'O‘quvchi / ota-ona' };
+const DEMO_PHONE = '000000077';
+function demoIds() { let u = {}; try { u = JSON.parse(getSet('demo_users') || '{}') || {}; } catch { } return { school: +getSet('demo_school') || 0, users: u, set: new Set(Object.values(u).map(Number)) }; }
+const isDemoUser = id => demoIds().set.has(+id);
+function demoEnsure() {
+  const D = demoIds();
+  if (D.school && one('SELECT 1 FROM schools WHERE id=?', D.school) && Object.keys(D.users).length === 5 && Object.values(D.users).every(id => one('SELECT 1 FROM users WHERE id=?', id))) return D;
+  let num = 9000; while (one('SELECT 1 FROM schools WHERE num=?', num)) num++;
+  const sid = Number(run("INSERT INTO schools(num,name,director_name,director_phone,test) VALUES(?,?,?,?,1)", num, 'Namuna maktab', 'Namuna Direktor', '').lastInsertRowid);
+  const c2 = Number(run('INSERT INTO classes(school_id,name,grade,teacher_name) VALUES(?,?,?,?)', sid, '2-A', 2, 'Namuna O‘qituvchi').lastInsertRowid);
+  const c3 = Number(run('INSERT INTO classes(school_id,name,grade,teacher_name) VALUES(?,?,?,?)', sid, '3-A', 3, 'Namuna O‘qituvchi 2').lastInsertRowid);
+  const N2 = ['Aliyev Jasur', 'Karimova Madina', 'Rahimov Bekzod', 'Tursunova Sevara', 'Qodirov Sardor', 'Ergasheva Malika', 'Nurmatov Azizbek', 'Xolmatova Dilnoza'];
+  const N3 = ['Sobirov Islom', 'Yusupova Zarina', 'Hamidov Otabek', 'Abdullayeva Nilufar', 'Rustamov Doniyor', 'Mirzayeva Shahzoda', 'Ismoilov Behruz'];
+  N2.forEach((n, i) => run('INSERT INTO students(class_id,name,phone,active) VALUES(?,?,?,1)', c2, n, i < 2 ? DEMO_PHONE : ''));
+  N3.forEach(n => run('INSERT INTO students(class_id,name,phone,active) VALUES(?,?,?,1)', c3, n, ''));
+  const mk = (role, name, extra = {}) => Number(run('INSERT INTO users(role,name,phone,pin,school_id,class_id,perms,active,consent_at) VALUES(?,?,?,?,?,?,?,0,?)',
+    role, name, extra.phone || '', 'demo-' + crypto.randomBytes(9).toString('hex'), extra.school_id ?? null, extra.class_id ?? null, extra.perms || '{}', extra.consent || null).lastInsertRowid);
+  const users = {
+    sardor: mk('jamoa', 'Namuna Sardor', { perms: JSON.stringify(Object.fromEntries(PERMS.map(k => [k, true]).concat([['sardor', true]]))) }),
+    jamoa: mk('jamoa', 'Namuna Jamoa a‘zosi', { perms: JSON.stringify({ kiritish: true }) }),
+    direktor: mk('direktor', 'Namuna Direktor', { school_id: sid }),
+    rahbar: mk('rahbar', 'Namuna O‘qituvchi', { school_id: sid, class_id: c2 }),
+    ota: mk('ota', 'Namuna Ota-ona', { phone: DEMO_PHONE, consent: now() }),
+  };
+  setSet('demo_school', sid); setSet('demo_users', JSON.stringify(users));
+  return demoIds();
+}
+function demoWipe() {
+  const D = demoIds(); const ids = [...D.set];
+  const tr = (q, ...a) => { try { run(q, ...a); } catch (e) { } };
+  if (D.school) {
+    const cls = all('SELECT id FROM classes WHERE school_id=?', D.school).map(r => r.id);
+    const st = cls.length ? all(`SELECT id FROM students WHERE class_id IN (${cls.map(() => '?').join(',')})`, ...cls).map(r => r.id) : [];
+    const inS = st.map(() => '?').join(',') || 'NULL';
+    for (const t of ['results', 'notes', 'student_phones', 'phone_hints', 'ex_answers', 'iresults', 'rnotes', 'certificates']) tr(`DELETE FROM ${t} WHERE student_id IN (${inS})`, ...st);
+    const th = all(`SELECT id FROM threads WHERE school_id=? OR class_id IN (${cls.map(() => '?').join(',') || 'NULL'}) OR user_id IN (${ids.map(() => '?').join(',') || 'NULL'})`, D.school, ...cls, ...ids).map(r => r.id);
+    for (const t of th) { tr('DELETE FROM messages WHERE thread_id=?', t); tr('DELETE FROM reads WHERE thread_id=?', t); tr('DELETE FROM threads WHERE id=?', t); }
+    tr(`DELETE FROM iresults WHERE itest_id IN (SELECT id FROM itests WHERE school_id=?)`, D.school); tr('DELETE FROM itests WHERE school_id=?', D.school);
+    tr(`DELETE FROM students WHERE id IN (${inS})`, ...st); tr('DELETE FROM classes WHERE school_id=?', D.school);
+    tr('DELETE FROM trash WHERE school_id=?', D.school); tr('DELETE FROM tg_requests WHERE class_id IN (' + (cls.map(() => '?').join(',') || 'NULL') + ')', ...cls);
+    tr('DELETE FROM approvals WHERE school_id=?', D.school); tr('DELETE FROM announcements WHERE school_id=?', D.school); tr('DELETE FROM schools WHERE id=?', D.school);
+  }
+  for (const id of ids) { tr('DELETE FROM audit WHERE user_id=?', id); tr('DELETE FROM push_subs WHERE user_id=?', id); tr('DELETE FROM trash WHERE by=?', id); tr('DELETE FROM reads WHERE user_id=?', id); tr('DELETE FROM users WHERE id=?', id); }
+  tr('UPDATE sessions SET as_user=NULL WHERE as_user IS NOT NULL');
+  setSet('demo_school', ''); setSet('demo_users', '');
+}
+// namuna kabinetda ham ishlatib bo'lmaydigan (haqiqiy odamlarga yoki butun saytga ta'sir qiladigan) amallar
+const DEMO_BLOCK = new Set(['pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
+A['demo.info'] = u => { need(u.role === 'ceo' && !u._demo); const D = demoIds();
+  const pj = id => { const x = id ? one('SELECT perms FROM users WHERE id=?', id) : null; try { return JSON.parse(x?.perms || '{}'); } catch { return {}; } };
+  const all1 = Object.fromEntries(PERMS.map(k => [k, true]));
+  return { ready: !!D.school, roles: DEMO_ROLES, perms: { sardor: D.users.sardor ? pj(D.users.sardor) : all1, jamoa: D.users.jamoa ? pj(D.users.jamoa) : { kiritish: true } } }; };
+A['demo.enter'] = (u, b, req) => {
+  need(u.role === 'ceo' && !u._demo); const role = String(b.role || ''); if (!DEMO_ROLES[role]) bad('Noto‘g‘ri rol');
+  const D = demoEnsure(), id = D.users[role];
+  if (role === 'jamoa' || role === 'sardor') { const p = {}; for (const k of [...PERMS, 'kuzatuvchi']) if (b.perms && b.perms[k]) p[k] = true; if (role === 'sardor') p.sardor = true; if (role === 'jamoa') delete p.sardor; run('UPDATE users SET perms=? WHERE id=?', JSON.stringify(p), id); }
+  run('UPDATE sessions SET as_user=? WHERE token=?', id, cookie(req, 'yx'));
+  return { ok: true };
+};
+A['demo.reset'] = u => { need(u.role === 'ceo' && !u._demo); demoWipe(); demoEnsure(); return { ok: true }; };
 // ======== Telefon bildirishnomalari (Web Push, tashqi kutubxonasiz) ========
 const b64u = b => Buffer.from(b).toString('base64url');
 function vapid() {
@@ -1907,8 +1977,8 @@ function addMessage(u, t, txt, image, audio = '') {
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, at);
   if (t.status === 'hal' && (t.user_id === u.id || !(u.role === 'ceo' || perms(u).sardor))) run("UPDATE threads SET status='ochiq' WHERE id=?", t.id); // hal qilinganga yangi xabar kelsa — qayta ochiladi
   const who = u.role === 'ceo' ? 'CEO' : u.name;
-  pushUsers(recipients(t, u.id), t.kind === 'chat' ? 'Jamoa chatida yangi xabar' : `${PUSH_FROM[u.role] || ''} yangi xabar`.trim(), '/#xabar', 'th' + t.id);
-  notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
+  if (!u._demo) pushUsers(recipients(t, u.id), t.kind === 'chat' ? 'Jamoa chatida yangi xabar' : `${PUSH_FROM[u.role] || ''} yangi xabar`.trim(), '/#xabar', 'th' + t.id);
+  if (!u._demo) notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
 const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
 A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
@@ -2076,6 +2146,7 @@ function userOf(req) {
   const t = cookie(req, 'yx'); if (!t) return null;
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
+  if (u && s.as_user && u.role === 'ceo' && isDemoUser(s.as_user)) { const d = one('SELECT * FROM users WHERE id=?', s.as_user); if (d) { d._demo = true; d._real = u.id; return d; } }
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
   if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
   return u;
@@ -2123,7 +2194,7 @@ function pwa(url, res) {
 
 // CEO bosh sahifasi uchun haqiqiy ko'rsatkichlar
 A['ceo.stats'] = u => {
-  need(u.role === 'ceo');
+  need(isTeam(u));
   const roles = {}; for (const r of all("SELECT role,count(*) n FROM users WHERE active=1 AND pin IS NOT NULL GROUP BY role")) roles[r.role] = r.n;
   const days = []; for (let i = 364; i >= 0; i--) days.push(new Date(Date.parse(today()) - i * 864e5).toISOString().slice(0, 10));
   const va = Object.fromEntries(all('SELECT day,count(*) n FROM visits WHERE day>=? GROUP BY day', days[0]).map(r => [r.day, r.n]));
@@ -2199,7 +2270,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
-      if (url.pathname === '/api/state') return send(res, 200, state(u));
+      if (url.pathname === '/api/demo.exit' && req.method === 'POST') { run('UPDATE sessions SET as_user=NULL WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }); }
+      if (url.pathname === '/api/state') { const st = state(u); if (u._demo) st.me.demo = DEMO_ROLES[Object.keys(demoIds().users).find(k => demoIds().users[k] === u.id)] || 'Namuna'; return send(res, 200, st); }
       if (url.pathname === '/api/parol' && req.method === 'POST') { // CEO parolini o'rnatish / almashtirish
         need(u.role === 'ceo');
         if (failBlocked('pw:' + u.id)) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
@@ -2237,9 +2309,10 @@ const server = http.createServer(async (req, res) => {
       const act = url.pathname.slice(5); const fn = Object.hasOwn(A, act) ? A[act] : null;
       if (!fn || req.method !== 'POST') return send(res, 404, { error: 'Topilmadi' });
       if (isKuz(u) && !KUZ_READ.has(act) && !(KUZ_MSG.has(act) && can(u, 'xabar'))) return send(res, 403, { error: 'Kuzatuvchi faqat ko‘radi — o‘zgartira olmaydi' });
+      if (u._demo && (DEMO_BLOCK.has(act) || (isTeam(u) && !KUZ_READ.has(act)))) return send(res, 403, { error: 'Namuna kabinet: bu amal bu yerda bloklangan (faqat ko‘rish uchun)' });
       let b; try { b = JSON.parse(await readBody(req) || '{}'); } catch { bad('Noto‘g‘ri so‘rov'); }
       if (!b || typeof b !== 'object' || Array.isArray(b)) b = {};
-      return send(res, 200, (await fn(u, b)) || {});
+      return send(res, 200, (await fn(u, b, req)) || {});
     }
     if (pwa(url, res)) return;
     if (FONTS[url.pathname]) { res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'public, max-age=2592000', ...SEC }); return res.end(FONTS[url.pathname]); }
