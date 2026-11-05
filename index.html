@@ -393,6 +393,8 @@ body.nui .nph{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-i
 .nph img{width:42px;height:42px;border-radius:50%}.nph-t{flex:1;min-width:0}.nph-t b{display:block;font-size:17px;color:#0f2350;line-height:1.1}.nph-t small{font-size:11.5px;color:#475569}
 .nph-bell{position:relative;border:0;background:none;font-size:24px;width:42px;height:42px;cursor:pointer}.nph-bell em{position:absolute;top:0;right:0;font-style:normal;font-size:10.5px;font-weight:700;background:#ef4444;color:#fff;border-radius:10px;padding:1px 5px}
 .nph-me{border:0;background:none;padding:0;cursor:pointer}
+.nph-out{flex:none;border:0;background:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#dc2626;cursor:pointer;padding:0}.nph-out:hover{background:#fee2e2}.nph-out svg{width:24px;height:24px;stroke:currentColor}
+.nph-d b,.nph-d small,.nph-mn b,.nph-mn small{white-space:nowrap}
 body.nui .nph-back{border:0;background:#eef2f7;border-radius:12px;width:40px;height:40px;font-size:18px;cursor:pointer}
 @media (min-width:900px){.nph-b,.nph img,.nph-t{display:none}.nph-bell{margin-left:auto}}
 /* Bosh sahifa: kartalar, grafik, doira, pastki menyu */
@@ -490,11 +492,12 @@ body.nui .np-reg{max-width:none;width:100%;margin:auto 0 0;display:block}
 /* tepa panel */
 body.nui .nph{height:calc(66*var(--u));min-height:56px;padding:0 calc(14*var(--u)) 0 calc(28*var(--u));background:transparent;border:0;backdrop-filter:none;gap:calc(22*var(--u))}
 body.nui .nph-b{width:36px;height:36px;padding:0}body.nui .nph-b svg{width:30px;height:30px}
-body.nui .nph-s{max-width:none;flex:0 0 calc(480*var(--u));height:42px;border-radius:21px;border:1px solid #d8e3f3;padding:0 16px;box-shadow:0 2px 6px rgba(15,35,80,.06)}
+body.nui .nph-s{max-width:none;flex:0 1 calc(480*var(--u));min-width:0;height:42px;border-radius:21px;border:1px solid #d8e3f3;padding:0 16px;box-shadow:0 2px 6px rgba(15,35,80,.06)}
 body.nui .nph-s svg{width:20px;height:20px}body.nui .nph-s input{font-size:14px;color:#0f2350}
 body.nui .nph-d{margin-left:auto;gap:10px;padding-right:calc(24*var(--u));border-right:1px solid #dbe4f1}body.nui .nph-d svg{width:30px;height:30px}
 body.nui .nph-d b{font-size:15px;font-weight:600}body.nui .nph-d small{font-size:13px;color:#1e293b}
 body.nui .nph-bell{width:40px;height:40px;display:grid;place-items:center;font-size:0}body.nui .nph-bell svg{width:30px;height:30px}
+body.nui .nph-q,body.nui .nph-bell,body.nui .nph-me{flex:none}
 body.nui .nph-bell em{top:-2px;right:-4px;font-size:11px;padding:2px 6px;background:#ef2b2b}
 body.nui .nph-q{width:34px;height:34px;border:2px solid #1e3a8a;color:#1e3a8a;font-size:18px}
 body.nui .nph-me{border:0!important;background:none!important;padding:0 6px 0 calc(16*var(--u))!important;border-left:1px solid #dbe4f1!important;border-radius:0}
@@ -698,6 +701,10 @@ html,body{overscroll-behavior-y:contain}
 #ptr span{transition:transform .15s}#ptr.go span{transform:rotate(180deg)}
 #ptr.spin span{animation:ptrs .8s linear infinite;border:3px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;width:20px;height:20px;font-size:0}
 @keyframes ptrs{to{transform:rotate(360deg)}}
+
+/* tepa panel ingichkaroq (5-noyabr) */
+body.nui .nph-d>div,body.nui .nph-mn{line-height:1.1;display:flex;flex-direction:column;gap:1px}body.nui .nph-d small,body.nui .nph-mn small{display:block;margin:0}
+body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20px;height:20px}body.nui .nph-d b{font-size:12.5px;line-height:1.15}body.nui .nph-d small{font-size:11px;line-height:1.1}body.nui .nph-mn b{font-size:12.5px;line-height:1.15}body.nui .nph-mn small{font-size:11px;line-height:1.1}body.nui .nph-me .av{width:32px!important;height:32px!important}body.nui .nph-bell{width:34px;height:34px}body.nui .nph-bell svg{width:21px;height:21px}body.nui .nph-q{width:26px;height:26px;font-size:14px}body.nui .nph-s{height:32px}body.nui .nph-b{font-size:22px}.nph-out{width:34px;height:34px}.nph-out svg{width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -1658,6 +1665,7 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">KIRISH HIMOYASI</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">🔒 Kirish paroli</div><div class="note" style="margin-top:2px">${m.has_pass?'O’rnatilgan. Saytga faqat parol bilan kirasiz, PIN ishlamaydi.':'O’rnatilmagan. Hozir PIN bilan kirasiz.'}</div></div><button class="btn ${m.has_pass?'sec':'pri'} sm" data-act="parolSet">${m.has_pass?'O’zgartirish':'O’rnatish'}</button></div>`:''}
   ${m.role==='ceo'?'':`<div class="note">PIN kodingizni unutsangiz, @YoshXorazmiylarBot orqali yoki jamoaga murojaat qilib bilib oling.</div>`}
   ${m.role==='ceo'?`<div class="sect" style="margin:6px 2px 0;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--muted)">YANGI KO’RINISH (SINOV)</div><div class="card pad" style="flex-direction:row;align-items:center;gap:12px"><div class="m" style="flex:1"><div class="n" style="font-weight:700">☰ Yangi panel</div><div class="note" style="margin-top:2px">${ls.get('newui',false)?'Yoqilgan. Faqat sizga ko’rinadi.':'Faqat sizga ko’rinadi, boshqalar eski menyuda qoladi.'}</div></div><button class="btn ${ls.get('newui',false)?'sec':'pri'} sm" data-act="${ls.get('newui',false)?'npOff':'npOn'}">${ls.get('newui',false)?'O’chirish':'Yoqish'}</button></div>`:''}
+  ${instBtn()}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
 function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<label style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:4px 6px 4px 14px;background:var(--card,#fff)"><input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="flex:1;min-width:0;border:0;outline:0;padding:8px 0;font:inherit;font-size:16px;background:transparent"><button type="button" class="btn sec sm" data-act="pwEyeF" data-f="${id}" style="white-space:nowrap">👁 Ko’rsatish</button></label>`;
   openSheet(`<div class="sh-top"><div class="m"><h2>${has?'Parolni o’zgartirish':'Kirish paroli o’rnatish'}</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
@@ -3329,7 +3337,7 @@ function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
    <div class="nph-d">📅<div><b>${d.getDate()}-${OYL[d.getMonth()]}, ${d.getFullYear()}-yil</b><small>${HAFTA[d.getDay()]}</small></div></div>
    <button class="nph-bell" data-tab="xabar" aria-label="Xabarlar">🔔${n?`<em>${n>99?'99+':n}</em>`:''}</button>
    <button class="nph-q" data-act="npHelp" aria-label="Yordam">?</button>
-   <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,40,S.me.name)}<div class="nph-mn"><b>${esc(S.me.name||'CEO')}</b><small>CEO / Super Admin</small></div><span class="nph-c">⌄</span></button></div>`}
+   <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,40,S.me.name)}<div class="nph-mn"><b>${esc(S.me.name||'CEO')}</b><small>CEO / Super Admin</small></div><span class="nph-c">⌄</span></button><button class="nph-out" data-act="logoutAsk" aria-label="Chiqish" title="Saytdan chiqish">${npIc('out')}</button></div>`}
 function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="${NP_BANNER_M2}"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
 const npAgo=t=>{const m=Math.max(1,Math.round((Date.now()-Date.parse(t))/60000));return m<60?`${m} daqiqa oldin`:m<1440?`${Math.round(m/60)} soat oldin`:`${Math.round(m/1440)} kun oldin`};
 function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
@@ -3491,7 +3499,7 @@ function render(){
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
-   <main class="gut">${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?instBanner()+avNudge():''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
+   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}
