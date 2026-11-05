@@ -787,6 +787,14 @@ body.nui .np-regw img,body.nui .np-reg{width:auto!important;max-width:92%!import
 
 /* past ekranlar (yotiq planshet): minora kichikroq, bo'limlarga ko'proq joy */
 @media (max-height:820px){body.nui .np-regw img,body.nui .np-reg{max-height:17vh!important}}
+
+/* bo'limlar minora va bayroq orqasidan o'tib ketadi: qattiq kesik chiziq yo'q (5-noyabr) */
+body.nui .np{--mh:24vh}
+@media (max-height:820px){body.nui .np{--mh:17vh}}
+body.nui .np-regw{position:absolute!important;left:0;right:0;bottom:0;height:calc(var(--mh) + 56px)!important;margin:0!important;overflow:visible!important;z-index:2;background:none!important}
+body.nui .np-regw::before{content:'';position:absolute;inset:0;background:url(/a/panel-fon.webp?v=1) no-repeat center bottom/100% auto;-webkit-mask-image:linear-gradient(transparent,#000 56px);mask-image:linear-gradient(transparent,#000 56px)}
+body.nui .np-regw img,body.nui .np-reg{position:relative;z-index:1}
+body.nui .np-sc{padding-bottom:calc(var(--mh) + 44px)!important}
 </style>
 </head>
 <body>
