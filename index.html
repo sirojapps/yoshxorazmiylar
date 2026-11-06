@@ -4113,6 +4113,16 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(!S&&/^\d$/.test(e.key)){document.querySelector(`[data-d="${e.key}"]`)?.click()}if(!S&&e.key==='Backspace'){pin=pin.slice(0,-1);render()}});
 if(location.pathname.startsWith('/t/'))renderVerify(decodeURIComponent(location.pathname.slice(3)));else load().then(flushQueue);
+
+// ---- Yangi o'quvchi kabineti (/oq/oq.js) — hozircha faqat CEO va Namuna kabinetda ko'rinadi
+function oqAllow(){return !!(S&&S.me&&(S.me.role==='ceo'||S.me.demo))}
+function oqOpen(sid){const go=()=>window.OQ&&window.OQ.open(sid);if(window.OQ)return go();
+  const s=document.createElement('script');s.src='/oq/oq.js?v=1';s.onload=go;s.onerror=()=>toast('Yangi kabinet yuklanmadi. Internetni tekshiring.');document.head.appendChild(s)}
+(function(){const f=scrParent;scrParent=function(){const r=f.apply(this,arguments);
+  try{if(oqAllow()&&X&&X.st&&X.st.length&&Array.isArray(r)){const k=X.st.find(k=>k.id===child)||X.st[0];
+    r[2]=`<button class="card pad" data-oq="${k.id}" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;border:2px solid #1f6fff;background:linear-gradient(90deg,#e8f1ff,#fff)"><img src="/oq/p_home.webp" alt="" style="width:48px;height:48px"><div style="flex:1"><b style="font-size:16px">Yangi o’quvchi kabineti (sinov)</b><div class="note" style="margin:2px 0 0">${esc(k.name)} — darslar, mashqlar, ballar va medallar</div></div><span style="font-size:22px">›</span></button>`+r[2]}}catch(e){}
+  return r}})();
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-oq]');if(b){e.preventDefault();e.stopPropagation();oqOpen(+b.getAttribute('data-oq'))}},true);
 </script>
 </body>
 </html>
