@@ -2414,7 +2414,6 @@ function inkOnly(img){
 let certMode='sinov',MC=null,MCD=null;
 async function loadMc(){try{MC=(await api('mcerts.list')).rows}catch(e){MC=[];toast(e.message,true)}render()}
 const mcObj=x=>({code:x.code,issued:x.issued,at:x.at,m:{name:x.name,award:x.award,ribbon:x.ribbon,body:x.body,wish:x.wish}});
-function mcForm(){return {name:val('mcName'),award:val('mcAward'),ribbon:val('mcRib'),body:val('mcBody'),wish:val('mcWish'),issued:val('mcDate')}}
 // yangi sertifikat: matn ASOSIY sertifikatlardagi andozadan, xuddi o'sha qoida bilan tuziladi —
 // faqat maktab, sinf, sinov va natija yoziladi; xohlasa matn qo'lda o'zgartiriladi. Berilgandan keyin TAHRIRLANMAYDI.
 const canCert=()=>S.me.role==='ceo'||P('sertifikat');
@@ -3561,30 +3560,8 @@ const NPI={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-
  card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',set:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  db:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'};
 const npIc=k=>`<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NPI[k]}</svg>`;
-function npPanel(){darsLoad();const top=stack[0]||'';const on=(t,g)=>g?top===g:(!stack.length&&tab===t);
-  const it=(ic,l,a,act,n,badge)=>`<button class="npi${act?' on':''}" ${a}>${npIc(ic)}<span>${l}</span>${badge?`<em>${badge}</em>`:n!=null&&n!==''?`<i>${n}</i>`:''}</button>`;
-  const soon=(ic,l)=>`<div class="npi soon">${npIc(ic)}<span>${l}</span><i>tez kunda</i></div>`;
-  const g=t=>`<div class="npg">${t}</div>`;
-  return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
-   <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
-   <div class="np-sc">
-    ${it('home','Bosh sahifa','data-tab="bosh"',on('bosh'))}
-    ${g('Maktablar')}${it('school','Maktablar va sinflar','data-tab="maktab"',on('maktab'),S.schools.length)}${soon('pin','Hududlar')}${it('user','O’quvchilar','data-tab="maktab"',false,X.st.length)}
-    ${g('Odamlar')}${it('users','Jamoa va huquqlar','data-side="team"',on(0,'team'))}${it('build','Direktor va sinf rahbarlari','data-side="pins"',false)}${it('key','PIN kodlar','data-side="pins"',on(0,'pins'))}
-    ${g('Ta’lim')}${it('book','Mavzu darslari','data-act="npDars"',false,DARS&&DARS.size?DARS.size:'')}${canKey()?it('calc','Misollar bazasi','data-tab="baza"',on('baza')):''}${it('pen','Mashg’ulotlar','data-side="mashq"',on(0,'mashq'))}
-    ${g('Testlar va sinovlar')}${it('clip','Imtihonlar (bosqichlar)','data-tab="imtihon"',on('imtihon'))}${it('file','Testlar bazasi','data-side="tests"',on(0,'tests'))}${it('scan','Titul va skaner','data-tab="imtihon"',false)}
-    ${g('Natijalar')}${it('cup','Reyting','data-side="reyting"',on(0,'reyting'))}${it('star','Iqtidorli bolalar','data-side="yuqori"',on(0,'yuqori'))}${it('award','Sertifikatlar','data-side="certs"',on(0,'certs'))}${soon('chart','Natijalar tahlili')}
-    ${g('Aloqa')}${it('chat','Xabarlar','data-tab="xabar"',on('xabar'),'',(S.unread||0)+(S.tgPending||0)||'')}${soon('mega','E’lonlar')}
-    ${g('Moliya')}${soon('card','Obuna va to’lovlar')}
-    ${g('Tizim')}${it('set','Sozlamalar','data-side="settings"',on(0,'settings'))}${it('clock','O’zgarishlar tarixi','data-side="history"',on(0,'history'))}${it('db','Zaxira nusxa','data-side="backup"',on(0,'backup'))}${it('trash','O’chirilganlar (savat)','data-side="savat"',on(0,'savat'))}
-   </div>
-   <div class="np-f"><button class="np-old" data-act="npOff">Eski ko’rinishga qaytish</button><button class="np-out" data-act="logoutAsk">${npIc('out')}Saytdan chiqish</button></div></aside>`}
-
 const NP_BANNER='/a/banner2.webp?v=1';
 const NP_BANNER_M=null; // mobile-banner.png (1200×500) kelganda shu yerga qo'yiladi
-function npBanner(){return `<div class="npb${NP_BANNER_M?' has-m':''}"><picture>${NP_BANNER_M?`<source media="(max-width:899px)" srcset="${NP_BANNER_M}">`:''}<img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t"><span class="npb-k">👑</span><div><h2>CEO kabineti</h2><p>Super Administrator</p></div></div></div>`}
-function npHead(){const n=(S.unread||0)+(S.tgPending||0);return `<div class="nph"><button class="nph-b" data-act="npOpen" aria-label="Menyu">☰</button><img src="/icon-192.png?v=2" alt=""><div class="nph-t"><b>Yosh Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="nph-bell" data-tab="xabar" aria-label="Xabarlar">🔔${n?`<em>${n>99?'99+':n}</em>`:''}</button><button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,40,S.me.name)}</button></div>`}
-
 // ===== Bosh sahifa (ChatGPT telefon andozasi bo'yicha) — faqat haqiqiy ma'lumot
 let NST=null,NST_AT=0,NRANGE=7;
 function nstLoad(){if(NST_AT&&Date.now()-NST_AT<60000)return;NST_AT=Date.now();api('ceo.stats').then(d=>{NST=d;if(S&&tab==='bosh'&&!stack.length)render()}).catch(()=>{NST_AT=0})}
@@ -3619,18 +3596,6 @@ function nDonut(){const t=curTest();const head=`<div class="nc-h"><h3>${nic('cap
   const arcs=B.map(([,n,c])=>{const len=n/v.length*C;const s=`<circle r="50" cx="65" cy="65" fill="none" stroke="${c}" stroke-width="16" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-o}" transform="rotate(-90 65 65)"/>`;o+=len;return s}).join('');
   return `<div class="nc">${head}<div class="nd"><svg viewBox="0 0 130 130" class="nd-s">${arcs}<text x="65" y="66" text-anchor="middle" class="dv">${avg}%</text><text x="65" y="82" text-anchor="middle" class="dl">Umumiy</text><text x="65" y="94" text-anchor="middle" class="dl">o’rtacha</text></svg>
    <div class="nd-l">${B.map(([l,n,c])=>`<div><i style="background:${c}"></i><span>${l}</span><b>${Math.round(n/v.length*100)}%</b></div>`).join('')}</div></div></div>`}
-function npHome(){nstLoad();darsLoad();const d=NST;const tch=S.classes.filter(c=>c.teacher_name).length;
-  return `${npBanner()}<div class="nks">
-   ${nCard('users','linear-gradient(135deg,#3b82f6,#2563eb)','#eaf2fe','Foydalanuvchilar',nfm(d?.users),'data-side="pins"')}
-   ${nCard('cap','linear-gradient(135deg,#34d399,#16a34a)','#e9f8ef','O’quvchilar',nfm(X.st.length),'data-tab="maktab"')}
-   ${nCard('teach','linear-gradient(135deg,#a78bfa,#7c3aed)','#f1edfd','Ustozlar',nfm(d?.roles?.rahbar??tch),'data-side="pins"')}
-   ${nCard('school','linear-gradient(135deg,#fbbf24,#f59e0b)','#fff6e3','Maktablar',nfm(S.schools.length),'data-tab="maktab"')}
-   ${nCard('book','linear-gradient(135deg,#fb7185,#e11d48)','#fdecef','Darslar',nfm(DARS&&DARS.size?DARS.size:null),'data-act="npDars"')}
-   ${nCard('calc','linear-gradient(135deg,#38bdf8,#0284c7)','#e6f5fd','Misollar',nfm(d?.misol),canKey()?'data-tab="baza"':'')}
-  </div><div class="ncs">${nChart()}${nDonut()}</div>
-  <nav class="nbn">${[['home','Bosh sahifa','data-tab="bosh"',true],['school','Maktablar','data-tab="maktab"'],['cap','O’quvchilar','data-tab="maktab"'],['play','Darslar','data-act="npDars"'],['bars','Hisobotlar','data-side="reyting"']].map(([i,l,a,on])=>`<button ${a} class="${on?'on':''}">${nic(i,on?'#fff':'#1e3a8a')}<span>${l}</span></button>`).join('')}</nav>`}
-
-
 const NP_BANNER_M2='/a/banner-m.webp?v=1';
 const NP_GIFT='/a/iqtidor.webp?v=1';
 const NP_TROPHY='/a/kubok.webp?v=1';
@@ -3691,64 +3656,8 @@ function npTree(){const ceo=S.me.role==='ceo',real=ceo&&!S.me.demo,s0=stack[0]||
  ...(ceo?[['set','Tizim sozlamalari','data-side="settings"',null,SD('settings')]]:[])]}
 let NP_KEY='';
 Object.assign(NPI,{eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/>',school:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M8 11h2M14 11h2"/>'});
-function npPanel(){darsLoad();
-  const rows=npTree().map(([ic,l,a,sub,act,soon,badge],i)=>{const on=act?act():false;const open=sub&&NP_EXP[i];
-    if(soon)return `<div class="npi soon" title="${l} (tez kunda)">${npIc(ic)}<span>${l}</span><i>${soon}</i></div>`;
-    const right=badge?`<em>${badge}</em>`:`<b class="chv${open?' o':''}">›</b>`;
-    return `<button class="npi${on?' on':''}" title="${l}" ${sub?`data-act="npExp" data-i="${i}"`:a}>${npIc(ic)}<span>${l}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa])=>`<button class="npsi" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
-  return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
-   <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
-   <div class="np-role"><img class="crn" src="${NP_CROWN}" alt=""><div><b>CEO kabineti</b><small>Super Administrator</small></div></div>
-   <div class="np-sc">${rows}</div>
-   <img class="np-reg" src="${NP_REG}" alt=""><div class="np-f"><button class="np-old" data-act="npOff">Eski ko’rinishga qaytish</button><button class="np-out" data-act="logoutAsk">${npIc('out')}Saytdan chiqish</button></div></aside>`}
 const HAFTA=['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'],OYL=['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
-function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
-  return `<div class="nph"><button class="nph-b" data-act="npOpen" aria-label="Menyu">☰</button><img src="/icon-192.png?v=2" alt=""><div class="nph-t"><b>Yosh Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div>
-   <div class="nph-s">${I.search||'🔍'}<input id="npq" placeholder="Qidirish: maktab, o’quvchi, test, dars..." autocomplete="off"><div id="npres" class="npres"></div></div>
-   <div class="nph-d">📅<div><b>${d.getDate()}-${OYL[d.getMonth()]}, ${d.getFullYear()}-yil</b><small>${HAFTA[d.getDay()]}</small></div></div>
-   <button class="nph-bell" data-tab="xabar" aria-label="Xabarlar">🔔${n?`<em>${n>99?'99+':n}</em>`:''}</button>
-   <button class="nph-q" data-act="npHelp" aria-label="Yordam">?</button>
-   <button class="nph-me" data-act="meInfo" aria-label="Profil">${avHtml(S.me.avatar,40,S.me.name)}<div class="nph-mn"><b>${esc(S.me.name||'CEO')}</b><small>CEO / Super Admin</small></div><span class="nph-c">⌄</span></button><button class="nph-out" data-act="logoutAsk" aria-label="Chiqish" title="Saytdan chiqish">${npIc('out')}</button></div>`}
-function npBanner(){return `<div class="npb"><picture><source media="(max-width:899px)" srcset="${NP_BANNER_M2}"><img src="${NP_BANNER}" alt="Yosh Xorazmiylar"></picture><div class="npb-t2"><h2>Yosh Xorazmiylar</h2><p>Matematika ta’lim platformasi</p><i></i></div></div>`}
 const npAgo=t=>{const m=Math.max(1,Math.round((Date.now()-Date.parse(t))/60000));return m<60?`${m} daqiqa oldin`:m<1440?`${Math.round(m/60)} soat oldin`:`${Math.round(m/1440)} kun oldin`};
-function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
-  const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC={maktab:'school',sinf:'school',oquvchi:'user',natija:'clip',sertifikat:'award',pin:'key',sinov:'clip',test:'file',e:'chat'};
-  return RECENT.slice(0,5).map(h=>{const k=Object.keys(IC).find(x=>h.action.startsWith(x))||'clock';const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
-    return `<div class="nr">${npIc(IC[k]||'clock')}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+mkN(d)+'':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
-function nToday(d){const b=d?.bugun||{};const r=[['Yangi maktab ulandi',b.sch],['Yangi foydalanuvchi',b.users],['Yangi obuna',b.obuna],['O’tkazilgan testlar',b.tests]];
-  return `<div class="nc"><div class="nc-h"><h3><img class="hi" src="${NP_CROWN}" alt="">Bugungi muhim ko’rsatkichlar</h3></div>${r.map(([l,v])=>`<div class="ntd"><span class="ok">✓</span><span>${l}</span><b>${nfm(v??0)}</b></div>`).join('')}</div>`}
-function nGrades(){const g=[2,3,4].map(k=>[k,X.st.filter(s=>s.grade===k).length]);const mx=Math.max(1,...g.map(x=>x[1]));const top=Math.ceil(mx/4)*4||4;const C=[['#38bdf8','#2563eb'],['#86efac','#16a34a'],['#c4b5fd','#7c3aed']];
-  return `<div class="nc"><div class="nc-h"><h3>${nic('users','#2563eb',2.4)}Sinflar bo’yicha o’quvchilar soni</h3></div><div class="ngb"><div class="ngy">${[4,3,2,1,0].map(i=>`<span>${nfm(Math.round(top*i/4))}</span>`).join('')}</div>${g.map(([k,n],i)=>`<div class="ngc"><b>${nfm(n)}</b><i style="height:${n/top*100}%;background:linear-gradient(${C[i][0]},${C[i][1]})"></i><span>${k}-sinf</span></div>`).join('')}</div></div>`}
-function nActive(){const t=curTest();const l=t?S.schools.filter(s=>!s.test).map(sc=>({sc,v:avgPct(X.st.filter(s=>s.school_id===sc.id),t.id)})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,5):[];
-  return `<div class="nc"><div class="nc-h"><h3>🏅 Eng faol maktablar <small>(o’rtacha natija)</small></h3></div>${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${mkN(x.sc)} (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
-function nGifted(){const t=curTest();const n=t?X.st.filter(s=>{const p=pct(R(s.id,t.id));return p!=null&&p>=70}).length:0;
-  return `<button class="nc ngf" data-side="yuqori"><div class="nc-h"><h3><img class="hi" src="${NP_CROWN}" alt="">Iqtidorli o’quvchilar</h3></div><div class="ngf-b">${typeof NP_GIFT!=='undefined'&&NP_GIFT?`<img src="${NP_GIFT}" alt="">`:''}<b>${nfm(n)}</b><span>&gt; 70%</span></div></button>`}
-function nRegions(){const t=curTest();const v=t?avgPct(X.st.filter(s=>!X.sc[s.school_id]?.test),t.id):null;
-  return `<div class="nc"><div class="nc-h"><h3>⭐ Hududlar kesimida o’zlashtirish</h3></div><div class="nrg"><svg viewBox="0 0 600 390" class="nmap">${UZR.map(([k,n,cx,cy,d])=>`<path d="${d}" fill="${k==='uz-bu'?'#2563eb':'#bfdbfe'}" stroke="#fff" stroke-width="1.5"><title>${n}</title></path>`).join('')}<circle cx="295" cy="277" r="8" fill="#f5b100" stroke="#fff" stroke-width="3"/></svg>
-   <div class="nrl"><div class="nas"><span class="dot"></span><span class="nn">Buxoro viloyati</span><span class="nb"><i style="width:${v??0}%"></i></span><b>${v!=null?Math.round(v)+'%':'—'}</b></div><p class="note" style="margin:8px 0 0;font-size:12px">Boshqa viloyatlar loyiha kengayganda qo’shiladi.</p></div></div></div>`}
-function nQuick(){const q=[['school','Yangi maktab','data-act="schoolEdit"','#e0edfc'],['users','Foydalanuvchi yaratish','data-side="team"','#e3f7ea'],['book','Yangi dars','data-act="npDars"','#efe9fe'],['play','Animatsion dars','data-act="npDars"','#fde7ee'],['clip','Test yaratish','data-side="tests"','#e0edfc'],['cup','Sinov tashkil etish','data-act="testEdit"','#fff3d9'],['down','Hisobot (Excel/PDF)','data-act="dl" data-k="district" data-id="0"','#e3f7ea'],['grid','Barcha amallar','data-act="npOpen"','#eef2f7']];
-  return `<div class="nc"><div class="nc-h"><h3>⚡ Tezkor amallar</h3></div><div class="nq">${q.map(([i,l,a,bg])=>`<button ${a} style="background:${bg}">${i==='grid'?'<span class="g9">⠿</span>':npIc(i)}<span>${l}</span></button>`).join('')}</div></div>`}
-function nTests(){return `<button class="nc nts" data-tab="imtihon">${typeof NP_TROPHY!=='undefined'&&NP_TROPHY?`<img src="${NP_TROPHY}" alt="">`:''}<div><b>Tuman sinovlari</b><small>Keyingi bosqichga tayyormisiz?</small></div><span class="go">→</span></button>`}
-function npHome(){nstLoad();darsLoad();if(P('tarix'))loadRecent();const d=NST;const dl=d?.delta||{};
-  const dt=(n,w)=>n?`<em>▲ +${nfm(n)}${w?' (7 kun)':''}</em>`:'';
-  const card=(ic,g,bg,l,v,de,a)=>`<button class="nk" style="background:${bg}" ${a||''}><span class="nk-i" style="background:${g}">${nic(ic)}</span><span class="nk-m"><small>${l}</small><b>${v}</b>${de}</span></button>`;
-  return `${npBanner()}<div class="nks">
-   ${card('users','linear-gradient(135deg,#3b82f6,#2563eb)','#eaf2fe','Jami foydalanuvchilar',nfm(d?.users),dt(dl.users,1),'data-side="pins"')}
-   ${card('cap','linear-gradient(135deg,#34d399,#16a34a)','#e9f8ef','O’quvchilar',nfm(X.st.length),dt(dl.stu),'data-tab="maktab"')}
-   ${card('teach','linear-gradient(135deg,#a78bfa,#7c3aed)','#f1edfd','Ustozlar',nfm(d?.roles?.rahbar),dt(dl.rahbar),'data-side="pins"')}
-   ${card('school','linear-gradient(135deg,#fbbf24,#f59e0b)','#fff6e3','Maktablar',nfm(S.schools.filter(s=>!s.test).length),dt(dl.sch),'data-tab="maktab"')}
-   ${card('book','linear-gradient(135deg,#fb7185,#e11d48)','#fdecef','Darslar',nfm(DARS&&DARS.size?DARS.size:null),'','data-act="npDars"')}
-   ${card('calc','linear-gradient(135deg,#38bdf8,#0284c7)','#e6f5fd','Misollar',nfm(d?.misol),'',canKey()?'data-tab="baza"':'')}
-  </div>
-  <div class="ngrid">
-   <div class="g-chart">${nChart()}</div><div class="g-don">${nDonut()}</div><div class="g-today">${nToday(d)}</div>
-   <div class="g-grades">${nGrades()}</div><div class="g-active">${nActive()}</div><div class="g-gift">${nGifted()}</div>
-   <div class="g-recent"><div class="nc"><div class="nc-h"><h3>🕘 So’nggi faoliyatlar</h3><button class="lnk" data-side="history">Barchasi →</button></div><div id="recentBox">${nRecent()}</div></div></div>
-   <div class="g-reg">${nRegions()}</div><div class="g-quick">${nQuick()}</div><div class="g-tests">${nTests()}</div>
-  </div>
-  <nav class="nbn">${[['home','Bosh sahifa','data-tab="bosh"',true],['school','Maktablar','data-tab="maktab"'],['cap','O’quvchilar','data-tab="maktab"'],['play','Darslar','data-act="npDars"'],['bars','Hisobotlar','data-side="reyting"']].map(([i,l,a,on])=>`<button ${a} class="${on?'on':''}">${nic(i,on?'#fff':'#1e3a8a')}<span>${l}</span></button>`).join('')}</nav>`}
-
-
 // ======== ETALON 1:1 qatlami (o'lchamlar etalon rasmdan olingan: 1536×1024) ========
 const SV=(p,c='#0f2350',w=2)=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const EI={cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2"/>',bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/>',
@@ -4074,7 +3983,6 @@ document.addEventListener('click',async e=>{
    case 'npClose':NP_OPEN=false;document.body.classList.remove('np-open');break;
    case 'npDars':DARS_NP=NP_OPEN;NP_OPEN=false;document.body.classList.remove('np-open');darsOpen('');break;
    case 'npOn':ls.set('newui',true);closeSheet();NP_OPEN=false;render();toast('Yangi panel yoqildi');break;
-   case 'npOff':ls.set('newui',false);NP_OPEN=false;closeSheet();render();toast('Eski ko’rinishga qaytildi');break;
    case 'consent':await api('consent');await load();break;
    case 'pickTest':openSheet(`<div class="sh-top"><div class="m"><h2>Sinovni tanlang</h2></div><button class="ib" data-act="close">${I.x}</button></div><div class="card list">${S.tests.map(t=>`<button class="row" data-act="setTest" data-id="${t.id}"><div class="m"><div class="n">${esc(t.name)}</div></div>${t.id===testId?'<span class="pill ok">joriy</span>':''}</button>`).join('')}</div>`);break;
    case 'setTest':testId=+d.id;ls.set('test',testId);closeSheet();render();break;
