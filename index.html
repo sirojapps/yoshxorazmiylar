@@ -804,6 +804,54 @@ body:not(.lgx)::before{content:'';position:fixed;inset:0;z-index:-1;pointer-even
 /* telefon va tik planshetda yangi banner, o'lchami avvalgi banner bilan aynan bir xil */
 @media (max-width:899px){body.nui .npb img{aspect-ratio:1000/320!important;height:auto!important;object-fit:cover!important;object-position:50% 50%!important}}
 </style>
+<style id="yxc-css">
+/* ===== Xabarlar: Telegram uslubidagi chat ===== */
+.yxc-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.yxc-tabs button{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer;color:inherit}
+.yxc-tabs button[aria-pressed="true"]{background:var(--accent,#1e9e93);border-color:var(--accent,#1e9e93);color:#fff}
+.yxc-tabs em{font-style:normal;background:var(--accent-soft,#e3f4f2);color:var(--accent-strong,#137a71);border-radius:9px;padding:0 6px;margin-left:4px;font-size:11.5px;font-weight:600}
+.yxc-tabs button[aria-pressed="true"] em{background:#fff}
+.yxc-r{display:block;font-size:11.5px;font-weight:600;margin:1px 0 2px}
+.yxc-r.dir{color:#c06a12}.yxc-r.oq{color:#3b6fc4}.yxc-r.ota{color:#8a4fc0}.yxc-r.jam{color:#13897f}
+.row.on{background:var(--accent-soft,#e3f4f2)}
+.yxc-pane{display:none}
+.yxc .bubble{white-space:normal;max-width:78%;padding:7px 11px 5px}
+.yxc .bubble .tx{white-space:pre-wrap}
+.yxc .bubble .bt{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:11px;color:var(--muted);margin-top:2px}
+.yxc .bubble .bt .ok2{color:#1e9e93;font-weight:700}
+.yxc .bubble .mm{margin-left:2px;padding:0 0 0 4px;font-size:16px}
+.yxc-day{align-self:center;background:#e3eaef;color:#4d5e6a;font-size:12px;padding:3px 12px;border-radius:12px;margin:6px 0}
+.yxc-h{display:flex;align-items:center;gap:10px;position:relative}
+.yxc-h .m{flex:1;min-width:0}.yxc-h h2{margin:0;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yxc-h .s{font-size:12.5px;color:var(--muted)}
+.yxc-menu{position:absolute;right:44px;top:42px;z-index:5;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0002;display:flex;flex-direction:column;min-width:200px;overflow:hidden}
+.yxc-menu button{border:0;background:none;text-align:left;padding:11px 14px;font:inherit;font-size:14px;cursor:pointer;color:inherit}
+.yxc-menu button:hover{background:var(--accent-soft,#e3f4f2)}
+.yxc-play{display:inline-flex;align-items:center;gap:8px;border:0;background:none;padding:2px 0;font:inherit;font-size:13.5px;cursor:pointer;color:inherit}
+.yxc-play i{width:32px;height:32px;border-radius:50%;background:var(--accent,#1e9e93);color:#fff;display:grid;place-items:center;font-style:normal;font-size:13px}
+.yxc .msgs{margin-top:10px}
+.yxc-bar{display:flex;align-items:flex-end;gap:8px;position:sticky;bottom:0;background:var(--bg);padding:8px 0 4px}
+.yxc-bar textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);border-radius:20px;padding:10px 14px;font:inherit;font-size:15px;max-height:140px;min-height:42px;outline:none;background:var(--surface,#fff);color:inherit}
+.yxc-bar textarea:focus{border-color:var(--accent,#1e9e93)}
+.yxc-ic{width:42px;height:42px;border:0;border-radius:50%;background:var(--accent-soft,#e8f1f3);font-size:18px;cursor:pointer;flex:none;display:grid;place-items:center}
+.yxc-ic.rec{background:var(--wrong,#d9463b);color:#fff}
+.yxc-send{width:44px;height:44px;border:0;border-radius:50%;background:var(--accent,#1e9e93);color:#fff;font-size:18px;cursor:pointer;flex:none}
+.yxc-hint{font-size:11px;color:var(--muted);text-align:center;margin:0;display:none}
+.yxc-empty{margin:auto;text-align:center;color:var(--muted);font-size:14px;padding:20px}
+@media (min-width:900px) and (hover:hover){.yxc-hint{display:block}}
+@media (min-width:900px){
+ .yxc-wrap{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
+ .yxc-wrap>.yxc-side{display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 150px);overflow:auto}
+ .yxc-pane{display:flex;flex-direction:column;position:sticky;top:12px;height:calc(100vh - 150px);background:var(--surface,#fff);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+ .yxc-pane .yxc{display:flex;flex-direction:column;height:100%}
+ .yxc-pane .yxc-h{padding:12px 16px;border-bottom:1px solid var(--line)}
+ .yxc-pane .msgs{flex:1;overflow:auto;padding:14px 6%;background:var(--bg);margin:0}
+ .yxc-pane .yxc-foot{padding:6px 14px 8px;border-top:1px solid var(--line)}
+ .yxc-pane .yxc-bar{position:static;background:none}
+ .yxc-pane .yxc-mid{padding:0 14px}
+}
+@media (max-width:899px){.yxc-wrap>.yxc-side{display:flex;flex-direction:column;gap:12px}}
+</style>
 </head>
 <body>
 <div id="atmo" aria-hidden="true"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="pat"></div>
@@ -1807,32 +1855,24 @@ function openAvPick(kidId){kidId=0;const kid=null;const cur=S.me.avatar;const re
 // surat qo'yishga eslatma (bir marta yopilsa, boshqa chiqmaydi)
 const avNudge=()=>'';const avNudgeOld=()=>!String(S.me.avatar||'').startsWith('data:')&&!ls.get('avn',0)?`<div class="card pad" style="flex-direction:row;align-items:center;gap:12px">${avHtml('',44,S.me.name)}<div class="m" style="flex:1"><div class="n" style="font-weight:600">Profilingizga suratingizni qo’ying</div><div class="note">Xabarlarda sizni tanib olishadi</div></div><button class="btn pri sm" data-act="avPick">Qo’yish</button><button class="ib" data-act="avNudgeOff" aria-label="Yopish">${I.x}</button></div>`:'';
 // ---------------- messages list
-let TH=null, thf='ochiq', TREQ=null;
+let TH=null, thf='all', TREQ=null;
 async function loadThreads(){try{TH=(await api('threads')).rows}catch(e){TH=[]}render()}
-function thRow(t){const mine=t.last?.user_id===S.me.id;
-  return `<button class="row" data-th="${t.id}"><div class="m"><div class="n">${esc(t.title)} ${t.kind==='jamoa'?`<span class="pill ${t.topic==='xato'?'warn':'gray'}">${TOPIC_L[t.topic]||''}</span>`:''}${t.kind==='sinf'?'<span class="pill gray">butun sinf</span>':''}</div>
-   <div class="s">${t.last?(mine?'Siz: ':'')+esc((t.last.text||'').slice(0,70))+(t.last.image?' [rasm]':'')+(t.last.audio?' 🎤 ovozli xabar':''):''}</div></div>
+const THC={dir:'Direktorlar',oq:'O’qituvchilar',ota:'Ota-onalar',jam:'Jamoa'};
+function thRow(t){const mine=t.last?.user_id===S.me.id;const on=typeof THV!=='undefined'&&THV&&THV.thread.id===t.id;
+  return `<button class="row ${on?'on':''}" data-th="${t.id}"><div class="m"><div class="n">${esc(t.title)} ${t.kind==='jamoa'?`<span class="pill ${t.topic==='xato'?'warn':'gray'}">${TOPIC_L[t.topic]||''}</span>`:''}</div>${t.sub?`<small class="yxc-r ${t.cat||''}">${esc(t.sub)}</small>`:''}<div class="s">${t.last?(mine?'Siz: ':'')+esc((t.last.text||'').slice(0,70))+(t.last.image?' [rasm]':'')+(t.last.audio?' 🎤 ovozli xabar':''):''}</div></div>
    <div class="num" style="font-weight:500"><small>${ago(t.updated_at)}</small>${t.unread?badge(t.unread):t.status==='hal'&&t.kind==='jamoa'?'<span class="pill ok">hal</span>':''}</div></button>`}
 function scrMessages(){
   if(!TH){loadThreads();return ['Xabarlar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
-  const r=S.me.role, lead=r==='ceo'||P('sardor');
-  let top='', list=TH;
+  const r=S.me.role;
+  let top='';
   if(isTeam()){
-    const chat=TH.find(t=>t.kind==='chat');
-    top+=`<button class="row card" data-act="openChat"><div class="m"><div class="n">Jamoa chati</div><div class="s">${chat?.last?esc(chat.last.text.slice(0,60)):'CEO, sardor va jamoa a’zolari uchun'}</div></div>${badge(chat?.unread)}${I.chev}</button>`;
-    const jam=TH.filter(t=>t.kind==='jamoa');
-    if(thf!=='ochiq'&&thf!=='hal')thf='ochiq';
-    const unr=st=>jam.filter(t=>t.status===st).reduce((n,t)=>n+(t.unread||0),0),uO=unr('ochiq'),uH=unr('hal');
-    const segs=[['ochiq',`Ochiq (${jam.filter(t=>t.status==='ochiq').length})${uO?` · ${uO} yangi`:''}`],['hal',`Hal qilingan${uH?` · ${uH} yangi`:''}`]];
-    top+=`<div class="seg">${segs.map(([k,l])=>`<button data-thf="${k}" aria-pressed="${thf===k}">${l}</button>`).join('')}</div>`;
-    list=jam.filter(t=>t.status===thf);
+    if(!TH.some(t=>t.kind==='chat'))top+=`<button class="row card" data-act="openChat"><div class="m"><div class="n">Jamoa chati</div><div class="s">CEO, sardor va jamoa a’zolari uchun</div></div>${I.chev}</button>`;
     if(r==='jamoa')top+=`<button class="btn pri" data-act="compose" data-kind="jamoa">+ Yangi murojaat</button>`;
     if(P('pinlar')&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Telegram so’rovlari</div><div class="s">Raqami ro’yxatda yo’q ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`+top;
   }else if(r==='direktor'){
     top=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn pri" data-act="compose" data-kind="drh">Sinf rahbariga</button><button class="btn sec" data-act="compose" data-kind="drhs">Barcha sinf rahbarlariga</button>
      <button class="btn pri" data-act="compose" data-kind="dota">Ota-onaga</button><button class="btn sec" data-act="compose" data-kind="dotalar">Ota-onalarga e’lon</button></div>
-     <button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga yozish</button>
-     <p class="note">Sinf rahbarlari va ota-onalar sizga javob yoza oladi. E’lonni ota-onalar faqat o’qiydi.</p>`;
+     <button class="btn sec" data-act="compose" data-kind="jamoa">Loyiha jamoasiga yozish</button>`;
   }else if(r==='rahbar'){
     top=`${S.tgPending?`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn pri" data-act="compose" data-kind="ota">Ota-onaga yozish</button><button class="btn sec" data-act="compose" data-kind="sinf">Butun sinfga</button></div>
@@ -1840,7 +1880,12 @@ function scrMessages(){
   }else if(r==='ota'){
     top=`<button class="btn pri" data-act="compose" data-kind="ota">Ustozga yozish</button><p class="note">Xabaringiz farzandingizning sinf rahbariga boradi.</p>`;
   }
-  return ['Xabarlar','',`${top}<div class="card list">${list.map(thRow).join('')||'<div class="empty">Hali xabar yo’q</div>'}</div>`]}
+  const cats=isTeam()?['dir','oq','jam']:r==='direktor'?['oq','ota','jam']:r==='rahbar'?['dir','ota','jam']:[];
+  if(thf!=='all'&&!cats.includes(thf))thf='all';
+  const un=c=>TH.filter(t=>c==='all'||t.cat===c).reduce((n,t)=>n+(t.unread||0),0);
+  const tabsH=cats.length?`<div class="yxc-tabs">${[['all','Hammasi'],...cats.map(c=>[c,THC[c]])].map(([k,l])=>{const n=un(k);return `<button data-thf="${k}" aria-pressed="${thf===k}">${l}${n?`<em>${n}</em>`:''}</button>`}).join('')}</div>`:'';
+  const list=TH.filter(t=>thf==='all'||t.cat===thf);
+  return ['Xabarlar','',`<div class="yxc-wrap"><div class="yxc-side">${top}${tabsH}<div class="card list">${list.map(thRow).join('')||'<div class="empty">Bu bo’limda xabar yo’q</div>'}</div></div><div class="yxc-pane" id="thPane"><div class="yxc-empty">Suhbatni tanlang</div></div></div>`]}
 
 // ---------------- ovozli xabar: yozish, tinglab ko'rish, o'chirish (eng ko'pi 3 daqiqa)
 const REC={on:false,to:'',data:'',mr:null,ch:[],t0:0,tm:0,stream:null,drop:false};
@@ -1850,7 +1895,7 @@ function recBox(to){let h='';
   if(REC.to===to&&REC.on)h=`<div class="card pad" style="flex-direction:row;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:var(--wrong);animation:pulse 1s infinite;flex:none"></span><b id="recT" style="font-variant-numeric:tabular-nums">${recFmt(Math.floor((Date.now()-REC.t0)/1000))}</b><span class="note">Ovoz yozilmoqda… eng ko’pi 3 daqiqa</span></div>`;
   else if(REC.to===to&&REC.data)h=`<div class="card pad" style="flex-direction:row;align-items:center;gap:10px"><audio controls src="${REC.data}" style="flex:1;min-width:0;height:40px"></audio><button class="btn dan sm" data-act="recDel">O’chirish</button></div>`;
   return `<div id="recbox-${to}">${h}</div>`}
-function recBtn(to){const on=REC.on&&REC.to===to;return `<span id="recbtn-${to}" style="display:contents"><button class="btn ${on?'dan':'sec'}" data-act="${on?'recStop':'recStart'}" data-to="${to}">${on?'■ To’xtatish':'🎤 Ovoz'}</button></span>`}
+function recBtn(to){const on=REC.on&&REC.to===to;if(to==='rp')return `<span id="recbtn-rp" style="display:contents"><button class="yxc-ic ${on?'rec':''}" data-act="${on?'recStop':'recStart'}" data-to="rp" title="${on?'To’xtatish':'Ovozli xabar'}" aria-label="${on?'To’xtatish':'Ovozli xabar'}">${on?'■':'🎤'}</button></span>`;return `<span id="recbtn-${to}" style="display:contents"><button class="btn ${on?'dan':'sec'}" data-act="${on?'recStop':'recStart'}" data-to="${to}">${on?'■ To’xtatish':'🎤 Ovoz'}</button></span>`}
 function recRedraw(){['cm','rp'].forEach(to=>{const b=$('#recbox-'+to);if(b)b.outerHTML=recBox(to);const t=$('#recbtn-'+to);if(t)t.outerHTML=recBtn(to)})}
 async function recStart(to){
   if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){toast('Bu brauzerda ovoz yozib bo’lmaydi. Chrome orqali oching.',true);return}
@@ -1871,31 +1916,47 @@ function recStop(){if(REC.on&&REC.mr&&REC.mr.state!=='inactive')REC.mr.stop()}
 function recClear(){if(REC.on&&REC.mr){REC.drop=true;try{REC.mr.stop()}catch(e){}}clearInterval(REC.tm);REC.on=false;REC.data='';REC.to='';REC.ch=[]}
 
 // ---------------- thread view
-let THV=null, draftImg='', msgMenu=0, editMsg=0;
-async function openThread(id){try{THV=await api('thread.get',{id});draftImg='';msgMenu=0;editMsg=0;drawThread();TH=null;load()}catch(e){toast(e.message,true)}}
+let THV=null, draftImg='', msgMenu=0, editMsg=0, thMenu=false;
+async function openThread(id){try{THV=await api('thread.get',{id});draftImg='';msgMenu=0;editMsg=0;thMenu=false;drawThread();if(paneOn())api('threads').then(r=>{TH=r.rows;render()}).catch(()=>{});else{TH=null;load()}}catch(e){toast(e.message,true)}}
+const paneOn=()=>matchMedia('(min-width:900px)').matches&&tab==='xabar'&&!stack.length&&!!document.getElementById('thPane');
+const dayL=iso=>{const d=new Date(iso),t=new Date(),y=new Date();y.setDate(t.getDate()-1);const k=x=>x.toDateString();return k(d)===k(t)?'Bugun':k(d)===k(y)?'Kecha':d.toLocaleDateString('uz-UZ',{day:'2-digit',month:'2-digit',year:'numeric'})};
+const hm=iso=>iso?new Date(iso).toTimeString().slice(0,5):'';
 function drawThread(){
   const {thread:t,msgs,names,readBy,student,result,reply}=THV; const lead=S.me.role==='ceo'||P('sardor')||P('xabar');
-  const lastMine=[...msgs].reverse().find(m=>m.user_id===S.me.id);
-  const seen=lastMine&&readBy.some(r=>r.at>=lastMine.at);
-  openSheet(`<div class="sh-top"><div class="m"><h2 style="font-size:18px">${esc(t.title)}</h2><div class="s">${t.kind==='jamoa'?(TOPIC_L[t.topic]||'')+' · '+(t.status==='hal'?'hal qilingan':'ochiq'):''}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
-   ${student&&result?`<div class="card pad" style="flex-direction:row;align-items:center"><div class="m" style="flex:1"><b>${esc(student.name)}</b><div class="note">${mkN(student)} · ${esc(student.cls)} · ${esc(result.name)}</div></div><div class="num">${result.absent?'kelmadi':result.score+'/'+result.qn}</div></div>`:''}
-   <div class="msgs">${msgs.map(m=>{const me=m.user_id===S.me.id;const can=me||S.me.role==='ceo';
-    return `<div class="bubble ${me?'me':''}"><div class="who"><span style="display:inline-flex;align-items:center;gap:6px">${avHtml((THV.avs||{})[m.user_id],22,names[m.user_id])}${me?'Siz':esc(names[m.user_id])} · ${fmtDate(m.at)}</span>${can?`<button class="mm" data-act="msgMenu" data-id="${m.id}" aria-label="Xabar amallari">⋯</button>`:''}</div>${m.text?`<div>${esc(m.text)}</div>`:''}${m.image?`<img src="${esc(m.image)}" alt="Biriktirilgan rasm" data-zoom>`:''}${m.audio?(AUD[m.id]?`<audio controls autoplay src="${esc(AUD[m.id])}" style="width:100%;max-width:280px;margin-top:4px"></audio>`:`<button class="btn sec sm" data-act="audPlay" data-id="${m.id}" style="margin-top:4px">▶ Ovozli xabarni tinglash</button>`):''}${m.edited?'<div class="ed">tahrirlangan</div>':''}
-     ${msgMenu===m.id?`<div class="ma">${me&&m.text?`<button data-act="msgEdit" data-id="${m.id}">Tahrirlash</button>`:''}<button class="del" data-act="msgDel" data-id="${m.id}">O’chirish</button></div>`:''}</div>`}).join('')}</div>
-   ${seen?'<p class="note" style="text-align:right">o’qildi ✓</p>':''}
+  const pane=paneOn(), group=['chat','jamoa','drhs'].includes(t.kind);
+  const items=[];
+  if(t.kind==='jamoa'&&lead)items.push(`<button data-act="thStatus" data-s="${t.status==='hal'?'ochiq':'hal'}">${t.status==='hal'?'↺ Qayta ochish':'✓ Hal qilindi deb belgilash'}</button>`);
+  if(t.kind==='ota'&&S.me.role==='rahbar')items.push(`<button data-act="thForward">➦ Jamoaga yuborish</button>`);
+  if(student&&isTeam())items.push(`<button data-act="thProfile" data-id="${student.id}">👤 Bola profili</button>`);
+  let lastDay='';
+  const body=msgs.map(m=>{const me=m.user_id===S.me.id, can=me||S.me.role==='ceo';
+    const dl=dayL(m.at), sep=dl!==lastDay?`<div class="yxc-day">${dl}</div>`:'';lastDay=dl;
+    const read=me&&readBy.some(r=>r.at>=m.at);
+    return sep+`<div class="bubble ${me?'me':''}">${group&&!me?`<div class="who">${avHtml((THV.avs||{})[m.user_id],20,names[m.user_id])}<b>${esc(names[m.user_id])}</b></div>`:''}${m.text?`<div class="tx">${esc(m.text)}</div>`:''}${m.image?`<img src="${esc(m.image)}" alt="Biriktirilgan rasm" data-zoom>`:''}${m.audio?(AUD[m.id]?`<audio controls autoplay src="${esc(AUD[m.id])}" style="width:100%;min-width:220px;max-width:280px;margin-top:4px"></audio>`:`<button class="yxc-play" data-act="audPlay" data-id="${m.id}"><i>▶</i>Ovozli xabar</button>`):''}<div class="bt">${m.edited?'tahrirlangan · ':''}${hm(m.at)}${me?(read?' <span class="ok2" title="O’qildi">✓✓</span>':' <span title="Yuborildi, hali o’qilmagan">✓</span>'):''}${can?`<button class="mm" data-act="msgMenu" data-id="${m.id}" aria-label="Xabar amallari">⋯</button>`:''}</div>${msgMenu===m.id?`<div class="ma">${me&&m.text?`<button data-act="msgEdit" data-id="${m.id}">Tahrirlash</button>`:''}<button class="del" data-act="msgDel" data-id="${m.id}">O’chirish</button></div>`:''}</div>`}).join('');
+  const html=`<div class="yxc"><div class="yxc-h"><div class="m"><h2>${esc(t.title)}</h2><div class="s">${t.kind==='jamoa'?(TOPIC_L[t.topic]||'')+' · '+(t.status==='hal'?'hal qilingan':'ochiq'):''}</div></div>${items.length?`<button class="ib" data-act="thMenu" aria-label="Amallar" style="font-size:20px">⋯</button>`:''}<button class="ib" data-act="${pane?'thClose':'close'}" aria-label="Yopish">${I.x}</button>${thMenu&&items.length?`<div class="yxc-menu">${items.join('')}</div>`:''}</div>
+   ${student&&result?`<div class="yxc-mid"><div class="card pad" style="flex-direction:row;align-items:center;margin-top:8px"><div class="m" style="flex:1"><b>${esc(student.name)}</b><div class="note">${mkN(student)} · ${esc(student.cls)} · ${esc(result.name)}</div></div><div class="num">${result.absent?'kelmadi':result.score+'/'+result.qn}</div></div></div>`:''}
+   <div class="msgs">${body||'<div class="yxc-empty">Hali xabar yo’q</div>'}</div>
+   <div class="yxc-foot">
    ${editMsg?`<div class="card pad"><p class="label" style="margin:0">Xabarni tahrirlash</p><label class="field"><textarea id="edText" style="min-height:80px">${esc(msgs.find(m=>m.id===editMsg)?.text||'')}</textarea></label>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn sec" data-act="msgEditCancel">Bekor qilish</button><button class="btn pri" data-act="msgEditSave">Saqlash</button></div></div>`:''}
-   ${reply&&!editMsg?`<label class="field"><textarea id="rpText" placeholder="Javob yozing…" style="min-height:80px"></textarea></label>
-   ${draftImg?`<div class="card pad"><img src="${draftImg}" style="max-height:140px;object-fit:contain" alt=""><button class="lnk" data-act="rpImgDel">Rasmni olib tashlash</button></div>`:''}
+   ${reply&&!editMsg?`${draftImg?`<div class="card pad"><img src="${draftImg}" style="max-height:140px;object-fit:contain" alt=""><button class="lnk" data-act="rpImgDel">Rasmni olib tashlash</button></div>`:''}
    ${recBox('rp')}
-   <div style="display:grid;grid-template-columns:auto auto 1fr;gap:10px"><button class="btn sec" data-act="rpImg">Rasm</button>${recBtn('rp')}<button class="btn pri" data-act="rpSend">Yuborish</button></div>`:t.kind==='sinf'&&S.me.role==='ota'?`<p class="note">Bu butun sinfga yuborilgan xabar. Savolingiz bo’lsa, “Ustozga yozish” orqali yozing.</p>`:''}
-   <div style="display:flex;gap:10px;flex-wrap:wrap">${t.kind==='jamoa'&&lead?`<button class="btn sec sm" data-act="thStatus" data-s="${t.status==='hal'?'ochiq':'hal'}">${t.status==='hal'?'Qayta ochish':'Hal qilindi'}</button>`:''}
-   ${t.kind==='ota'&&S.me.role==='rahbar'?`<button class="btn sec sm" data-act="thForward">Jamoaga yuborish</button>`:''}
-   ${student&&isTeam()?`<button class="btn sec sm" data-act="thProfile" data-id="${student.id}">Bola profili</button>`:''}</div>`);
+   <div class="yxc-bar"><button class="yxc-ic" data-act="rpImg" title="Rasm biriktirish" aria-label="Rasm biriktirish">📎</button><textarea id="rpText" rows="1" placeholder="Xabar yozing…"></textarea>${recBtn('rp')}<button class="yxc-send" data-act="rpSend" title="Yuborish" aria-label="Yuborish">➤</button></div>
+   <p class="yxc-hint">Enter — yuborish · Shift+Enter — yangi qator</p>`:t.kind==='sinf'&&S.me.role==='ota'?`<p class="note">Bu butun sinfga yuborilgan xabar. Savolingiz bo’lsa, “Ustozga yozish” orqali yozing.</p>`:''}
+   </div></div>`;
+  if(pane){$('#thPane').innerHTML=html;document.querySelectorAll('.yxc-side .row[data-th]').forEach(r=>r.classList.toggle('on',+r.dataset.th===t.id))}else openSheet(html);
+  const root=pane?$('#thPane'):$('#sheet');
   if(editMsg){const e=$('#edText');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);e.scrollIntoView({block:'center'})}return}
-  if(msgMenu)return;
-  const m=$('#sheet .msgs');if(m)m.lastElementChild?.scrollIntoView({block:'end'});
+  if(msgMenu||thMenu)return;
+  const m=root.querySelector('.msgs');if(m){if(pane)m.scrollTop=m.scrollHeight;else m.lastElementChild?.scrollIntoView({block:'end'})}
+  if(pane&&matchMedia('(hover:hover)').matches)$('#rpText')?.focus({preventScroll:true});
 }
+// yozish maydoni matn ko'paygan sari kattalashadi; kompyuterda Enter — yuborish, Shift+Enter — yangi qator
+document.addEventListener('input',e=>{if(e.target.id==='rpText'){const x=e.target;x.style.height='auto';x.style.height=Math.min(x.scrollHeight,140)+'px'}});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.shiftKey||e.isComposing||e.keyCode===229)return;
+  if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+  const act={rpText:'rpSend',cmText:'cmSend',edText:'msgEditSave'}[e.target.id];if(!act)return;
+  e.preventDefault();document.querySelector(`[data-act="${act}"]`)?.click()});
 // rasmni katta qilib ko'rsatish
 function zoomImg(src){closeZoom();const z=document.createElement('div');z.className='zoom';z.id='zoom';
   z.innerHTML=`<img src="${src}" alt="Rasm"><div class="zb"><a href="${src}" download="rasm.jpg">Saqlash</a><button data-zclose aria-label="Yopish">✕</button></div>`;
@@ -2426,11 +2487,13 @@ document.addEventListener('click',async e=>{
    case 'recStop':recStop();break;
    case 'recDel':recClear();recRedraw();break;
    case 'audPlay':{try{AUD[+d.id]=(await api('msg.audio',{id:+d.id})).audio;const t=val('rpText');drawThread();const e=$('#rpText');if(e)e.value=t}catch(e){toast(e.message,true)}break}
-   case 'msgMenu':{const id=+d.id;msgMenu=msgMenu===id?0:id;editMsg=0;drawThread();break}
+   case 'msgMenu':{const id=+d.id;msgMenu=msgMenu===id?0:id;editMsg=0;thMenu=false;const v=val('rpText');drawThread();const e=$('#rpText');if(e)e.value=v;break}
    case 'msgEdit':{editMsg=+d.id;msgMenu=0;drawThread();break}
    case 'msgEditCancel':{editMsg=0;drawThread();break}
    case 'msgEditSave':{const t=val('edText');await api('msg.edit',{id:editMsg,text:t});toast('Tahrirlandi');openThread(THV.thread.id);break}
    case 'msgDel':{if(!confirm('Xabar o’chirilsinmi? Uni qaytarib bo’lmaydi.'))break;await api('msg.delete',{id:+d.id});toast('O’chirildi ✓');TH=null;openThread(THV.thread.id);break}
+   case 'thMenu':{thMenu=!thMenu;msgMenu=0;const v=val('rpText');drawThread();const e=$('#rpText');if(e)e.value=v;break}
+   case 'thClose':THV=null;thMenu=false;render();break;
    case 'thStatus':await api('thread.status',{id:THV.thread.id,status:d.s});toast(d.s==='hal'?'Hal qilindi':'Qayta ochildi');openThread(THV.thread.id);break;
    case 'thForward':{const r=await api('thread.forward',{id:THV.thread.id});toast('Jamoaga yuborildi');openThread(r.id);break}
    case 'thProfile':closeSheet();stack.push('stu:'+d.id);render();break;
@@ -3640,6 +3703,7 @@ document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.
   mode=''},{passive:true});
 })();
 function render(){
+  const __rpv=document.querySelector('#thPane #rpText')?.value||'';
   document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
   if(!S){renderLogin();loginHero();fitLogin();return}
   document.body.classList.remove('lgx');
@@ -3666,6 +3730,7 @@ function render(){
   const ri=$('#rq');if(ri){ri.oninput=e=>{rq=e.target.value;render()};if(rfocus){ri.focus();ri.setSelectionRange(ri.value.length,ri.value.length)}}
   const ti=$('#topMin');if(ti){ti.oninput=e=>{const v=parseInt(e.target.value,10);if(isNaN(v))return;topMin=Math.max(0,Math.min(100,v));ls.set('topmin',topMin);$('#topRes').innerHTML=topList()}}
   const qi=$('#q');if(qi){qi.oninput=e=>{q=e.target.value;$('#res').innerHTML=entryList()};if(focus){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
+  if(typeof THV!=='undefined'&&THV&&paneOn()){drawThread();const e=$('#rpText');if(e&&__rpv)e.value=__rpv}
   navSync();
   if(__y){const y=__y;__y=0;requestAnimationFrame(()=>scrollTo(0,y))}
 }

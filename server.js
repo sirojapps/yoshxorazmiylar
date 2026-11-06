@@ -2079,7 +2079,25 @@ function addMessage(u, t, txt, image, audio = '') {
   if (!u._demo) notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
 const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
-A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
+// suhbat toifasi (ko'ruvchiga nisbatan qarshi tomon): dir / oq / ota / jam, va qisqa izoh (kim, qaysi maktab)
+function threadCat(t, u) {
+  const who = one('SELECT role,school_id,class_id FROM users WHERE id=?', t.user_id) || {};
+  const sch = id => { const x = id ? one('SELECT num FROM schools WHERE id=?', id) : null; return x ? x.num + '-maktab' : ''; };
+  const cls = id => id ? one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', id) : null;
+  const k = t.kind, r = u.role;
+  if (k === 'chat') return { cat: 'jam', sub: 'Guruh suhbati' };
+  if (k === 'jamoa') {
+    if (t.user_id === u.id && r !== 'jamoa') return { cat: 'jam', sub: 'Loyiha jamoasi' };
+    if (who.role === 'direktor') return { cat: 'dir', sub: ['Direktor', sch(who.school_id)].filter(Boolean).join(' · ') };
+    if (who.role === 'rahbar') { const c = cls(who.class_id); return { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${c.num}-maktab, ${c.name}` : '') }; }
+    return { cat: 'jam', sub: 'Jamoa a’zosi' };
+  }
+  if (['ota', 'sinf'].includes(k)) { const c = cls(t.class_id); return r === 'ota' ? { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${c.name}` : '') } : { cat: 'ota', sub: (k === 'sinf' ? 'Butun sinf ota-onalari' : 'Ota-ona') + (c ? ` · ${c.num}-maktab, ${c.name}` : '') }; }
+  if (['dota', 'dotalar'].includes(k)) return r === 'ota' ? { cat: 'dir', sub: 'Maktab direktori' } : { cat: 'ota', sub: k === 'dotalar' ? 'Ota-onalarga e’lon' : 'Ota-ona' };
+  if (['drh', 'drhs'].includes(k)) return r === 'rahbar' ? { cat: 'dir', sub: 'Direktor' } : { cat: 'oq', sub: k === 'drhs' ? 'Barcha sinf rahbarlari' : 'Sinf rahbari' };
+  return { cat: 'jam', sub: '' };
+}
+A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, ...threadCat(t, u), title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
 A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
   const acc = threadAccess(u, t); need(acc.see);
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, now());
