@@ -1457,49 +1457,6 @@ A['pb.sample'] = (u, b) => { // sinf rahbari: o'z sinfi mavzusidan tasodifiy mis
   if (b.level) { w.push('level=?'); a.push(+b.level); }
   return { rows: all(`SELECT * FROM probs WHERE ${w.join(' AND ')} ORDER BY random() LIMIT ?`, ...a, n).map(probRow) };
 };
-// ---------------------------------------------------------------- O'quvchi kabineti (yangi, oq.js): har bir bolaning darslari, darajasi, ballari
-db.exec(`CREATE TABLE IF NOT EXISTS kid_prog(student_id INTEGER PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}', pts INTEGER DEFAULT 0, rank INTEGER DEFAULT 0, updated TEXT)`);
-const OQ_KZ = {
-  2: [['2Z1', "Chamalash: o'nlikkacha yaxlitlab chamalash"], ['2Z2', "Ehtimollik: qaysi biri ko'proq chiqadi? (tanga, kubik)"], ['2Z3', 'Kodlash: sonli shifr, harf = son'], ['2Z4', "Moliyaviy savodxonlik: xarid va qaytim"], ['2Z5', "Algoritmik fikrlash: robotni buyruqlar bilan yo'naltirish"], ['2Z6', "Ma'lumotlar: so'rovnoma va jadval"]],
-  3: [['3Z1', 'Chamalash: natijani chamalab tekshirish'], ['3Z2', 'Ehtimollik: imkoniyatlarni sanash va taqqoslash'], ['3Z3', 'Kodlash: siljitma shifr (Sezar shifri)'], ['3Z4', "Moliyaviy savodxonlik: tejash va maqsad sari pul yig'ish"], ['3Z5', 'Algoritmik fikrlash: shartli buyruq "agar ... bo\'lsa"'], ['3Z6', "Ma'lumotlar: diagramma tuzish va o'qish"]],
-  4: [['4Z1', 'Chamalash: katta sonlarni chamalash'], ['4Z2', 'Ehtimollik: ehtimolni kasr bilan ifodalash'], ['4Z3', 'Kodlash: ikkilik sanoq, 0 va 1'], ['4Z4', 'Moliyaviy savodxonlik: oylik byudjet, foiz va chegirma'], ['4Z5', 'Algoritmik fikrlash: takrorlanuvchi buyruqlar (sikl)'], ['4Z6', "Ma'lumotlar: o'rtacha qiymat va diagramma tahlili"]],
-};
-const oqOpen = u => u.role === 'ceo' || !!u._demo || getSet('oq_open') === '1'; // hozircha faqat CEO va Namuna kabinet
-function oqKid(u, sid) {
-  need(oqOpen(u), 'Yangi o‘quvchi kabineti hozircha sinovda');
-  const s = one(`SELECT s.id, s.name, s.patronymic, s.class_id, c.grade, c.name cls, c.teacher_name, c.school_id, sc.num, sc.name sname
-    FROM students s JOIN classes c ON c.id = s.class_id JOIN schools sc ON sc.id = c.school_id WHERE s.id = ? AND s.active = 1`, +sid || 0);
-  if (!s) bad('O‘quvchi topilmadi');
-  const ok = isTeam(u) || (u.role === 'ota' && kidsOfPhone(phone9(u.phone)).includes(s.id)) || (u.role === 'rahbar' && u.class_id === s.class_id) || (u.role === 'direktor' && u.school_id === s.school_id);
-  need(ok, 'Bu o‘quvchi sizga tegishli emas');
-  return s;
-}
-function oqSex(s) {
-  const t = ((s.patronymic || '') + ' ' + (s.name || '')).toLowerCase();
-  if (/qizi|ovna|evna/.test(t)) return 'q'; if (/o.g.li|vich/.test(t)) return 'o';
-  return /a$/.test((s.name || '').toLowerCase().split(/\s+/)[0] || '') ? 'q' : 'o';
-}
-A['oq.get'] = (u, b) => {
-  const s = oqKid(u, b.sid), g = s.grade;
-  const topics = (PB_TOPICS[g] || []).map(([n, l]) => [n, l.map(([c, t]) => [c, t])]);
-  if (OQ_KZ[g]) topics.push(['Kelajak matematikasi', OQ_KZ[g]]);
-  const r = one('SELECT data FROM kid_prog WHERE student_id = ?', s.id); let prog = null; try { prog = r ? JSON.parse(r.data) : null; } catch (e) { }
-  return { kid: { id: s.id, name: s.name, grade: g, cls: s.cls, school: s.sname || (s.num ? s.num + '-maktab' : ''), teacher: s.teacher_name || '', sex: oqSex(s) }, prog, topics };
-};
-A['oq.yoz'] = (u, b) => {
-  const s = oqKid(u, b.sid); const d = JSON.stringify(b.prog && typeof b.prog === 'object' ? b.prog : {});
-  if (d.length > 200000) bad('Ma’lumot juda katta');
-  run(`INSERT INTO kid_prog(student_id, data, pts, rank, updated) VALUES(?,?,?,?,?) ON CONFLICT(student_id) DO UPDATE SET data = excluded.data, pts = excluded.pts, rank = excluded.rank, updated = excluded.updated`,
-    s.id, d, Math.max(0, Math.min(10000, +b.pts || 0)) | 0, Math.max(0, Math.min(5, +b.rank || 0)) | 0, new Date().toISOString());
-  return { ok: true };
-};
-A['oq.misol'] = (u, b) => {
-  const s = oqKid(u, b.sid); const topic = String(b.topic || '');
-  if (!PB_TOPIC[topic] || PB_LOCKED(topic) || PB_TOPIC[topic].g !== s.grade) return { rows: [] };
-  const n = Math.min(14, Math.max(1, +b.n || 5)); const tl = [topic, ...(PB_SRC[topic] || [])];
-  return { rows: all(`SELECT * FROM probs WHERE active = 1 AND topic IN (${inList(tl)}) ORDER BY random() LIMIT ?`, ...tl, n).map(probRow) };
-};
-
 function extras(u, out) {
   const ex = { ...itestsFor(u, out), ...(u.role === 'rahbar' ? rahbarExtras(u, out) : {}), texts: { tabrik_ota: text('tabrik_ota'), tabrik_rahbar: text('tabrik_rahbar'), tabrik_direktor: text('tabrik_direktor') } };
   ex.bot = getSet('bot_username');

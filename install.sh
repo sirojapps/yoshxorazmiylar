@@ -52,13 +52,8 @@ echo "Mavzu darslari o'rnatildi: $(ls "$APP/public/darslar/m" | wc -l) ta mavzu"
 fi
 rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
 put_rasmlar "$APP/public"; [ -f /tmp/yx-rasm.tgz ] && cp /tmp/yx-rasm.tgz "$APP/.rasmlar.tgz"
-# oq.tar.gz → public/oq  (yangi o'quvchi kabineti: oq.js va uning rasmlari)
-if curl -fsSL "$REPO/oq.tar.gz?$TS" -o /tmp/yx-oq.tgz 2>/dev/null && tar -tzf /tmp/yx-oq.tgz >/dev/null 2>&1; then
-  rm -rf "$APP/public/oq.new"; mkdir -p "$APP/public/oq.new"; tar -xzf /tmp/yx-oq.tgz -C "$APP/public/oq.new" --no-same-owner
-  rm -rf "$APP/public/oq.old"; [ -d "$APP/public/oq" ] && mv "$APP/public/oq" "$APP/public/oq.old"; mv "$APP/public/oq.new" "$APP/public/oq"; rm -rf "$APP/public/oq.old"
-  cp /tmp/yx-oq.tgz "$APP/.oq.tgz"
-fi
-rm -f /tmp/yx-oq.tgz
+# yangi o'quvchi kabineti hozircha saytda yo'q (kelishilgandan keyin qo'yiladi): eski sinov fayllari o'chiriladi
+rm -rf "$APP/public/oq" "$APP/public/oq.new" "$APP/public/oq.old" "$APP/.oq.tgz"
 chown -R yx:yx "$APP"
 chmod 700 "$APP/data" "$APP/backups"
 
