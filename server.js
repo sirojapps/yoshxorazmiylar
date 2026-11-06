@@ -94,6 +94,11 @@ try { db.exec("ALTER TABLE sessions ADD COLUMN as_user INTEGER"); } catch (e) { 
 db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''"); } catch (e) { }
+// chat: javob (reply), "faqat o'zimdan o'chirish", maktab hududi (viloyat/tuman)
+try { db.exec("ALTER TABLE messages ADD COLUMN reply_to INTEGER"); } catch (e) { }
+try { db.exec("ALTER TABLE schools ADD COLUMN viloyat TEXT DEFAULT 'Buxoro'"); } catch (e) { }
+try { db.exec("ALTER TABLE schools ADD COLUMN tuman TEXT DEFAULT 'Qorako‘l'"); } catch (e) { }
+db.exec('CREATE TABLE IF NOT EXISTS msg_hidden(msg_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(msg_id,user_id))');
 // tug'ilgan yil va manzil endi yig'ilmaydi — avval kiritilganlari ham o'chiriladi
 db.exec("UPDATE students SET birth_year=NULL, address='' WHERE birth_year IS NOT NULL OR address<>''");
 db.exec("DELETE FROM audit WHERE action='oquvchi.malumot'");
@@ -1829,7 +1834,7 @@ function visibleThreads(u) {
   if (!u._demo) { const D = demoIds(); rows = rows.filter(t => !D.set.has(t.user_id) && !(D.school && t.school_id === D.school)); } // namuna kabinet xabarlari haqiqiy ro'yxatga chiqmaydi
   return rows.map(t => {
     const r = one('SELECT at FROM reads WHERE thread_id=? AND user_id=?', t.id, u.id)?.at || '';
-    const last = one("SELECT user_id,text,image,audio<>'' AS audio,at FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 1", t.id);
+    const last = one("SELECT user_id,text,image,audio<>'' AS audio,at FROM messages WHERE thread_id=? AND id NOT IN (SELECT msg_id FROM msg_hidden WHERE user_id=?) ORDER BY id DESC LIMIT 1", t.id, u.id);
     const unread = one('SELECT count(*) n FROM messages WHERE thread_id=? AND user_id!=? AND at>?', t.id, u.id, r).n;
     return { ...t, last, unread };
   });
@@ -1838,6 +1843,7 @@ function threadTitle(t, u) {
   const s = t.student_id ? studentInfo(t.student_id) : null;
   const who = one('SELECT name,role FROM users WHERE id=?', t.user_id);
   if (t.kind === 'chat') return 'Jamoa chati';
+  if (t.kind === 'jamoa' && t.user_id === u?.id && u.role !== 'jamoa') return 'Loyiha jamoasi' + (s ? ' · ' + s.name : '');
   if (t.kind === 'drh') { const c = one('SELECT name,teacher_name FROM classes WHERE id=?', t.class_id); return u?.role === 'rahbar' ? `Direktor · ${who?.name || ''}` : `${c?.teacher_name || 'Sinf rahbari'} · ${c?.name || ''} sinf`; }
   if (t.kind === 'drhs') return 'Sinf rahbarlari guruhi (direktor bilan)';
   if (t.kind === 'dota') { if (u?.role === 'ota') return `Maktab direktori${s ? ' · ' + (s.name.split(' ')[1] || s.name) : ''}`; return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${s.cls}` : 'Ota-ona'; }
@@ -2085,6 +2091,16 @@ function threadCat(t, u) {
   const sch = id => { const x = id ? one('SELECT num FROM schools WHERE id=?', id) : null; return x ? x.num + '-maktab' : ''; };
   const cls = id => id ? one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', id) : null;
   const k = t.kind, r = u.role;
+  const R = threadCat0(t, u, who, sch, cls); let sid = 0, cid = 0;
+  if (k === 'jamoa') { if (who.role === 'direktor') sid = who.school_id; if (who.role === 'rahbar') cid = who.class_id; }
+  else if (['ota', 'sinf', 'drh'].includes(k)) cid = t.class_id; else if (['dota', 'dotalar', 'drhs'].includes(k)) { sid = t.school_id; cid = t.class_id || 0; }
+  if (cid && !sid) sid = schoolOfClass(cid);
+  const S = sid ? one('SELECT num,viloyat,tuman FROM schools WHERE id=?', sid) : null; const C = cid ? one('SELECT name FROM classes WHERE id=?', cid) : null;
+  if (S) Object.assign(R, { v: S.viloyat || 'Buxoro', tm: S.tuman || 'Qorako‘l', sc: S.num + '-maktab' }); if (C) R.cl = C.name;
+  return R;
+}
+function threadCat0(t, u, who, sch, cls) {
+  const k = t.kind, r = u.role;
   if (k === 'chat') return { cat: 'jam', sub: 'Guruh suhbati' };
   if (k === 'jamoa') {
     if (t.user_id === u.id && r !== 'jamoa') return { cat: 'jam', sub: 'Loyiha jamoasi' };
@@ -2098,16 +2114,17 @@ function threadCat(t, u) {
   return { cat: 'jam', sub: '' };
 }
 A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, ...threadCat(t, u), title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
-A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
+A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi'); const hid = new Set(all('SELECT msg_id FROM msg_hidden WHERE user_id=?', u.id).map(x => x.msg_id));
   const acc = threadAccess(u, t); need(acc.see);
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, now());
-  const msgs = all('SELECT * FROM messages WHERE thread_id=? ORDER BY id', t.id).map(m => ({ ...m, audio: m.audio ? 1 : 0 }));
-  const names = {}, avs = {}; for (const m of msgs) if (!(m.user_id in names)) { const x = one('SELECT name,role,avatar FROM users WHERE id=?', m.user_id); names[m.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'ota' ? 'Ota-ona' : x.name) : '—'; avs[m.user_id] = x?.avatar || ''; }
+  const all0 = all('SELECT * FROM messages WHERE thread_id=? ORDER BY id', t.id); const byId = {}; all0.forEach(m => byId[m.id] = m);
+  const msgs = all0.filter(m => !hid.has(m.id)).map(m => ({ ...m, audio: m.audio ? 1 : 0, image: m.image, reply: m.reply_to && byId[m.reply_to] ? { id: m.reply_to, user_id: byId[m.reply_to].user_id, text: (byId[m.reply_to].text || '').slice(0, 120), image: !!byId[m.reply_to].image, audio: !!byId[m.reply_to].audio } : (m.reply_to ? { id: m.reply_to, gone: 1 } : null) }));
+  const names = {}, avs = {}; for (const m of [...msgs, ...msgs.filter(x => x.reply && x.reply.user_id).map(x => ({ user_id: x.reply.user_id }))]) if (!(m.user_id in names)) { const x = one('SELECT name,role,avatar FROM users WHERE id=?', m.user_id); names[m.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'ota' ? 'Ota-ona' : x.name) : '—'; avs[m.user_id] = x?.avatar || ''; }
   const reads = all('SELECT user_id,at FROM reads WHERE thread_id=?', t.id).filter(r => r.user_id !== u.id);
   const s = t.student_id ? studentInfo(t.student_id) : null;
   let result = null;
   if (s && (isTeam(u) || (u.role === 'rahbar' && u.class_id === s.class_id))) { const r = one('SELECT r.score,r.qn,r.absent,t.name,r.test_id FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY r.test_id DESC LIMIT 1', s.id); if (r && (isTeam(u) || announced(r.test_id, s.school_id))) result = r; }
-  return { thread: { ...t, title: threadTitle(t, u) }, reply: acc.reply, msgs, names, avs, readBy: reads, student: s, result };
+  return { thread: { ...t, ...threadCat(t, u), title: threadTitle(t, u) }, reply: acc.reply, msgs, names, avs, readBy: reads, student: s, result };
 };
 A['thread.new'] = (u, b) => {
   const txt = str(b.text, 3000); const image = cleanImage(b.image); const audio = cleanAudio(b.audio);
@@ -2167,7 +2184,18 @@ A['thread.reply'] = (u, b) => {
   const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi');
   need(threadAccess(u, t).reply, 'Bu yozishmaga javob yoza olmaysiz');
   const txt = str(b.text, 3000); const image = cleanImage(b.image); const audio = cleanAudio(b.audio); if (!txt && !image && !audio) bad('Xabar bo‘sh');
-  addMessage(u, t, txt, image, audio); return {};
+  addMessage(u, t, txt, image, audio);
+  const rt = +b.reply_to; if (rt && one('SELECT 1 FROM messages WHERE id=? AND thread_id=?', rt, t.id)) run('UPDATE messages SET reply_to=? WHERE id=(SELECT max(id) FROM messages WHERE thread_id=? AND user_id=?)', rt, t.id, u.id);
+  return {};
+};
+// bir yoki bir nechta xabarni o'chirish: both=true — hamma uchun (o'z xabari yoki CEO), aks holda faqat o'zidan yashiriladi
+A['msg.dels'] = (u, b) => {
+  const ids = (Array.isArray(b.ids) ? b.ids : []).map(Number).filter(Boolean).slice(0, 200); let n = 0;
+  for (const id of ids) { const m = one('SELECT * FROM messages WHERE id=?', id); if (!m) continue; const t = one('SELECT * FROM threads WHERE id=?', m.thread_id) || {};
+    if (!threadAccess(u, t).see) continue;
+    if (b.both && (m.user_id === u.id || u.role === 'ceo')) { A['msg.delete'](u, { id }); n++; }
+    else { run('INSERT OR IGNORE INTO msg_hidden(msg_id,user_id) VALUES(?,?)', id, u.id); n++; } }
+  return { n };
 };
 // ovozli xabar alohida yuklanadi (yozishma tez ochilishi uchun)
 A['msg.audio'] = (u, b) => {
