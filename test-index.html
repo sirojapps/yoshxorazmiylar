@@ -3535,6 +3535,7 @@ function screen(){
     if(k==='phones')return scrPhones(); if(k==='backup')return scrBackup(); if(k==='demo')return scrDemo(); if(k==='timport')return scrTImport(); if(k==='resimport')return scrResImport();
     if(k==='certs')return scrCerts(); if(k==='mashq')return scrExTeam(); if(k==='settings')return scrSettings(); if(k==='reyting')return scrRanking(); if(k==='yuqori')return scrTop();}
   const r=S.me.role;
+  if(oqBo())return [tab==='mashq'?'Mashq':tab==='xabar'?'Ustoz':'Farzandim','','']; // Namuna: o'quvchi kabineti noldan to'ldiriladi (hozircha bo'sh)
   if(tab==='xabar')return scrMessages();
   if(isTeam())return tab==='baza'?scrPB():tab==='maktab'?scrSchools():tab==='imtihon'?scrExams():tab==='more'?scrMore():scrTeamHome();
   if(r==='direktor')return tab==='tahlil'?scrDirAnalysis():tab==='ichki'?scrItests():scrDirHome();
@@ -3639,6 +3640,7 @@ function scrDemo(){
   <div class="card pad"><p style="margin:0">Kartochkani bossangiz, sayt aynan o’sha odam ko’radigandek ochiladi. Namuna ma’lumotlar (maktab, sinflar, bolalar) haqiqiy ro’yxat, reyting va statistikaga qo’shilmaydi. Jamoa sardori va a’zosi kabinetida faqat ko’rish mumkin — o’zgartirish bloklangan.</p></div>
   ${DEMO_C.map(([r,ic,t,s])=>`<div class="card pad dm-card"><div class="dm-h"><span class="dm-ic">${ic}</span><div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:16px">${t}</div><div class="note" style="margin-top:2px">${s}</div></div><button class="btn pri sm" data-act="demoGo" data-r="${r}">Kirib ko’rish</button></div>${r==='jamoa'||r==='sardor'?box(r):''}</div>`).join('')}
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
+const oqBo=()=>!!(S&&S.me&&S.me.demo&&!isTeam()&&!['direktor','rahbar'].includes(S.me.role));
 const demoBar=()=>''; // Namuna kabinetda ortiqcha lenta yo'q; CEO ga qaytish — yuqoridagi chiqish tugmasi
 async function demoGo(r){const perms={};document.querySelectorAll(`[data-dp="${r}"]`).forEach(i=>{if(i.checked)perms[i.value]=true});
   await api('demo.enter',{role:r,perms});try{localStorage.removeItem('yx_nav')}catch(e){};location.reload()}
@@ -3796,7 +3798,7 @@ function render(){
    <h1>${esc(title)}<span class="sub">${esc(sub)}</span></h1><span class="role">${ROLE_L[S.me.role]}</span><button class="me-btn" data-act="meInfo" aria-label="Mening ma’lumotlarim" title="Mening ma’lumotlarim">${avHtml(S.me.avatar,36,S.me.name)}</button>
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
-   <main class="gut">${!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
+   <main class="gut">${!oqBo()&&!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!oqBo()&&!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
    ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(S.me.demo)$('#app').insertAdjacentHTML('beforeend',demoBar());
   if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());{const _np=document.querySelector('.np-sc');if(_np)_np.scrollTop=window.__npY||0}const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
