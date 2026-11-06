@@ -731,8 +731,8 @@ body.nui .nph{height:46px!important;min-height:46px}body.nui .nph-d svg{width:20
 }
 
 /* namuna kabinet */
-.demo-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;display:flex;align-items:center;gap:10px;background:#6d28d9;color:#fff;padding:8px 8px 8px 16px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(76,29,149,.35);white-space:nowrap;max-width:calc(100vw - 24px)}
-.demo-bar b{font-weight:700}.demo-bar button{border:0;background:#fff;color:#6d28d9;font:inherit;font-weight:700;padding:7px 14px;border-radius:999px;cursor:pointer}
+.demo-bar{position:fixed;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;font-size:12px}
+.demo-bar button{border:0;background:#6d28d9;color:#fff;font:inherit;font-weight:700;padding:6px 10px;border-radius:999px;cursor:pointer;opacity:.75;box-shadow:0 4px 12px rgba(76,29,149,.3)}
 @media (min-width:900px){.demo-bar{bottom:20px}}
 .dm-card{gap:10px}.dm-h{display:flex;align-items:center;gap:12px}.dm-ic{font-size:28px;width:44px;height:44px;display:grid;place-items:center;background:#eef4ff;border-radius:12px;flex:none}
 .dm-perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;padding-top:8px;border-top:1px solid #e5edf8}
@@ -1873,7 +1873,7 @@ function scrParent(){
       ${cAvg!=null?`<section class="sec"><p class="label">Sinf bilan solishtirma</p><div class="card cmp"><div class="r"><span>Farzandingiz</span><div class="track"><i style="width:${p}%;background:var(--accent)"></i></div><b class="num">${pf(p)}%</b></div><div class="r"><span>Sinf o’rtachasi</span><div class="track"><i style="width:${cAvg}%;background:var(--low)"></i></div><b class="num">${pf(cAvg)}%</b></div></div>
       <p class="note">${rank?(rank[0]<=Math.ceil(rank[1]/2)?`Tumandagi ${s.grade}-sinflar orasida ${rank[0]}-o’rin (${rank[1]} ta bola).`:''):'Tumandagi o’rni sinov yakunlangach chiqadi.'} Boshqa bolalarning ismi va bali ko’rinmaydi.</p></section>`:''}
       <section class="sec"><p class="label">Savollar bo’yicha</p>${qGrid(r)}</section>`}}
-  return [s.name,`${mkN(s)} · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
+  return [s.name,`${mkN(s)} · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
 // ota-ona: farzandining maktab ichki sinov natijalari
 function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!its.length)return'';
   return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${pf(p)}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
@@ -2558,7 +2558,7 @@ function scrExParent(){
   if(!EXL){loadEx();return ['Mashq','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
   const kids=X.st; if(!kids.some(k=>k.id===exKid))exKid=kids[0]?.id; const kid=kids.find(k=>k.id===exKid);
   const rows=kid?EXL.rows.filter(e=>e.grade===kid.grade):[];
-  return ['Mashq',kid?esc(kid.name):'',`${kids.length>1?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
+  return ['Mashq',kid?esc(kid.name):'',`${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
   <p class="note">Har kuni yangi mashq. Farzandingiz bilan birga yeching, javobni u o’zi tanlasin.</p>
   ${rows.map(e=>{const a=e.answers?.[kid.id];return `<div class="card pad"><div class="sec-h"><span class="label">${e.day===EXL.today?'Bugungi mashq':e.day.split('-').reverse().join('.')}</span>${a?`<span class="pill ${a.correct?'ok':'warn'}">${a.correct?'to’g’ri':'xato'}</span>`:''}</div>
    <div style="font-size:17px;white-space:pre-wrap">${esc(e.text)}</div>${e.image?`<img src="${esc(e.image)}" alt="Mashq rasmi" style="border-radius:10px;cursor:zoom-in" data-zoom>`:''}
@@ -3639,7 +3639,7 @@ function scrDemo(){
   <div class="card pad"><p style="margin:0">Kartochkani bossangiz, sayt aynan o’sha odam ko’radigandek ochiladi. Namuna ma’lumotlar (maktab, sinflar, bolalar) haqiqiy ro’yxat, reyting va statistikaga qo’shilmaydi. Jamoa sardori va a’zosi kabinetida faqat ko’rish mumkin — o’zgartirish bloklangan.</p></div>
   ${DEMO_C.map(([r,ic,t,s])=>`<div class="card pad dm-card"><div class="dm-h"><span class="dm-ic">${ic}</span><div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:16px">${t}</div><div class="note" style="margin-top:2px">${s}</div></div><button class="btn pri sm" data-act="demoGo" data-r="${r}">Kirib ko’rish</button></div>${r==='jamoa'||r==='sardor'?box(r):''}</div>`).join('')}
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
-const demoBar=()=>`<div class="demo-bar">👁 Namuna kabinet: <b>${esc(S.me.demo)}</b> ko’zi bilan<button data-act="demoExit">CEO ga qaytish</button></div>`;
+const demoBar=()=>''; // Namuna kabinetda ortiqcha lenta yo'q; CEO ga qaytish — yuqoridagi chiqish tugmasi
 async function demoGo(r){const perms={};document.querySelectorAll(`[data-dp="${r}"]`).forEach(i=>{if(i.checked)perms[i.value]=true});
   await api('demo.enter',{role:r,perms});try{localStorage.removeItem('yx_nav')}catch(e){};location.reload()}
 async function demoExit(){try{await fetch('/api/demo.exit',{method:'POST',credentials:'same-origin'})}catch(e){}NAV.set({tab:'bosh',stack:['demo']});location.reload()}
@@ -3979,7 +3979,7 @@ document.addEventListener('click',async e=>{
    case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
-   case 'logoutAsk':if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logoutAsk':if(S.me&&S.me.demo){await demoExit();break}if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
    case 'meInfo':NP_OPEN=false;document.body.classList.remove('np-open');openMeInfo();break;
    case 'nRange':NRANGE=+d.n;render();break;
    case 'npSoon':toast('Bu bo’lim tez kunda qo’shiladi');break;
