@@ -52,6 +52,13 @@ echo "Mavzu darslari o'rnatildi: $(ls "$APP/public/darslar/m" | wc -l) ta mavzu"
 fi
 rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
 put_rasmlar "$APP/public"; [ -f /tmp/yx-rasm.tgz ] && cp /tmp/yx-rasm.tgz "$APP/.rasmlar.tgz"
+# oq.tar.gz → public/oq  (yangi o'quvchi kabineti: oq.js va uning rasmlari)
+if curl -fsSL "$REPO/oq.tar.gz?$TS" -o /tmp/yx-oq.tgz 2>/dev/null && tar -tzf /tmp/yx-oq.tgz >/dev/null 2>&1; then
+  rm -rf "$APP/public/oq.new"; mkdir -p "$APP/public/oq.new"; tar -xzf /tmp/yx-oq.tgz -C "$APP/public/oq.new" --no-same-owner
+  rm -rf "$APP/public/oq.old"; [ -d "$APP/public/oq" ] && mv "$APP/public/oq" "$APP/public/oq.old"; mv "$APP/public/oq.new" "$APP/public/oq"; rm -rf "$APP/public/oq.old"
+  cp /tmp/yx-oq.tgz "$APP/.oq.tgz"
+fi
+rm -f /tmp/yx-oq.tgz
 chown -R yx:yx "$APP"
 chmod 700 "$APP/data" "$APP/backups"
 
@@ -194,12 +201,13 @@ TS=$(date +%s)
 curl -fsSL "$R/server.js?$TS" -o "$T/s" || exit 0
 curl -fsSL "$R/index.html?$TS" -o "$T/i" || exit 0
 g(){ curl -fsSL "$R/$1?$TS" -o "$T/$2" 2>/dev/null || : > "$T/$2"; }
-g darslar.tar.gz d; g rasmlar.tar.gz r; g test-server.js ts; g test-index.html ti
+g darslar.tar.gz d; g rasmlar.tar.gz r; g oq.tar.gz q; g test-server.js ts; g test-index.html ti
 ch=0
 cmp -s "$T/s" /opt/yx/server.js || ch=1
 cmp -s "$T/i" /opt/yx/public/index.html || ch=1
 [ -s "$T/d" ] && ! cmp -s "$T/d" /opt/yx/.darslar.tgz && ch=1
 [ -s "$T/r" ] && ! cmp -s "$T/r" /opt/yx/.rasmlar.tgz && ch=1
+[ -s "$T/q" ] && ! cmp -s "$T/q" /opt/yx/.oq.tgz && ch=1
 [ -s "$T/ts" ] && ! cmp -s "$T/ts" /opt/yx-test/server.js && ch=1
 [ -s "$T/ti" ] && ! cmp -s "$T/ti" /opt/yx-test/public/index.html && ch=1
 [ -f /opt/yx-test/.yangila ] && ch=1
