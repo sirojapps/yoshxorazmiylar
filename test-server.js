@@ -130,7 +130,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
+const KUZ_READ = new Set(['state', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
@@ -401,6 +401,17 @@ function cleanAvatar(v, allowPhoto) {
 // profil surati (01.11.2026 qarori): har kim faqat O'ZIGA, o'z xohishi bilan surat qo'ya oladi (ixtiyoriy); bolalarga (o'quvchilarga) surat qo'yilmaydi
 db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_consent_at TEXT"); } catch (e) { }
+// Kelajak matematikasi: o'quvchi misoldagi xato haqida xabar beradi; jamoa "Xabarlar"da ko'radi (yangi / ko'rildi / tuzatildi)
+db.exec("CREATE TABLE IF NOT EXISTS kj_xato(id INTEGER PRIMARY KEY, user_id INTEGER, who TEXT DEFAULT '', item TEXT DEFAULT '', q TEXT DEFAULT '', kind INTEGER DEFAULT 0, note TEXT DEFAULT '', st INTEGER DEFAULT 0, at TEXT)");
+A['kj.xato'] = (u, b) => {
+  const s = (v, n) => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, n);
+  const item = s(b.id, 80); if (!/^[a-z]+\/[a-z_]+\/[2-4]\/\d+$/.test(item)) bad('Noto‘g‘ri misol');
+  if (one("SELECT count(*) n FROM kj_xato WHERE user_id=? AND at>?", u.id, new Date(Date.now() - 864e5).toISOString()).n >= 30) bad('Bugun juda ko‘p xabar yuborildi');
+  run('INSERT INTO kj_xato(user_id,who,item,q,kind,note,st,at) VALUES(?,?,?,?,?,?,0,?)', u.id, s(b.who, 80), item, s(b.q, 200), Math.max(0, Math.min(4, +b.t || 0)), s(b.w, 200), now());
+  return {};
+};
+A['kj.list'] = u => { need(isTeam(u)); return { rows: all('SELECT id,who,item,q,kind,note,st,at FROM kj_xato ORDER BY id DESC LIMIT 300') }; };
+A['kj.st'] = (u, b) => { need(isTeam(u)); run('UPDATE kj_xato SET st=? WHERE id=?', Math.max(0, Math.min(2, +b.st || 0)), +b.id); return {}; };
 // sinf rahbarining har bola haqidagi shaxsiy eslatmasi: faqat o'zi ko'radi (jamoa ham ko'rmaydi)
 db.exec("CREATE TABLE IF NOT EXISTS rnotes(student_id INTEGER NOT NULL, user_id INTEGER NOT NULL, text TEXT DEFAULT '', at TEXT, PRIMARY KEY(student_id,user_id))");
 A['rnote.save'] = (u, b) => {
@@ -1469,6 +1480,7 @@ function extras(u, out) {
   ex.certs = all('SELECT c.code,c.test_id,c.student_id,c.at,c.issued,l.status,l.reason FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
   if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
+  if (isTeam(u)) ex.kjNew = one('SELECT count(*) n FROM kj_xato WHERE st=0').n;
   if (u.role === 'ota') {
     const grades = [...new Set((out.classes || []).map(c => c.grade))];
     ex.exNew = grades.length ? all(`SELECT id,grade FROM exercises WHERE day<=? AND grade IN (${grades.map(() => '?').join(',')})`, today(), ...grades)

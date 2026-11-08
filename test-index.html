@@ -1964,6 +1964,7 @@ function scrMessages(){
   if(isTeam()){
     if(!TH.some(t=>t.kind==='chat'))top+=`<button class="tg-it" data-act="openChat" style="background:var(--surface,#fff);border:1px solid var(--line)"><div class="tg-av" style="background:#1e9e93">JC</div><div class="m"><div class="r1"><b>Jamoa chati</b></div><div class="r2"><span class="ls">CEO, sardor va jamoa a’zolari uchun</span></div></div></button>`;
     if(r==='jamoa')nw=true;
+    top=`<button class="row card" data-act="kjx"><div class="m"><div class="n">Xato xabarlari</div><div class="s">Kelajak matematikasi: o’quvchilar misoldagi xato haqida yozgan</div></div>${S.kjNew?badge(S.kjNew):''}${I.chev}</button>`+top;
     if(P('pinlar')&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Telegram so’rovlari</div><div class="s">Raqami ro’yxatda yo’q ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`+top;
   }else{nw=true;if(r==='rahbar'&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`}
   const cats=isTeam()?['dir','oq','jam']:r==='direktor'?['oq','ota','jam']:r==='rahbar'?['dir','ota','jam']:[];
@@ -2132,6 +2133,15 @@ function openCompose(kind){
 }
 // ---------------- telegram requests
 async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;drawTgReq()}catch(e){toast(e.message,true)}}
+let KJX=[],KJF=0;const KJT=['Misol sharti xato','Javob noto’g’ri','Tushuntirish tushunarsiz','Rasm noto’g’ri','Boshqa'],KJS=['Yangi','Ko’rildi','Tuzatildi'],KJM={shifr:'Shifr ustasi',ehtimol:'Ehtimollar',tejamkor:'Tejamkor',dasturchi:'Kichik dasturchi',chamalash:'Chamalash',tahlil:'Ma’lumot tahlili'};
+async function openKjx(){try{KJX=(await api('kj.list')).rows;drawKjx()}catch(e){toast(e.message,true)}}
+function drawKjx(){const L=KJX.filter(r=>r.st===KJF);
+  openSheet(`<div class="sh-top"><div class="m"><h2>Xato xabarlari</h2><div class="s">Kelajak matematikasi misollari</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  <div style="display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap">${KJS.map((t,j)=>`<button class="btn sm ${j===KJF?'pri':'sec'}" data-act="kjF" data-id="${j}">${t} (${KJX.filter(r=>r.st===j).length})</button>`).join('')}</div>
+  ${L.map(r=>{const p=r.item.split('/');return `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(KJT[r.kind]||'')}</b><span class="note">${fmtDate(r.at)}</span></div>
+   <div class="note">${esc(KJM[p[0]]||p[0])}, ${p[2]}-sinf · ${esc(r.item)}</div><div style="margin:6px 0">${esc(r.q)}</div>${r.note?`<div style="margin:6px 0;padding:8px;border-radius:10px;background:#f1f5f9">«${esc(r.note)}»</div>`:''}
+   <div class="note">Yubordi: ${esc(r.who)}</div>
+   <div style="display:flex;gap:6px;margin-top:8px">${KJS.map((t,j)=>j===r.st?'':`<button class="btn sm sec" data-act="kjSt" data-id="${r.id}" data-st="${j}">${t}</button>`).join('')}</div></div>`}).join('')||'<div class="card empty">Bu bo’limda xabar yo’q</div>'}`)}
 function drawTgReq(){const pend=TREQ.filter(r=>r.status==='kutilmoqda');const done=TREQ.filter(r=>r.status!=='kutilmoqda').slice(0,20);
   openSheet(`<div class="sh-top"><div class="m"><h2>PIN so’rovlari</h2><div class="s">Telegram orqali, raqami ro’yxatda yo’q ota-onalar</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   ${pend.map(r=>{const opts=X.st.filter(s=>s.class_id===r.class_id).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
@@ -2661,7 +2671,7 @@ document.addEventListener('click',async e=>{
    case 'thStatus':await api('thread.status',{id:THV.thread.id,status:d.s});toast(d.s==='hal'?'Hal qilindi':'Qayta ochildi');openThread(THV.thread.id);break;
    case 'thForward':{const r=await api('thread.forward',{id:THV.thread.id});toast('Jamoaga yuborildi');openThread(r.id);break}
    case 'thProfile':closeSheet();stack.push('stu:'+d.id);render();break;
-   case 'tgReq':openTgReq();break;
+   case 'tgReq':openTgReq();break;case 'kjx':openKjx();break;case 'kjF':KJF=+d.id;drawKjx();break;case 'kjSt':{try{await api('kj.st',{id:+d.id,st:+d.st});const r=KJX.find(x=>x.id===+d.id);if(r)r.st=+d.st;drawKjx();load()}catch(e){toast(e.message,true)}break}
    case 'trYes':{const sid=+$('#tr'+d.id).value;if(!sid){toast('Ro’yxatdan bolani tanlang',true);break}const r=await api('tg.approve',{id:+d.id,student_id:sid});toast(r.sent?'Tasdiqlandi, PIN Telegram’ga yuborildi':'Tasdiqlandi');await load();openTgReq();break}
    case 'trNo':await api('tg.approve',{id:+d.id,reject:true});toast('Rad etildi');await load();openTgReq();break;
    case 'certPng':await certPng(d.c);break;
@@ -3791,7 +3801,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0065c6"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0065c6"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
