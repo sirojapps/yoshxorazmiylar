@@ -2259,6 +2259,22 @@ A['ex.save'] = (u, b) => {
   const r = run('INSERT INTO exercises(grade,day,text,image,options,answer,explain,user_id,at) VALUES(?,?,?,?,?,?,?,?,?)', ...f, u.id, now());
   log(u.id, 'mashq.qoshish', { grade, day }); return { id: Number(r.lastInsertRowid) };
 };
+// ---------------- O'quv yo'li (o'quvchi kabineti): bolaning natijasini saqlash. Sahifa: /a/k/yol/
+db.exec("CREATE TABLE IF NOT EXISTS yol_prog(student_id INTEGER PRIMARY KEY, data TEXT NOT NULL, at TEXT)");
+const yolKids = u => { need(u.role === 'ota'); return kidsOfPhone(phone9(u.phone)).map(studentInfo).filter(Boolean); };
+A['yol.get'] = (u, b) => {
+  const kids = yolKids(u); if (!kids.length) return { kids: [], sid: 0, prog: null, sum: null };
+  const k = kids.find(x => x.id === +b.student_id) || kids[0];
+  let prog = null; try { prog = JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', k.id)?.data || 'null'); } catch { }
+  return { kids: kids.map(x => ({ id: x.id, name: x.name, grade: x.grade, cls: x.cls })), sid: k.id, prog, sum: (prog && prog.sum) || null };
+};
+A['yol.yoz'] = (u, b) => {
+  const sid = +b.student_id; need(yolKids(u).some(x => x.id === sid));
+  const p = b.prog; if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) bad('Noto‘g‘ri ma’lumot');
+  const data = JSON.stringify(p); if (data.length > 150000) bad('Ma’lumot juda katta');
+  run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
+  return { ok: true };
+};
 A['ex.delete'] = (u, b) => { need(can(u, 'mashq')); run('DELETE FROM exercises WHERE id=?', b.id); run('DELETE FROM ex_answers WHERE exercise_id=?', b.id); log(u.id, 'mashq.ochirish', { id: b.id }); return {}; };
 A['ex.list'] = u => {
   if (isTeam(u)) return { today: today(), rows: all('SELECT * FROM exercises ORDER BY day DESC,id DESC LIMIT 300').map(e => ({ ...e, options: JSON.parse(e.options), done: one('SELECT count(*) n, sum(correct) c FROM ex_answers WHERE exercise_id=?', e.id) })) };
