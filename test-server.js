@@ -90,6 +90,7 @@ try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } c
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
 try { db.exec("ALTER TABLE sessions ADD COLUMN as_user INTEGER"); } catch (e) { } // namuna kabinet: CEO kimning ko'zi bilan ko'ryapti
+try { db.exec("ALTER TABLE sessions ADD COLUMN seen TEXT"); } catch (e) { } // oxirgi harakat vaqti: 30 daqiqa hech narsa bosilmasa, kirish yopiladi
 // qo'lda tayyorlanadigan sertifikatlar: andoza (ramka, logotip, imzo, muhr) o'sha, ism va matnni CEO o'zi yozadi
 db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
@@ -2300,9 +2301,15 @@ function send(res, code, obj, headers = {}) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(body);
 }
 function cookie(req, n) { const m = (req.headers.cookie || '').match(new RegExp('(?:^|; )' + n + '=([^;]+)')); return m ? m[1] : ''; }
+const IDLE_MS = 32 * 60e3;
 function userOf(req) {
   const t = cookie(req, 'yx'); if (!t) return null;
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
+  // 30 daqiqa hech narsa bosilmasa — kirish yopiladi (sahifa o'zi 30 daqiqada chiqaradi, server 2 daqiqa zaxira bilan tekshiradi).
+  // Har daqiqadagi fon yangilanishi (X-Yx-Bg) harakat hisoblanmaydi.
+  const t0 = Date.now(), seen = s.seen ? Date.parse(s.seen) : 0;
+  if (seen && t0 - seen > IDLE_MS) { run('DELETE FROM sessions WHERE token=?', t); return null; }
+  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && t0 - seen > 30e3)) run('UPDATE sessions SET seen=? WHERE token=?', now(), t);
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   if (u && s.as_user && u.role === 'ceo' && isDemoUser(s.as_user)) { const d = one('SELECT * FROM users WHERE id=?', s.as_user); if (d) { d._demo = true; d._real = u.id; return d; } }
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
@@ -2400,10 +2407,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : (lb.password != null ? 'Telefon raqami yoki parol noto‘g‘ri. Qaytadan kiriting.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.') });
       }
       const token = crypto.randomBytes(32).toString('hex');
-      run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
+      run('INSERT INTO sessions(token,user_id,expires,seen) VALUES(?,?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString(), now());
       run('UPDATE users SET last_login=? WHERE id=?', now(), u.id); run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-      return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
+      return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/${secure}` });
     }
     if (url.pathname === '/api/login-kind' && req.method === 'POST') { // raqam bo'yicha: PIN yoki parol so'ralsinmi
       if (failBlocked('lk:' + ip)) return send(res, 429, { error: 'Juda ko‘p so‘rov. Keyinroq urinib ko‘ring.' }); failBump('lk:' + ip, 60);
@@ -2428,6 +2435,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
+      if (url.pathname === '/api/ping') return send(res, 200, { ok: true }); // odam sahifada nimadir bosdi — "oxirgi harakat" yangilanadi
       if (url.pathname === '/api/demo.exit' && req.method === 'POST') { run('UPDATE sessions SET as_user=NULL WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }); }
       if (url.pathname === '/api/state') { const st = state(u); if (u._demo) st.me.demo = DEMO_ROLES[Object.keys(demoIds().users).find(k => demoIds().users[k] === u.id)] || 'Namuna'; return send(res, 200, st); }
       if (url.pathname === '/api/parol' && req.method === 'POST') { // CEO parolini o'rnatish / almashtirish

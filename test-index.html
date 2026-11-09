@@ -987,12 +987,12 @@ async function doInstall(){
   ${inTg()?`<div class="card pad" style="background:var(--gold-soft)"><b>Avval saytni brauzerda oching.</b><div class="note">Telegram ichida o’rnatib bo’lmaydi. Yuqoridagi ⋮ (yoki ⋯) tugmasini bosing → <b>“Brauzerda ochish”</b>. Keyin shu tugmani yana bosing.</div></div>`:''}
   <div class="card pad">${pc?`<ol class="isteps"><li>Saytni <b>Chrome</b> yoki <b>Edge</b>da oching</li><li>Manzil satrining o’ng chetidagi <b>o’rnatish belgisini</b> (monitor va ↓ strelka) bosing. Ko’rinmasa: o’ng yuqoridagi <b>⋮</b> → <b>“Saqlash va ulashish” → “Ilovani o’rnatish”</b></li><li><b>“O’rnatish”</b> ni bosing</li></ol>`:ios?`<ol class="isteps"><li>Saytni <b>Safari</b>da oching (yoshxorazmiylar.uz)</li><li>Pastdagi <b>Ulashish</b> tugmasini bosing (kvadrat ichida ↑ strelka)</li><li>Ro’yxatdan <b>“Ekranga qo’shish”</b> (“На экран «Домой»” / “Add to Home Screen”) ni tanlang</li><li>O’ng yuqoridagi <b>“Qo’shish”</b> ni bosing</li></ol>`
    :`<ol class="isteps"><li>Saytni <b>Chrome</b>da oching (yoshxorazmiylar.uz)</li><li>O’ng yuqoridagi <b>⋮</b> (uch nuqta) tugmasini bosing</li><li><b>“Ilovani o’rnatish”</b> yoki <b>“Bosh ekranga qo’shish”</b> (“Установить приложение” / “Install app”) ni tanlang</li><li><b>“O’rnatish”</b> ni bosing</li></ol>`}</div>
-  <p class="note">Shundan keyin ${pc?'ish stolida':'telefon ekranida'} “Yosh Xorazmiylar” belgisi paydo bo’ladi. PIN kodni bir marta kiritsangiz, keyin qayta so’ralmaydi.</p>
+  <p class="note">Shundan keyin ${pc?'ish stolida':'telefon ekranida'} “Yosh Xorazmiylar” belgisi paydo bo’ladi.</p>
   <button class="btn pri" data-act="close">Tushunarli</button>`);
 }
 let toastT,toastSeq=0;function toast(t,err){toastSeq++;const el=$('#toast');el.textContent=t;el.className='toast'+(err?' err':'');el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,err?4000:2200)}
-async function api(name,body){
-  let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),credentials:'same-origin'})}
+async function api(name,body,bg){
+  let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json',...(bg?{'X-Yx-Bg':'1'}:{})},body:JSON.stringify(body||{}),credentials:'same-origin'})}
   catch(e){const er=new Error('Server bilan aloqa yo’q. Internetni tekshiring yoki birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
   if(r.status>=502&&r.status<=504){const er=new Error('Sayt bir daqiqaga yangilanmoqda. Birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
   let d={};try{d=await r.json()}catch(e){}
@@ -1054,8 +1054,8 @@ async function verCheck(){try{const r=await fetch('/api/ver',{cache:'no-store'})
     d.style.cssText='position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--navy,#1f3564);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:600;max-width:calc(100% - 32px);white-space:nowrap';
     d.innerHTML='<span>Sayt yangilandi</span><button data-act="pageReload" style="background:#fff;color:var(--navy,#1f3564);border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">Yangilash</button>';document.body.appendChild(d)}}catch(e){}}
 verCheck();setInterval(verCheck,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)verCheck()});
-async function load(auto){
-  try{const n=await api('state');const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
+async function load(auto,bg){
+  try{const n=await api('state',null,bg);if(n&&!S){try{localStorage.setItem('yx_act',String(Date.now()))}catch(e){}}const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
   catch(e){
     if(!e.net){S=null;if(netTry){netTry=0;pinErr=''}}
     else{ // aloqa uzilsa — tizimdan chiqarmaymiz, o'zi qayta urinadi
@@ -2712,7 +2712,7 @@ document.addEventListener('click',async e=>{
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
 });
-setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load()}else load(true)}},60000);
+setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}},60000);
 
 
 // ================================================================ test olish: test fayli, kitobcha, titul, skaner
@@ -3986,14 +3986,14 @@ document.addEventListener('click',async e=>{
    case 'phoneEdit':openPhone(+d.id);break;
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
-   case 'logout':await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logout':await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav');localStorage.removeItem('yx_act')}catch(e){};stack=[];tab=null;render();break;
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
    case 'composeTo':{tab='xabar';stack=[];openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=String(d.id);break}
    case 'rtAns':RT.ans=!RT.ans;render();break;
    case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
-   case 'logoutAsk':if(S.me&&S.me.demo){await demoExit();break}if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logoutAsk':if(S.me&&S.me.demo){await demoExit();break}if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav');localStorage.removeItem('yx_act')}catch(e){};stack=[];tab=null;render();break;
    case 'meInfo':NP_OPEN=false;document.body.classList.remove('np-open');openMeInfo();break;
    case 'nRange':NRANGE=+d.n;render();break;
    case 'npSoon':toast('Bu bo’lim tez kunda qo’shiladi');break;
@@ -4126,7 +4126,27 @@ document.addEventListener('click',async e=>{
   }}catch(err){toast(err.message,true)}
 });
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(!S&&/^\d$/.test(e.key)){document.querySelector(`[data-d="${e.key}"]`)?.click()}if(!S&&e.key==='Backspace'){pin=pin.slice(0,-1);render()}});
-if(location.pathname.startsWith('/t/'))renderVerify(decodeURIComponent(location.pathname.slice(3)));else load().then(flushQueue);
+// ---------------- 30 daqiqa hech narsa bosilmasa — kirish yopiladi, PIN (parol) qayta so'raladi. Brauzer yopilsa ham (server kirishni eslab qolmaydi).
+const IDLE=30*60*1000,IDLE_MSG='30 daqiqa hech narsa bosilmadi. Xavfsizlik uchun qaytadan kiring.';let actPing=0;
+const actGet=()=>{try{return +localStorage.getItem('yx_act')||0}catch(e){return 0}};
+async function idleOut(){if(!S)return;S=null;stack=[];tab=null;pin='';pinErr=IDLE_MSG;
+  try{localStorage.removeItem('yx_act');localStorage.removeItem('yx_nav')}catch(e){}
+  try{closeSheet()}catch(e){}render();try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'})}catch(e){}}
+function markAct(){const n=Date.now(),a=actGet();if(S&&a&&n-a>IDLE){idleOut();return}
+  try{if(S&&n-a>5000)localStorage.setItem('yx_act',String(n))}catch(e){}
+  if(S&&n-actPing>60000){actPing=n;fetch('/api/ping',{method:'POST',credentials:'same-origin'}).catch(()=>{})}}
+// harakat: bosish, yozish, aylantirish — ichki oynalarda ham (o'quvchi kabineti, darslar)
+const ACT_EV=['pointerdown','keydown','wheel','touchstart','input'];
+function actHook(w){try{const d=w.document;if(!d||d.__yxAct)return;d.__yxAct=1;ACT_EV.forEach(e=>d.addEventListener(e,markAct,{capture:true,passive:true}));
+  d.addEventListener('load',ev=>{if(ev.target&&ev.target.tagName==='IFRAME')actHook(ev.target.contentWindow)},true);
+  d.querySelectorAll('iframe').forEach(f=>actHook(f.contentWindow))}catch(e){}}
+actHook(window);
+function idleCheck(){const a=actGet();if(S&&a&&Date.now()-a>IDLE)idleOut()}
+setInterval(idleCheck,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)idleCheck()});
+if(location.pathname.startsWith('/t/'))renderVerify(decodeURIComponent(location.pathname.slice(3)));
+else{const a=actGet();if(a&&Date.now()-a>IDLE){try{localStorage.removeItem('yx_act');localStorage.removeItem('yx_nav')}catch(e){}pinErr=IDLE_MSG;
+  fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>load()).then(flushQueue)}
+ else load().then(flushQueue)}
 </script>
 </body>
 </html>
