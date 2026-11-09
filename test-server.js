@@ -2273,6 +2273,37 @@ A['ex.list'] = u => {
     return { id: e.id, grade: e.grade, day: e.day, text: e.text, image: e.image, options: JSON.parse(e.options), answers: ans, answer: anyDone ? e.answer : null, explain: anyDone ? e.explain : null };
   }) };
 };
+// O'quvchi kabineti: bola topshirgan imtihonlar ro'yxati va (b.id berilsa) savollar + to'g'ri javob + yechim.
+// Yechimlar faqat bola qatnashgan va imtihon kuni o'tgan (yoki natija e'lon qilingan) imtihonda ochiladi.
+// Bolaning o'z javoblari va to'g'ri/xato belgilari — faqat natija e'lon qilingach.
+A['oq.imtihon'] = (u, b) => {
+  need(u.role === 'ota');
+  const kids = kidsOfPhone(phone9(u.phone)); const sid = +b.student_id || kids[0]; need(kids.includes(sid));
+  const s = studentInfo(sid); if (!s) return { rows: [] };
+  const td = today(); const wantId = +b.id || 0;
+  const rows = all('SELECT r.test_id,r.absent,r.variant,r.answers,r.bits,r.score,r.qn,t.name,t.date FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY t.date DESC,t.id DESC', sid);
+  const out = rows.map(r => {
+    const ann = announced(r.test_id, s.school_id);
+    const past = /^\d{4}-\d\d-\d\d/.test(r.date || '') && r.date.slice(0, 10) < td;
+    const link = r.absent ? null : one('SELECT b.kind,b.data FROM tlinks l JOIN tbank b ON b.id=l.bank_id WHERE l.test_id=? AND l.grade=?', r.test_id, s.grade);
+    const open = !!link && link.kind !== 'pdf' && (ann || past);
+    const o = { id: r.test_id, name: r.name, date: r.date || '', absent: !!r.absent, ann, open };
+    if (ann && !r.absent) { o.score = r.score; o.qn = r.qn; }
+    if (open && wantId === r.test_id) {
+      let data = {}; try { data = JSON.parse(link.data) || {}; } catch (e) { }
+      const v = data[r.variant || 'A'] || data.A || {}; const qs = Array.isArray(v.qs) ? v.qs : [];
+      o.variant = r.variant || 'A';
+      o.qs = qs.map((q, i) => {
+        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || '') : '';
+        const x = { q: q.q || '', img: q.img || '', o: q.o || [], oi: q.oi || [], a: q.a || '', sol };
+        if (ann) { const my = (r.answers || '')[i]; if (my && my !== '-') x.my = my; const bt = (r.bits || '')[i]; if (bt === '0' || bt === '1') x.ok = bt === '1'; }
+        return x;
+      });
+    }
+    return o;
+  });
+  return { rows: out };
+};
 A['ex.answer'] = (u, b) => {
   need(u.role === 'ota');
   const e = one('SELECT * FROM exercises WHERE id=?', b.exercise_id); if (!e) bad('Mashq topilmadi');
