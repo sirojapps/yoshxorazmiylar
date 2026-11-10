@@ -69,7 +69,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .scan-guide i:nth-child(3){right:0;bottom:0;border-left:0;border-top:0}.scan-guide i:nth-child(4){left:0;bottom:0;border-right:0;border-top:0}
 .scan-msg{padding:12px 16px;text-align:center;font-size:14px;color:#dbe6f7;min-height:46px}
 .scan-ok{margin:10px 14px 0;padding:10px 12px;border-radius:12px;background:#14532d;display:flex;align-items:center;gap:10px}
-.scan-ok .m{flex:1;min-width:0}.scan-ok img{width:92px;border-radius:6px;flex:none;display:block}.scan-ok b{display:block}.scan-ok small{color:#c9f2d7}
+.scan-ok .m{flex:1;min-width:0}.scan-ok img{width:92px;border-radius:6px;flex:none;display:block}
+.scan-fl{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b1220;z-index:1;animation:scfl .28s ease-out}@keyframes scfl{from{opacity:0;transform:scale(1.08) rotate(-3deg)}to{opacity:1;transform:none}}.scan-ok b{display:block}.scan-ok small{color:#c9f2d7}
 .scan-bot{display:flex;gap:10px;justify-content:center;padding:6px 16px calc(18px + env(safe-area-inset-bottom,0px))}
 .scan-body{background:var(--bg);color:var(--fg);flex:1;padding:14px 16px 30px;display:flex;flex-direction:column;gap:12px;max-width:560px;width:100%;margin:0 auto}
 .scan-body .btn.sec{background:var(--surface2);color:var(--fg)}
@@ -2992,7 +2993,7 @@ async function scanStart(){
   catch(e){if(SC){SC.msg='Kameraga ruxsat berilmadi. Brauzer sozlamasida kameraga ruxsat bering yoki “Rasmdan” tugmasini bosing.';scanDraw()}return}
   if(!SC){return}const v=$('#scanV');if(v){v.srcObject=SC.stream;try{await v.play()}catch(e){}}SC.msg='Titulni ramkaga sig’diring: 4 ta qora kvadrat va QR kod ko’rinsin';scanDraw(true);scanLoop()}
 function scanLoop(){if(!SC)return;clearTimeout(SC.timer);SC.timer=setTimeout(async()=>{if(!SC)return;
-  if(SC.view==='live'&&!SC.busy){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
+  if(SC.view==='live'&&!SC.busy&&!(SC.hold>Date.now())){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
   scanLoop()},160)}
 const SC_ERR={kamera:'Kamera tayyorlanmoqda…',marker:'Titulni ramkaga sig’diring',qr:'4 burchak topildi, QR o’qilmoqda — bir soniya kuting',one:'Bir vaqtda faqat bitta titulni tuting'};
 function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;const cv=r&&r.cv;const qd=r&&(r.quad||r.quads?.[0]?.p);
@@ -3017,13 +3018,16 @@ async function scanHandle(r,still){
   if(!still&&st&&!multi&&!uns&&blanks<=Math.floor(q.qn*.3)&&!other&&!(old&&!old.absent)){await scanSave(r,true);return}
   SC.res=r;SC.view='check';scanDraw()}
 // o'qilgan titulning to'g'rilangan (qiyshiqligi tuzatilgan) kichik rasmi
-function scanFlat(r){try{const s=r.cv,H=r.H,L=r.L,k=3,x0=6,y0=6,W=Math.round(198*k),Hh=Math.round(136.5*k),sw=s.width,sh=s.height,sd=s.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sw,sh).data;
+function scanFlat(r){try{const s=r.cv,H=r.H,L=r.L,k=4,x0=6,y0=6,W=Math.round(198*k),Hh=Math.round(136.5*k),sw=s.width,sh=s.height,sd=s.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sw,sh).data;
   const c=document.createElement('canvas');c.width=W;c.height=Hh;const g=c.getContext('2d'),o=g.createImageData(W,Hh),d=o.data;
   for(let y=0;y<Hh;y++)for(let x=0;x<W;x++){const [px,py]=hmap(H,x0+x/k,y0+y/k),xx=Math.round(px),yy=Math.round(py),j=(y*W+x)*4;
     if(xx<0||yy<0||xx>=sw||yy>=sh)d[j]=d[j+1]=d[j+2]=255;else{const i=(yy*sw+xx)*4;d[j]=sd[i];d[j+1]=sd[i+1];d[j+2]=sd[i+2]}d[j+3]=255}
-  g.putImageData(o,0,0);g.strokeStyle='#1f8a4c';g.lineWidth=2.5;
+  g.putImageData(o,0,0);g.strokeStyle='#1f8a4c';g.lineWidth=3.5;
   [...r.ans].forEach((a,i)=>{const n='ABCDE'.indexOf(a),q=L.q[i];if(n<0||!q)return;g.beginPath();g.arc((q.o[n]-x0)*k,(q.y-y0)*k,L.d/2*k*1.3,0,7);g.stroke()});
-  return c.toDataURL('image/jpeg',.72)}catch(e){return ''}}
+  return c.toDataURL('image/jpeg',.8)}catch(e){return ''}}
+// o'qilishi bilan to'g'rilangan varaq kamera o'rnida katta bo'lib ko'rinadi, keyin kamera keyingi varaqqa qaytadi
+function scanFlash(img){if(!img||!SC)return;const c=document.querySelector('#scan .scan-cam');if(!c)return;c.querySelector('.scan-fl')?.remove();
+  const i=new Image();i.className='scan-fl';i.alt='';i.src=img;c.appendChild(i);const ov=$('#scanOv');if(ov)ov.width=ov.width;SC.hold=Date.now()+1600;setTimeout(()=>i.remove(),1600)}
 function scanBeep(){try{const A=scanBeep.a||(scanBeep.a=new (window.AudioContext||window.webkitAudioContext)());if(A.state==='suspended')A.resume();const o=A.createOscillator(),g=A.createGain(),t=A.currentTime;
   o.frequency.value=1250;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(A.destination);o.start(t);o.stop(t+.15)}catch(e){}}
 function scanMsg(m){if(!SC||SC.msg===m)return;SC.msg=m;const el=$('#scanMsg');if(el)el.textContent=m}
@@ -3035,8 +3039,8 @@ async function scanSave(r,auto){
     if(!st){toast('Bola qo’shilmadi',true);return}}
   const body={test_id:SC.tid,student_id:st.id,absent:false,mode:'harf',answers:ans,bits:'',variant:r.qr.v,src:'skaner'};
   SC.msg=SC_ERR.marker;
-  try{const x=await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);await load();scanDraw(true)}
-  catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true)}
+  try{const x=await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);await load();scanDraw(true)}
+  catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img)}
     else{toast(e.message,true);if(auto){SC.res=r;SC.view='check';scanDraw()}}}}
 const fixNameC=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/([oOgG])[`'‘’ʻʼ´]/g,'$1‘').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
 function scanPhoto(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';
