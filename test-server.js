@@ -778,6 +778,12 @@ try { db.exec("ALTER TABLE tbank ADD COLUMN kind TEXT DEFAULT 'matn'"); } catch 
 // o'xshash misollar (raqamlari yoki variantlari boshqacha, lekin matni bir xil) uchun ikkinchi imzo
 try { db.exec("ALTER TABLE probs ADD COLUMN nsig TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("CREATE INDEX IF NOT EXISTS probs_nsig ON probs(nsig)"); } catch (e) { }
+// egizak misollar: bir "oila" (fam) ichida 4 tagacha variant (vn 1..4) — matni bir xil, faqat sonlari/joylari boshqa.
+// Test tuzganda 1-variantga vn=1 olinadi, 2/3/4-variantlarga shu oilaning vn=2/3/4 misoli tushadi.
+try { db.exec("ALTER TABLE probs ADD COLUMN fam TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE probs ADD COLUMN vn INTEGER DEFAULT 0"); } catch (e) { }
+try { db.exec("CREATE INDEX IF NOT EXISTS probs_fam ON probs(fam,vn)"); } catch (e) { }
+const famOf = x => { const f = String(x?.fam || '').trim().slice(0, 40); const v = parseInt(x?.vn, 10); return f && v >= 1 && v <= 4 ? [f, v] : ['', 0]; };
 
 // Mavzular daraxti: darslik mavzulari + darslikdan tashqari, lekin shu yoshdagi bolalarga kerakli mavzular.
 // Kodlar o'zgarmaydi (yangi mavzu guruh oxiriga yangi kod bilan qo'shiladi), shuning uchun misollar o'z joyida qoladi.
@@ -934,6 +940,7 @@ A['pb.add'] = (u, b) => {
         if (other) { dup++; out.push({ id: other.id, dup: true }); continue; }
         const nsig = probNsig(p); // mazmuni bir xil, sonlari boshqa variantlar ruxsat etiladi — faqat aynan bir xil misol takror hisoblanadi
         run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,nsig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, pid);
+        if ('fam' in items[k]) { const [f, v] = famOf(items[k]); run('UPDATE probs SET fam=?,vn=? WHERE id=?', f, v, pid); }
         updated++; out.push({ id: pid, dup: false }); continue;
       }
       const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
@@ -941,6 +948,7 @@ A['pb.add'] = (u, b) => {
       // mazmuni bir xil, sonlari boshqa misollar (variantlar) ham qabul qilinadi — testda bolalarga teng qiyinlikdagi savol beradi
       const nsig = probNsig(p);
       const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,nsig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, u.id, now());
+      { const [f, v] = famOf(items[k]); if (f) run('UPDATE probs SET fam=?,vn=? WHERE id=?', f, v, Number(r.lastInsertRowid)); }
       if (nsig) seen.set(nsig, Number(r.lastInsertRowid));
       added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
     }
@@ -953,8 +961,9 @@ A['pb.export'] = (u) => {
   need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
   const cache = {};
   const inl = id => { if (!id) return ''; if (!(id in cache)) { const m = one('SELECT type,data FROM media WHERE id=?', id); cache[id] = m ? `data:${m.type};base64,${Buffer.from(m.data).toString('base64')}` : ''; } return cache[id]; };
+  const FV = Object.fromEntries(all("SELECT id,fam,vn FROM probs WHERE fam<>''").map(r => [r.id, r]));
   const items = all('SELECT * FROM probs WHERE active=1 ORDER BY grade,topic,id').map(probRow)
-    .map(p => ({ id: p.id, grade: p.grade, topic: p.topic, kind: p.kind, level: p.level, q: p.q, img: inl(p.img), o: p.o.map(v => ({ t: v.t, i: inl(v.i) })), a: p.a, fix: p.fix, sol: p.sol, src: p.src }));
+    .map(p => ({ ...(FV[p.id] ? { fam: FV[p.id].fam, vn: FV[p.id].vn } : {}), id: p.id, grade: p.grade, topic: p.topic, kind: p.kind, level: p.level, q: p.q, img: inl(p.img), o: p.o.map(v => ({ t: v.t, i: inl(v.i) })), a: p.a, fix: p.fix, sol: p.sol, src: p.src }));
   log(u.id, 'misol.yuklab_olish', { soni: items.length });
   return { yx: 'paket', at: now(), items };
 };
@@ -981,7 +990,7 @@ A['pb.pick'] = (u, b) => {
   const n = Math.min(50, Math.max(1, parseInt(b.n, 10) || 20)), nimg = Math.min(n, Math.max(0, parseInt(b.nimg, 10) || 0));
   const ex = (Array.isArray(b.exclude) ? b.exclude : []).map(Number);
   const [scS, scA] = pbScope(g, topics);
-  let pool = all(`SELECT * FROM probs WHERE active=1 AND ${scS}`, ...scA).map(r => ({ ...probRow(r), ns: r.nsig || '' })).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
+  let pool = all(`SELECT * FROM probs WHERE active=1 AND (fam='' OR fam IS NULL OR vn<=1) AND ${scS}`, ...scA).map(r => ({ ...probRow(r), ns: r.nsig || '' })).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
   if (b.pic === 1) pool = pool.filter(p => p.pic); if (b.pic === 0) pool = pool.filter(p => !p.pic);
   const spread = l => { const by = {}; shuffle(l).forEach(p => (by[p.topic] ||= []).push(p)); const ks = shuffle(Object.keys(by)), out = []; let more = true; while (more) { more = false; for (const k of ks) if (by[k].length) { out.push(by[k].shift()); more = true; } } return out; };
   // bir testga mazmuni bir xil (faqat sonlari boshqa) ikki misol tushmasin
@@ -1027,13 +1036,15 @@ A['bank.build'] = (u, b) => {
   const fromBank = b.kind !== 'paket' && qs.some(q => q.pid);
   if (fromBank) {
     const used = new Set(qs.map(q => q.pid).filter(Boolean));
-    const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
+    const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o,fam FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, fam: r.fam || '', pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
     if (!canTF(u) && Object.values(meta).some(m => PB_LOCKED(m.topic))) bad('Testda qulf ostidagi tanqidiy fikrlash masalalari bor — ularni faqat CEO va jamoa sardori qo‘shadi');
     for (let k = 1; k < nv; k++) {
       const r = rnd(seed + k * 7919), vq = qs.map((q, i) => {
         const m = q.pid && meta[q.pid]; if (!m) return null;
-        const cand = all('SELECT * FROM probs WHERE active=1 AND topic=? AND level=?', m.topic, m.level).map(probRow).filter(p => !used.has(p.id) && p.pic === m.pic);
-        const pick = cand.length ? shuffle(cand, r)[0] : null; if (!pick) { short.push({ v: VARS[k], i: i + 1, topic: PB_TOPIC[m.topic]?.name || m.topic }); return null; }
+        // egizagi bor misol: shu oilaning (k+1)-varianti — hamma variantda bir xil misol, faqat sonlari boshqa
+        const tw = m.fam ? one('SELECT * FROM probs WHERE active=1 AND fam=? AND vn=?', m.fam, k + 1) : null;
+        const cand = tw ? [] : m.fam ? [] : all("SELECT * FROM probs WHERE active=1 AND topic=? AND level=? AND (fam='' OR fam IS NULL)", m.topic, m.level).map(probRow).filter(p => !used.has(p.id) && p.pic === m.pic);
+        const pick = tw && !used.has(tw.id) ? probRow(tw) : cand.length ? shuffle(cand, r)[0] : null; if (!pick) { short.push({ v: VARS[k], i: i + 1, topic: PB_TOPIC[m.topic]?.name || m.topic }); return null; }
         used.add(pick.id);
         const o = pick.o.map(v => v.t || ''), oi = pick.o.map(v => v.i || '');
         const p = pick.fix ? [...o.keys()] : shuffle([...o.keys()], r);
