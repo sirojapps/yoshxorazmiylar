@@ -2286,6 +2286,22 @@ A['yol.yoz'] = (u, b) => {
   run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
   return { ok: true };
 };
+// ---------------- Yangi o'qituvchi kabineti (/a/k/ustoz.html): o'z sinfi ro'yxati va har bolaning o'quv yo'lidagi holati. Faqat o'qish.
+A['ustoz.get'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const c = one('SELECT c.id,c.name,c.grade,sc.num FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE c.id=?', u.class_id); if (!c) bad('Sinf topilmadi');
+  const studs = all('SELECT id,name,phone FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
+  const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
+  const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
+  const kids = studs.map(s => {
+    let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
+    const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
+    const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
+    return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
+      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)) };
+  });
+  return { me: { name: u.name }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+};
 A['ex.delete'] = (u, b) => { need(can(u, 'mashq')); run('DELETE FROM exercises WHERE id=?', b.id); run('DELETE FROM ex_answers WHERE exercise_id=?', b.id); log(u.id, 'mashq.ochirish', { id: b.id }); return {}; };
 A['ex.list'] = u => {
   if (isTeam(u)) return { today: today(), rows: all('SELECT * FROM exercises ORDER BY day DESC,id DESC LIMIT 300').map(e => ({ ...e, options: JSON.parse(e.options), done: one('SELECT count(*) n, sum(correct) c FROM ex_answers WHERE exercise_id=?', e.id) })) };
