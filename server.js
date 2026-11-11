@@ -90,6 +90,7 @@ try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } c
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
 try { db.exec("ALTER TABLE sessions ADD COLUMN as_user INTEGER"); } catch (e) { } // namuna kabinet: CEO kimning ko'zi bilan ko'ryapti
+try { db.exec("ALTER TABLE sessions ADD COLUMN seen TEXT"); } catch (e) { } // oxirgi harakat vaqti: 30 daqiqa hech narsa bosilmasa, kirish yopiladi
 // qo'lda tayyorlanadigan sertifikatlar: andoza (ramka, logotip, imzo, muhr) o'sha, ism va matnni CEO o'zi yozadi
 db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
@@ -130,7 +131,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
+const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
@@ -401,6 +402,17 @@ function cleanAvatar(v, allowPhoto) {
 // profil surati (01.11.2026 qarori): har kim faqat O'ZIGA, o'z xohishi bilan surat qo'ya oladi (ixtiyoriy); bolalarga (o'quvchilarga) surat qo'yilmaydi
 db.exec("UPDATE students SET avatar='' WHERE avatar<>''");
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_consent_at TEXT"); } catch (e) { }
+// Kelajak matematikasi: o'quvchi misoldagi xato haqida xabar beradi; jamoa "Xabarlar"da ko'radi (yangi / ko'rildi / tuzatildi)
+db.exec("CREATE TABLE IF NOT EXISTS kj_xato(id INTEGER PRIMARY KEY, user_id INTEGER, who TEXT DEFAULT '', item TEXT DEFAULT '', q TEXT DEFAULT '', kind INTEGER DEFAULT 0, note TEXT DEFAULT '', st INTEGER DEFAULT 0, at TEXT)");
+A['kj.xato'] = (u, b) => {
+  const s = (v, n) => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, n);
+  const item = s(b.id, 80); if (!/^[a-z]+\/[a-z_]+\/[2-4]\/\d+$/.test(item)) bad('Noto‘g‘ri misol');
+  if (one("SELECT count(*) n FROM kj_xato WHERE user_id=? AND at>?", u.id, new Date(Date.now() - 864e5).toISOString()).n >= 30) bad('Bugun juda ko‘p xabar yuborildi');
+  run('INSERT INTO kj_xato(user_id,who,item,q,kind,note,st,at) VALUES(?,?,?,?,?,?,0,?)', u.id, s(b.who, 80), item, s(b.q, 200), Math.max(0, Math.min(4, +b.t || 0)), s(b.w, 200), now());
+  return {};
+};
+A['kj.list'] = u => { need(isTeam(u)); return { rows: all('SELECT id,who,item,q,kind,note,st,at FROM kj_xato ORDER BY id DESC LIMIT 300') }; };
+A['kj.st'] = (u, b) => { need(isTeam(u)); run('UPDATE kj_xato SET st=? WHERE id=?', Math.max(0, Math.min(2, +b.st || 0)), +b.id); return {}; };
 // sinf rahbarining har bola haqidagi shaxsiy eslatmasi: faqat o'zi ko'radi (jamoa ham ko'rmaydi)
 db.exec("CREATE TABLE IF NOT EXISTS rnotes(student_id INTEGER NOT NULL, user_id INTEGER NOT NULL, text TEXT DEFAULT '', at TEXT, PRIMARY KEY(student_id,user_id))");
 A['rnote.save'] = (u, b) => {
@@ -766,6 +778,12 @@ try { db.exec("ALTER TABLE tbank ADD COLUMN kind TEXT DEFAULT 'matn'"); } catch 
 // o'xshash misollar (raqamlari yoki variantlari boshqacha, lekin matni bir xil) uchun ikkinchi imzo
 try { db.exec("ALTER TABLE probs ADD COLUMN nsig TEXT DEFAULT ''"); } catch (e) { }
 try { db.exec("CREATE INDEX IF NOT EXISTS probs_nsig ON probs(nsig)"); } catch (e) { }
+// egizak misollar: bir "oila" (fam) ichida 4 tagacha variant (vn 1..4) — matni bir xil, faqat sonlari/joylari boshqa.
+// Test tuzganda 1-variantga vn=1 olinadi, 2/3/4-variantlarga shu oilaning vn=2/3/4 misoli tushadi.
+try { db.exec("ALTER TABLE probs ADD COLUMN fam TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec("ALTER TABLE probs ADD COLUMN vn INTEGER DEFAULT 0"); } catch (e) { }
+try { db.exec("CREATE INDEX IF NOT EXISTS probs_fam ON probs(fam,vn)"); } catch (e) { }
+const famOf = x => { const f = String(x?.fam || '').trim().slice(0, 40); const v = parseInt(x?.vn, 10); return f && v >= 1 && v <= 4 ? [f, v] : ['', 0]; };
 
 // Mavzular daraxti: darslik mavzulari + darslikdan tashqari, lekin shu yoshdagi bolalarga kerakli mavzular.
 // Kodlar o'zgarmaydi (yangi mavzu guruh oxiriga yangi kod bilan qo'shiladi), shuning uchun misollar o'z joyida qoladi.
@@ -922,6 +940,7 @@ A['pb.add'] = (u, b) => {
         if (other) { dup++; out.push({ id: other.id, dup: true }); continue; }
         const nsig = probNsig(p); // mazmuni bir xil, sonlari boshqa variantlar ruxsat etiladi — faqat aynan bir xil misol takror hisoblanadi
         run('UPDATE probs SET grade=?,topic=?,kind=?,level=?,q=?,img=?,o=?,a=?,fix=?,sol=?,src=?,sig=?,nsig=?,active=1 WHERE id=?', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, pid);
+        if ('fam' in items[k]) { const [f, v] = famOf(items[k]); run('UPDATE probs SET fam=?,vn=? WHERE id=?', f, v, pid); }
         updated++; out.push({ id: pid, dup: false }); continue;
       }
       const sig = probSig(p); const ex = one('SELECT id,active FROM probs WHERE sig=?', sig);
@@ -929,6 +948,7 @@ A['pb.add'] = (u, b) => {
       // mazmuni bir xil, sonlari boshqa misollar (variantlar) ham qabul qilinadi — testda bolalarga teng qiyinlikdagi savol beradi
       const nsig = probNsig(p);
       const r = run('INSERT INTO probs(grade,topic,kind,level,q,img,o,a,fix,sol,src,sig,nsig,active,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)', p.grade, p.topic, p.kind, p.level, p.q, p.img, JSON.stringify(p.o), p.a, p.fix, p.sol, p.src, sig, nsig, u.id, now());
+      { const [f, v] = famOf(items[k]); if (f) run('UPDATE probs SET fam=?,vn=? WHERE id=?', f, v, Number(r.lastInsertRowid)); }
       if (nsig) seen.set(nsig, Number(r.lastInsertRowid));
       added++; out.push({ id: Number(r.lastInsertRowid), dup: false });
     }
@@ -941,8 +961,9 @@ A['pb.export'] = (u) => {
   need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
   const cache = {};
   const inl = id => { if (!id) return ''; if (!(id in cache)) { const m = one('SELECT type,data FROM media WHERE id=?', id); cache[id] = m ? `data:${m.type};base64,${Buffer.from(m.data).toString('base64')}` : ''; } return cache[id]; };
+  const FV = Object.fromEntries(all("SELECT id,fam,vn FROM probs WHERE fam<>''").map(r => [r.id, r]));
   const items = all('SELECT * FROM probs WHERE active=1 ORDER BY grade,topic,id').map(probRow)
-    .map(p => ({ id: p.id, grade: p.grade, topic: p.topic, kind: p.kind, level: p.level, q: p.q, img: inl(p.img), o: p.o.map(v => ({ t: v.t, i: inl(v.i) })), a: p.a, fix: p.fix, sol: p.sol, src: p.src }));
+    .map(p => ({ ...(FV[p.id] ? { fam: FV[p.id].fam, vn: FV[p.id].vn } : {}), id: p.id, grade: p.grade, topic: p.topic, kind: p.kind, level: p.level, q: p.q, img: inl(p.img), o: p.o.map(v => ({ t: v.t, i: inl(v.i) })), a: p.a, fix: p.fix, sol: p.sol, src: p.src }));
   log(u.id, 'misol.yuklab_olish', { soni: items.length });
   return { yx: 'paket', at: now(), items };
 };
@@ -969,7 +990,7 @@ A['pb.pick'] = (u, b) => {
   const n = Math.min(50, Math.max(1, parseInt(b.n, 10) || 20)), nimg = Math.min(n, Math.max(0, parseInt(b.nimg, 10) || 0));
   const ex = (Array.isArray(b.exclude) ? b.exclude : []).map(Number);
   const [scS, scA] = pbScope(g, topics);
-  let pool = all(`SELECT * FROM probs WHERE active=1 AND ${scS}`, ...scA).map(r => ({ ...probRow(r), ns: r.nsig || '' })).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
+  let pool = all(`SELECT * FROM probs WHERE active=1 AND (fam='' OR fam IS NULL OR vn<=1) AND ${scS}`, ...scA).map(r => ({ ...probRow(r), ns: r.nsig || '' })).filter(p => !ex.includes(p.id) && (topics.length || !PB_LOCKED(p.topic)));
   if (b.pic === 1) pool = pool.filter(p => p.pic); if (b.pic === 0) pool = pool.filter(p => !p.pic);
   const spread = l => { const by = {}; shuffle(l).forEach(p => (by[p.topic] ||= []).push(p)); const ks = shuffle(Object.keys(by)), out = []; let more = true; while (more) { more = false; for (const k of ks) if (by[k].length) { out.push(by[k].shift()); more = true; } } return out; };
   // bir testga mazmuni bir xil (faqat sonlari boshqa) ikki misol tushmasin
@@ -1015,13 +1036,15 @@ A['bank.build'] = (u, b) => {
   const fromBank = b.kind !== 'paket' && qs.some(q => q.pid);
   if (fromBank) {
     const used = new Set(qs.map(q => q.pid).filter(Boolean));
-    const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
+    const meta = Object.fromEntries(all(`SELECT id,topic,level,img,o,fam FROM probs WHERE id IN (${inList([...used])})`, ...used).map(r => [r.id, { topic: r.topic, level: r.level, fam: r.fam || '', pic: !!r.img || /"i":"[0-9a-f]/.test(r.o) }]));
     if (!canTF(u) && Object.values(meta).some(m => PB_LOCKED(m.topic))) bad('Testda qulf ostidagi tanqidiy fikrlash masalalari bor — ularni faqat CEO va jamoa sardori qo‘shadi');
     for (let k = 1; k < nv; k++) {
       const r = rnd(seed + k * 7919), vq = qs.map((q, i) => {
         const m = q.pid && meta[q.pid]; if (!m) return null;
-        const cand = all('SELECT * FROM probs WHERE active=1 AND topic=? AND level=?', m.topic, m.level).map(probRow).filter(p => !used.has(p.id) && p.pic === m.pic);
-        const pick = cand.length ? shuffle(cand, r)[0] : null; if (!pick) { short.push({ v: VARS[k], i: i + 1, topic: PB_TOPIC[m.topic]?.name || m.topic }); return null; }
+        // egizagi bor misol: shu oilaning (k+1)-varianti — hamma variantda bir xil misol, faqat sonlari boshqa
+        const tw = m.fam ? one('SELECT * FROM probs WHERE active=1 AND fam=? AND vn=?', m.fam, k + 1) : null;
+        const cand = tw ? [] : m.fam ? [] : all("SELECT * FROM probs WHERE active=1 AND topic=? AND level=? AND (fam='' OR fam IS NULL)", m.topic, m.level).map(probRow).filter(p => !used.has(p.id) && p.pic === m.pic);
+        const pick = tw && !used.has(tw.id) ? probRow(tw) : cand.length ? shuffle(cand, r)[0] : null; if (!pick) { short.push({ v: VARS[k], i: i + 1, topic: PB_TOPIC[m.topic]?.name || m.topic }); return null; }
         used.add(pick.id);
         const o = pick.o.map(v => v.t || ''), oi = pick.o.map(v => v.i || '');
         const p = pick.fix ? [...o.keys()] : shuffle([...o.keys()], r);
@@ -1469,6 +1492,7 @@ function extras(u, out) {
   ex.certs = all('SELECT c.code,c.test_id,c.student_id,c.at,c.issued,l.status,l.reason FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
   if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
+  if (isTeam(u)) ex.kjNew = one('SELECT count(*) n FROM kj_xato WHERE st=0').n;
   if (u.role === 'ota') {
     const grades = [...new Set((out.classes || []).map(c => c.grade))];
     ex.exNew = grades.length ? all(`SELECT id,grade FROM exercises WHERE day<=? AND grade IN (${grades.map(() => '?').join(',')})`, today(), ...grades)
@@ -1481,6 +1505,7 @@ function extras(u, out) {
 const TG_API = process.env.TG_API || 'https://api.telegram.org';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function tg(method, body) {
+  if (process.env.YX_TEST === '1') return null; // sinov sayti: haqiqiy odamlarga Telegram orqali hech narsa yuborilmaydi
   const token = getSet('bot_token'); if (!token) return null;
   try {
     const r = await fetch(`${TG_API}/bot${token}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
@@ -2053,6 +2078,7 @@ function pushEncrypt(sub, text) { // RFC 8291, aes128gcm
   return Buffer.concat([salt, rs, Buffer.from([as.length]), as, body]);
 }
 async function pushOne(sub, data) {
+  if (process.env.YX_TEST === '1') return; // sinov sayti: telefonlarga bildirishnoma yuborilmaydi
   try {
     const r = await fetch(sub.endpoint, { method: 'POST', headers: { TTL: '86400', Urgency: 'high', 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', Authorization: vapidAuth(sub.endpoint) }, body: pushEncrypt(sub, JSON.stringify(data)), signal: AbortSignal.timeout(10000) });
     if (r.status === 404 || r.status === 410) run('DELETE FROM push_subs WHERE endpoint=?', sub.endpoint); // obuna eskirgan
@@ -2246,6 +2272,38 @@ A['ex.save'] = (u, b) => {
   const r = run('INSERT INTO exercises(grade,day,text,image,options,answer,explain,user_id,at) VALUES(?,?,?,?,?,?,?,?,?)', ...f, u.id, now());
   log(u.id, 'mashq.qoshish', { grade, day }); return { id: Number(r.lastInsertRowid) };
 };
+// ---------------- O'quv yo'li (o'quvchi kabineti): bolaning natijasini saqlash. Sahifa: /a/k/yol/
+db.exec("CREATE TABLE IF NOT EXISTS yol_prog(student_id INTEGER PRIMARY KEY, data TEXT NOT NULL, at TEXT)");
+const yolKids = u => { need(u.role === 'ota'); return kidsOfPhone(phone9(u.phone)).map(studentInfo).filter(Boolean); };
+A['yol.get'] = (u, b) => {
+  const kids = yolKids(u); if (!kids.length) return { kids: [], sid: 0, prog: null, sum: null };
+  const k = kids.find(x => x.id === +b.student_id) || kids[0];
+  let prog = null; try { prog = JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', k.id)?.data || 'null'); } catch { }
+  return { kids: kids.map(x => ({ id: x.id, name: x.name, grade: x.grade, cls: x.cls })), sid: k.id, prog, sum: (prog && prog.sum) || null };
+};
+A['yol.yoz'] = (u, b) => {
+  const sid = +b.student_id; need(yolKids(u).some(x => x.id === sid));
+  const p = b.prog; if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) bad('Noto‘g‘ri ma’lumot');
+  const data = JSON.stringify(p); if (data.length > 150000) bad('Ma’lumot juda katta');
+  run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
+  return { ok: true };
+};
+// ---------------- Yangi o'qituvchi kabineti (/a/k/ustoz.html): o'z sinfi ro'yxati va har bolaning o'quv yo'lidagi holati. Faqat o'qish.
+A['ustoz.get'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const c = one('SELECT c.id,c.name,c.grade,sc.num FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE c.id=?', u.class_id); if (!c) bad('Sinf topilmadi');
+  const studs = all('SELECT id,name,phone FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
+  const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
+  const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
+  const kids = studs.map(s => {
+    let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
+    const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
+    const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
+    return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
+      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)) };
+  });
+  return { me: { name: u.name }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+};
 A['ex.delete'] = (u, b) => { need(can(u, 'mashq')); run('DELETE FROM exercises WHERE id=?', b.id); run('DELETE FROM ex_answers WHERE exercise_id=?', b.id); log(u.id, 'mashq.ochirish', { id: b.id }); return {}; };
 A['ex.list'] = u => {
   if (isTeam(u)) return { today: today(), rows: all('SELECT * FROM exercises ORDER BY day DESC,id DESC LIMIT 300').map(e => ({ ...e, options: JSON.parse(e.options), done: one('SELECT count(*) n, sum(correct) c FROM ex_answers WHERE exercise_id=?', e.id) })) };
@@ -2259,6 +2317,37 @@ A['ex.list'] = u => {
     const anyDone = Object.values(ans).some(Boolean);
     return { id: e.id, grade: e.grade, day: e.day, text: e.text, image: e.image, options: JSON.parse(e.options), answers: ans, answer: anyDone ? e.answer : null, explain: anyDone ? e.explain : null };
   }) };
+};
+// O'quvchi kabineti: bola topshirgan imtihonlar ro'yxati va (b.id berilsa) savollar + to'g'ri javob + yechim.
+// Yechimlar faqat bola qatnashgan va imtihon kuni o'tgan (yoki natija e'lon qilingan) imtihonda ochiladi.
+// Bolaning o'z javoblari va to'g'ri/xato belgilari — faqat natija e'lon qilingach.
+A['oq.imtihon'] = (u, b) => {
+  need(u.role === 'ota');
+  const kids = kidsOfPhone(phone9(u.phone)); const sid = +b.student_id || kids[0]; need(kids.includes(sid));
+  const s = studentInfo(sid); if (!s) return { rows: [] };
+  const td = today(); const wantId = +b.id || 0;
+  const rows = all('SELECT r.test_id,r.absent,r.variant,r.answers,r.bits,r.score,r.qn,t.name,t.date FROM results r JOIN tests t ON t.id=r.test_id WHERE r.student_id=? ORDER BY t.date DESC,t.id DESC', sid);
+  const out = rows.map(r => {
+    const ann = announced(r.test_id, s.school_id);
+    const past = /^\d{4}-\d\d-\d\d/.test(r.date || '') && r.date.slice(0, 10) < td;
+    const link = r.absent ? null : one('SELECT b.kind,b.data FROM tlinks l JOIN tbank b ON b.id=l.bank_id WHERE l.test_id=? AND l.grade=?', r.test_id, s.grade);
+    const open = !!link && link.kind !== 'pdf' && (ann || past);
+    const o = { id: r.test_id, name: r.name, date: r.date || '', absent: !!r.absent, ann, open };
+    if (ann && !r.absent) { o.score = r.score; o.qn = r.qn; }
+    if (open && wantId === r.test_id) {
+      let data = {}; try { data = JSON.parse(link.data) || {}; } catch (e) { }
+      const v = data[r.variant || 'A'] || data.A || {}; const qs = Array.isArray(v.qs) ? v.qs : [];
+      o.variant = r.variant || 'A';
+      o.qs = qs.map((q, i) => {
+        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || '') : '';
+        const x = { q: q.q || '', img: q.img || '', o: q.o || [], oi: q.oi || [], a: q.a || '', sol };
+        if (ann) { const my = (r.answers || '')[i]; if (my && my !== '-') x.my = my; const bt = (r.bits || '')[i]; if (bt === '0' || bt === '1') x.ok = bt === '1'; }
+        return x;
+      });
+    }
+    return o;
+  });
+  return { rows: out };
 };
 A['ex.answer'] = (u, b) => {
   need(u.role === 'ota');
@@ -2288,9 +2377,15 @@ function send(res, code, obj, headers = {}) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(body);
 }
 function cookie(req, n) { const m = (req.headers.cookie || '').match(new RegExp('(?:^|; )' + n + '=([^;]+)')); return m ? m[1] : ''; }
+const IDLE_MS = 32 * 60e3;
 function userOf(req) {
   const t = cookie(req, 'yx'); if (!t) return null;
   const s = one('SELECT * FROM sessions WHERE token=?', t); if (!s || s.expires < now()) return null;
+  // 30 daqiqa hech narsa bosilmasa — kirish yopiladi (sahifa o'zi 30 daqiqada chiqaradi, server 2 daqiqa zaxira bilan tekshiradi).
+  // Har daqiqadagi fon yangilanishi (X-Yx-Bg) harakat hisoblanmaydi.
+  const t0 = Date.now(), seen = s.seen ? Date.parse(s.seen) : 0;
+  if (seen && t0 - seen > IDLE_MS) { run('DELETE FROM sessions WHERE token=?', t); return null; }
+  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && t0 - seen > 30e3)) run('UPDATE sessions SET seen=? WHERE token=?', now(), t);
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   if (u && s.as_user && u.role === 'ceo' && isDemoUser(s.as_user)) { const d = one('SELECT * FROM users WHERE id=?', s.as_user); if (d) { d._demo = true; d._real = u.id; return d; } }
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
@@ -2388,10 +2483,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : (lb.password != null ? 'Telefon raqami yoki parol noto‘g‘ri. Qaytadan kiriting.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.') });
       }
       const token = crypto.randomBytes(32).toString('hex');
-      run('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString());
+      run('INSERT INTO sessions(token,user_id,expires,seen) VALUES(?,?,?,?)', token, u.id, new Date(Date.now() + 90 * 864e5).toISOString(), now());
       run('UPDATE users SET last_login=? WHERE id=?', now(), u.id); run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-      return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${90 * 86400}${secure}` });
+      return send(res, 200, { ok: true }, { 'Set-Cookie': `yx=${token}; HttpOnly; SameSite=Lax; Path=/${secure}` });
     }
     if (url.pathname === '/api/login-kind' && req.method === 'POST') { // raqam bo'yicha: PIN yoki parol so'ralsinmi
       if (failBlocked('lk:' + ip)) return send(res, 429, { error: 'Juda ko‘p so‘rov. Keyinroq urinib ko‘ring.' }); failBump('lk:' + ip, 60);
@@ -2416,6 +2511,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/')) {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
+      if (url.pathname === '/api/ping') return send(res, 200, { ok: true }); // odam sahifada nimadir bosdi — "oxirgi harakat" yangilanadi
       if (url.pathname === '/api/demo.exit' && req.method === 'POST') { run('UPDATE sessions SET as_user=NULL WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }); }
       if (url.pathname === '/api/state') { const st = state(u); if (u._demo) st.me.demo = DEMO_ROLES[Object.keys(demoIds().users).find(k => demoIds().users[k] === u.id)] || 'Namuna'; return send(res, 200, st); }
       if (url.pathname === '/api/parol' && req.method === 'POST') { // CEO parolini o'rnatish / almashtirish
@@ -2467,11 +2563,11 @@ const server = http.createServer(async (req, res) => {
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
     // Tugallanmagan kabinet sahifalari (/a/k/) faqat sinov saytida beriladi. Asosiy saytda bu yo'l yopiq: fayl diskda bo'lsa ham berilmaydi.
-    if (process.env.YX_TEST !== '1' && /^\/a\/k(\/|$)/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); }
+    if (process.env.YX_TEST !== '1' && /^\/a\/k\/bola\.html$/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); } // eski namuna sahifa asosiy saytda ko'rsatilmaydi
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') || p.startsWith('/a/k/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
     }
     if (url.pathname.startsWith('/t/')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(PUBLIC, 'index.html')).pipe(res); }
     res.writeHead(302, { Location: '/' }); res.end();

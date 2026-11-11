@@ -35,16 +35,14 @@ echo "Node.js $(node -v)"
 fi
 
 # rasmlar.tar.gz → public/a  (sayt rasmlari alohida fayl: telefon bir marta yuklab, keyin xotiradan oladi)
-# Arxiv ichidagi k/ papka — hali tugallanmagan kabinet sahifalari. Ular FAQAT sinov saytiga ochiladi;
-# asosiy saytga (asosiy) k/ umuman chiqarilmaydi. Arxivning o'zi va sahifalar kodi o'zgarmaydi.
+# Arxiv ichidagi k/ papka — kabinet sahifalari. 12.11.2026 dan (Siroj qarori) ular asosiy saytga ham ochiladi.
 RASM_OK=0
 rasm_olish(){ RASM_OK=0; if olish rasmlar.tar.gz /tmp/yx-rasm.tgz 2>/dev/null && tar -tzf /tmp/yx-rasm.tgz >/dev/null 2>&1; then RASM_OK=1; fi; }
 put_rasmlar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi
   [ "$RASM_OK" = 1 ] || return 0
-  if [ -d "$1/a" ] && cmp -s /tmp/yx-rasm.tgz "$3" && { [ "$2" = sinov ] || [ ! -e "$1/a/k" ]; }; then return 0; fi # o'zgarmagan
+  if [ -d "$1/a" ] && [ -e "$1/a/k" ] && cmp -s /tmp/yx-rasm.tgz "$3"; then return 0; fi # o'zgarmagan
   rm -rf "$1/a.new"; mkdir -p "$1/a.new"
-  if [ "$2" = asosiy ]; then tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner --anchored --exclude='k' --exclude='./k'
-  else tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner; fi
+  tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner
   rm -rf "$1/a.old"; [ -d "$1/a" ] && mv "$1/a" "$1/a.old"; mv "$1/a.new" "$1/a"; rm -rf "$1/a.old"
   cp /tmp/yx-rasm.tgz "$3"; echo "Rasmlar yangilandi ($2)"; }
 
@@ -62,7 +60,11 @@ rm -f /tmp/yx-check.js
 # server.js faqat haqiqatan o'zgargan bo'lsa almashtiriladi (shundagina xizmat qayta ishga tushadi); eski nusxa saqlab qo'yiladi
 SRV_CH=0
 if cmp -s "$APP/server.js.new" "$APP/server.js" 2>/dev/null; then rm -f "$APP/server.js.new"
-else [ -f "$APP/server.js" ] && cp -p "$APP/server.js" "$APP/server.js.prev"; mv "$APP/server.js.new" "$APP/server.js"; SRV_CH=1; fi
+else
+  # server.js almashishidan oldin bazaning nusxasi olinadi (kuniga bir marta; hech narsa o'chirilmaydi)
+  ZB="$APP/backups/oldin-$(date +%F).db"
+  if [ -f "$APP/data/yx.db" ] && [ ! -f "$ZB" ] && command -v sqlite3 >/dev/null 2>&1; then sqlite3 "$APP/data/yx.db" ".backup '$ZB'" && chmod 600 "$ZB" && echo "Zaxira nusxa olindi: $ZB" || echo "Zaxira nusxa olinmadi (davom etiladi)"; fi
+  [ -f "$APP/server.js" ] && cp -p "$APP/server.js" "$APP/server.js.prev"; mv "$APP/server.js.new" "$APP/server.js"; SRV_CH=1; fi
 # sahifa: server uni har so'rovda diskdan o'qiydi — qayta ishga tushirish kerak emas
 if cmp -s "$APP/public/index.html.new" "$APP/public/index.html" 2>/dev/null; then rm -f "$APP/public/index.html.new"
 else mv "$APP/public/index.html.new" "$APP/public/index.html"; echo "Sahifa yangilandi (asosiy)"; fi

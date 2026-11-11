@@ -2563,7 +2563,7 @@ const server = http.createServer(async (req, res) => {
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
     // Tugallanmagan kabinet sahifalari (/a/k/) faqat sinov saytida beriladi. Asosiy saytda bu yo'l yopiq: fayl diskda bo'lsa ham berilmaydi.
-    if (process.env.YX_TEST !== '1' && /^\/a\/k(\/|$)/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); }
+    if (process.env.YX_TEST !== '1' && /^\/a\/k\/bola\.html$/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); } // eski namuna sahifa asosiy saytda ko'rsatilmaydi
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';

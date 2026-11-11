@@ -69,7 +69,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .scan-guide i:nth-child(3){right:0;bottom:0;border-left:0;border-top:0}.scan-guide i:nth-child(4){left:0;bottom:0;border-right:0;border-top:0}
 .scan-msg{padding:12px 16px;text-align:center;font-size:14px;color:#dbe6f7;min-height:46px}
 .scan-ok{margin:10px 14px 0;padding:10px 12px;border-radius:12px;background:#14532d;display:flex;align-items:center;gap:10px}
-.scan-ok .m{flex:1;min-width:0}.scan-ok b{display:block}.scan-ok small{color:#c9f2d7}
+.scan-ok .m{flex:1;min-width:0}.scan-ok img{width:92px;border-radius:6px;flex:none;display:block}
+.scan-fl{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b1220;z-index:1;animation:scfl .28s ease-out}@keyframes scfl{from{opacity:0;transform:scale(1.08) rotate(-3deg)}to{opacity:1;transform:none}}.scan-ok b{display:block}.scan-ok small{color:#c9f2d7}
 .scan-bot{display:flex;gap:10px;justify-content:center;padding:6px 16px calc(18px + env(safe-area-inset-bottom,0px))}
 .scan-body{background:var(--bg);color:var(--fg);flex:1;padding:14px 16px 30px;display:flex;flex-direction:column;gap:12px;max-width:560px;width:100%;margin:0 auto}
 .scan-body .btn.sec{background:var(--surface2);color:var(--fg)}
@@ -987,12 +988,12 @@ async function doInstall(){
   ${inTg()?`<div class="card pad" style="background:var(--gold-soft)"><b>Avval saytni brauzerda oching.</b><div class="note">Telegram ichida o’rnatib bo’lmaydi. Yuqoridagi ⋮ (yoki ⋯) tugmasini bosing → <b>“Brauzerda ochish”</b>. Keyin shu tugmani yana bosing.</div></div>`:''}
   <div class="card pad">${pc?`<ol class="isteps"><li>Saytni <b>Chrome</b> yoki <b>Edge</b>da oching</li><li>Manzil satrining o’ng chetidagi <b>o’rnatish belgisini</b> (monitor va ↓ strelka) bosing. Ko’rinmasa: o’ng yuqoridagi <b>⋮</b> → <b>“Saqlash va ulashish” → “Ilovani o’rnatish”</b></li><li><b>“O’rnatish”</b> ni bosing</li></ol>`:ios?`<ol class="isteps"><li>Saytni <b>Safari</b>da oching (yoshxorazmiylar.uz)</li><li>Pastdagi <b>Ulashish</b> tugmasini bosing (kvadrat ichida ↑ strelka)</li><li>Ro’yxatdan <b>“Ekranga qo’shish”</b> (“На экран «Домой»” / “Add to Home Screen”) ni tanlang</li><li>O’ng yuqoridagi <b>“Qo’shish”</b> ni bosing</li></ol>`
    :`<ol class="isteps"><li>Saytni <b>Chrome</b>da oching (yoshxorazmiylar.uz)</li><li>O’ng yuqoridagi <b>⋮</b> (uch nuqta) tugmasini bosing</li><li><b>“Ilovani o’rnatish”</b> yoki <b>“Bosh ekranga qo’shish”</b> (“Установить приложение” / “Install app”) ni tanlang</li><li><b>“O’rnatish”</b> ni bosing</li></ol>`}</div>
-  <p class="note">Shundan keyin ${pc?'ish stolida':'telefon ekranida'} “Yosh Xorazmiylar” belgisi paydo bo’ladi. PIN kodni bir marta kiritsangiz, keyin qayta so’ralmaydi.</p>
+  <p class="note">Shundan keyin ${pc?'ish stolida':'telefon ekranida'} “Yosh Xorazmiylar” belgisi paydo bo’ladi.</p>
   <button class="btn pri" data-act="close">Tushunarli</button>`);
 }
 let toastT,toastSeq=0;function toast(t,err){toastSeq++;const el=$('#toast');el.textContent=t;el.className='toast'+(err?' err':'');el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,err?4000:2200)}
-async function api(name,body){
-  let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),credentials:'same-origin'})}
+async function api(name,body,bg){
+  let r;try{r=await fetch('/api/'+name,{method:'POST',headers:{'Content-Type':'application/json',...(bg?{'X-Yx-Bg':'1'}:{})},body:JSON.stringify(body||{}),credentials:'same-origin'})}
   catch(e){const er=new Error('Server bilan aloqa yo’q. Internetni tekshiring yoki birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
   if(r.status>=502&&r.status<=504){const er=new Error('Sayt bir daqiqaga yangilanmoqda. Birozdan keyin qayta urinib ko’ring.');er.net=true;throw er}
   let d={};try{d=await r.json()}catch(e){}
@@ -1054,8 +1055,8 @@ async function verCheck(){try{const r=await fetch('/api/ver',{cache:'no-store'})
     d.style.cssText='position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--navy,#1f3564);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:600;max-width:calc(100% - 32px);white-space:nowrap';
     d.innerHTML='<span>Sayt yangilandi</span><button data-act="pageReload" style="background:#fff;color:var(--navy,#1f3564);border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">Yangilash</button>';document.body.appendChild(d)}}catch(e){}}
 verCheck();setInterval(verCheck,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)verCheck()});
-async function load(auto){
-  try{const n=await api('state');const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
+async function load(auto,bg){
+  try{const n=await api('state',null,bg);if(n&&!S){try{localStorage.setItem('yx_act',String(Date.now()))}catch(e){}}const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
   catch(e){
     if(!e.net){S=null;if(netTry){netTry=0;pinErr=''}}
     else{ // aloqa uzilsa — tizimdan chiqarmaymiz, o'zi qayta urinadi
@@ -1964,6 +1965,7 @@ function scrMessages(){
   if(isTeam()){
     if(!TH.some(t=>t.kind==='chat'))top+=`<button class="tg-it" data-act="openChat" style="background:var(--surface,#fff);border:1px solid var(--line)"><div class="tg-av" style="background:#1e9e93">JC</div><div class="m"><div class="r1"><b>Jamoa chati</b></div><div class="r2"><span class="ls">CEO, sardor va jamoa a’zolari uchun</span></div></div></button>`;
     if(r==='jamoa')nw=true;
+    top=`<button class="row card" data-act="kjx"><div class="m"><div class="n">Xato xabarlari</div><div class="s">Kelajak matematikasi: o’quvchilar misoldagi xato haqida yozgan</div></div>${S.kjNew?badge(S.kjNew):''}${I.chev}</button>`+top;
     if(P('pinlar')&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Telegram so’rovlari</div><div class="s">Raqami ro’yxatda yo’q ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`+top;
   }else{nw=true;if(r==='rahbar'&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`}
   const cats=isTeam()?['dir','oq','jam']:r==='direktor'?['oq','ota','jam']:r==='rahbar'?['dir','ota','jam']:[];
@@ -2132,6 +2134,15 @@ function openCompose(kind){
 }
 // ---------------- telegram requests
 async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;drawTgReq()}catch(e){toast(e.message,true)}}
+let KJX=[],KJF=0;const KJT=['Misol sharti xato','Javob noto’g’ri','Tushuntirish tushunarsiz','Rasm noto’g’ri','Boshqa'],KJS=['Yangi','Ko’rildi','Tuzatildi'],KJM={shifr:'Shifr ustasi',ehtimol:'Ehtimollar',tejamkor:'Tejamkor',dasturchi:'Kichik dasturchi',chamalash:'Chamalash',tahlil:'Ma’lumot tahlili'};
+async function openKjx(){try{KJX=(await api('kj.list')).rows;drawKjx()}catch(e){toast(e.message,true)}}
+function drawKjx(){const L=KJX.filter(r=>r.st===KJF);
+  openSheet(`<div class="sh-top"><div class="m"><h2>Xato xabarlari</h2><div class="s">Kelajak matematikasi misollari</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  <div style="display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap">${KJS.map((t,j)=>`<button class="btn sm ${j===KJF?'pri':'sec'}" data-act="kjF" data-id="${j}">${t} (${KJX.filter(r=>r.st===j).length})</button>`).join('')}</div>
+  ${L.map(r=>{const p=r.item.split('/');return `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(KJT[r.kind]||'')}</b><span class="note">${fmtDate(r.at)}</span></div>
+   <div class="note">${esc(KJM[p[0]]||p[0])}, ${p[2]}-sinf · ${esc(r.item)}</div><div style="margin:6px 0">${esc(r.q)}</div>${r.note?`<div style="margin:6px 0;padding:8px;border-radius:10px;background:#f1f5f9">«${esc(r.note)}»</div>`:''}
+   <div class="note">Yubordi: ${esc(r.who)}</div>
+   <div style="display:flex;gap:6px;margin-top:8px">${KJS.map((t,j)=>j===r.st?'':`<button class="btn sm sec" data-act="kjSt" data-id="${r.id}" data-st="${j}">${t}</button>`).join('')}</div></div>`}).join('')||'<div class="card empty">Bu bo’limda xabar yo’q</div>'}`)}
 function drawTgReq(){const pend=TREQ.filter(r=>r.status==='kutilmoqda');const done=TREQ.filter(r=>r.status!=='kutilmoqda').slice(0,20);
   openSheet(`<div class="sh-top"><div class="m"><h2>PIN so’rovlari</h2><div class="s">Telegram orqali, raqami ro’yxatda yo’q ota-onalar</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   ${pend.map(r=>{const opts=X.st.filter(s=>s.class_id===r.class_id).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
@@ -2661,7 +2672,7 @@ document.addEventListener('click',async e=>{
    case 'thStatus':await api('thread.status',{id:THV.thread.id,status:d.s});toast(d.s==='hal'?'Hal qilindi':'Qayta ochildi');openThread(THV.thread.id);break;
    case 'thForward':{const r=await api('thread.forward',{id:THV.thread.id});toast('Jamoaga yuborildi');openThread(r.id);break}
    case 'thProfile':closeSheet();stack.push('stu:'+d.id);render();break;
-   case 'tgReq':openTgReq();break;
+   case 'tgReq':openTgReq();break;case 'kjx':openKjx();break;case 'kjF':KJF=+d.id;drawKjx();break;case 'kjSt':{try{await api('kj.st',{id:+d.id,st:+d.st});const r=KJX.find(x=>x.id===+d.id);if(r)r.st=+d.st;drawKjx();load()}catch(e){toast(e.message,true)}break}
    case 'trYes':{const sid=+$('#tr'+d.id).value;if(!sid){toast('Ro’yxatdan bolani tanlang',true);break}const r=await api('tg.approve',{id:+d.id,student_id:sid});toast(r.sent?'Tasdiqlandi, PIN Telegram’ga yuborildi':'Tasdiqlandi');await load();openTgReq();break}
    case 'trNo':await api('tg.approve',{id:+d.id,reject:true});toast('Rad etildi');await load();openTgReq();break;
    case 'certPng':await certPng(d.c);break;
@@ -2702,7 +2713,7 @@ document.addEventListener('click',async e=>{
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
 });
-setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load()}else load(true)}},60000);
+setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}},60000);
 
 
 // ================================================================ test olish: test fayli, kitobcha, titul, skaner
@@ -2982,13 +2993,14 @@ async function scanStart(){
   catch(e){if(SC){SC.msg='Kameraga ruxsat berilmadi. Brauzer sozlamasida kameraga ruxsat bering yoki “Rasmdan” tugmasini bosing.';scanDraw()}return}
   if(!SC){return}const v=$('#scanV');if(v){v.srcObject=SC.stream;try{await v.play()}catch(e){}}SC.msg='Titulni ramkaga sig’diring: 4 ta qora kvadrat va QR kod ko’rinsin';scanDraw(true);scanLoop()}
 function scanLoop(){if(!SC)return;clearTimeout(SC.timer);SC.timer=setTimeout(async()=>{if(!SC)return;
-  if(SC.view==='live'&&!SC.busy){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
+  if(SC.view==='live'&&!SC.busy&&!(SC.hold>Date.now())){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
   scanLoop()},160)}
 const SC_ERR={kamera:'Kamera tayyorlanmoqda…',marker:'Titulni ramkaga sig’diring',qr:'4 burchak topildi, QR o’qilmoqda — bir soniya kuting',one:'Bir vaqtda faqat bitta titulni tuting'};
 function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;const cv=r&&r.cv;const qd=r&&(r.quad||r.quads?.[0]?.p);
   if(!cv||!qd){ov.width=ov.width;return}if(ov.width!==cv.width||ov.height!==cv.height){ov.width=cv.width;ov.height=cv.height}
-  const g=ov.getContext('2d');g.clearRect(0,0,ov.width,ov.height);g.strokeStyle=r.err?'#ffd54f':'#3ddc84';g.lineWidth=Math.max(3,ov.width/220);g.beginPath();qd.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();g.stroke();
-  g.fillStyle=g.strokeStyle;qd.forEach(p=>{g.beginPath();g.arc(p.x,p.y,ov.width/70,0,7);g.fill()})}
+  const g=ov.getContext('2d');g.clearRect(0,0,ov.width,ov.height);g.strokeStyle=r.err?'#ffd54f':'#3ddc84';g.lineWidth=Math.max(3,ov.width/220);g.beginPath();qd.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();g.globalAlpha=.45;g.stroke();g.globalAlpha=1;
+  // to'rt burchakdagi qora kvadratning har biri alohida katak bilan belgilanadi
+  g.lineWidth=Math.max(4,ov.width/160);g.lineJoin='round';qd.forEach(p=>{const a=Math.max(ov.width/40,Math.sqrt(p.n||0)*1.9);g.strokeRect(p.x-a/2,p.y-a/2,a,a)})}
 async function scanHandle(r,still){
   if(!still)scanOverlay(r);
   if(r.err){if(still){toast(SC_ERR[r.err]==null?'O’qib bo’lmadi':SC_ERR[r.err].replace('Titulni ramkaga','Rasmda titulni'),true)}SC.same=0;scanMsg(SC_ERR[r.err]);return}
@@ -3005,17 +3017,30 @@ async function scanHandle(r,still){
   // muammosiz titul avtomatik saqlanadi; shubhali joyi bo'lsa — tasdiqlash oynasi
   if(!still&&st&&!multi&&!uns&&blanks<=Math.floor(q.qn*.3)&&!other&&!(old&&!old.absent)){await scanSave(r,true);return}
   SC.res=r;SC.view='check';scanDraw()}
+// o'qilgan titulning to'g'rilangan (qiyshiqligi tuzatilgan) kichik rasmi
+function scanFlat(r){try{const s=r.cv,H=r.H,L=r.L,k=4,x0=6,y0=6,W=Math.round(198*k),Hh=Math.round(136.5*k),sw=s.width,sh=s.height,sd=s.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sw,sh).data;
+  const c=document.createElement('canvas');c.width=W;c.height=Hh;const g=c.getContext('2d'),o=g.createImageData(W,Hh),d=o.data;
+  for(let y=0;y<Hh;y++)for(let x=0;x<W;x++){const [px,py]=hmap(H,x0+x/k,y0+y/k),xx=Math.round(px),yy=Math.round(py),j=(y*W+x)*4;
+    if(xx<0||yy<0||xx>=sw||yy>=sh)d[j]=d[j+1]=d[j+2]=255;else{const i=(yy*sw+xx)*4;d[j]=sd[i];d[j+1]=sd[i+1];d[j+2]=sd[i+2]}d[j+3]=255}
+  g.putImageData(o,0,0);g.strokeStyle='#1f8a4c';g.lineWidth=3.5;
+  [...r.ans].forEach((a,i)=>{const n='ABCDE'.indexOf(a),q=L.q[i];if(n<0||!q)return;g.beginPath();g.arc((q.o[n]-x0)*k,(q.y-y0)*k,L.d/2*k*1.3,0,7);g.stroke()});
+  return c.toDataURL('image/jpeg',.8)}catch(e){return ''}}
+// o'qilishi bilan to'g'rilangan varaq kamera o'rnida katta bo'lib ko'rinadi, keyin kamera keyingi varaqqa qaytadi
+function scanFlash(img){if(!img||!SC)return;const c=document.querySelector('#scan .scan-cam');if(!c)return;c.querySelector('.scan-fl')?.remove();
+  const i=new Image();i.className='scan-fl';i.alt='';i.src=img;c.appendChild(i);const ov=$('#scanOv');if(ov)ov.width=ov.width;SC.hold=Date.now()+1600;setTimeout(()=>i.remove(),1600)}
+function scanBeep(){try{const A=scanBeep.a||(scanBeep.a=new (window.AudioContext||window.webkitAudioContext)());if(A.state==='suspended')A.resume();const o=A.createOscillator(),g=A.createGain(),t=A.currentTime;
+  o.frequency.value=1250;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(A.destination);o.start(t);o.stop(t+.15)}catch(e){}}
 function scanMsg(m){if(!SC||SC.msg===m)return;SC.msg=m;const el=$('#scanMsg');if(el)el.textContent=m}
 async function scanSave(r,auto){
-  const ans=r.ans.join('').replace(/\*/g,'-');let st=r.st;
+  const ans=r.ans.join('').replace(/\*/g,'-');let st=r.st;const img=scanFlat(r);
   if(!st){const nm=fixNameC(val('scName'));if(nm.split(' ').length<2){toast('Familiya va ismni yozing',true);return}
     const same=X.st.find(s=>s.class_id===SC.cid&&nKey(s.name)===nKey(nm));
     if(same)st=same;else{try{const x=await api('student.save',{name:nm,class_id:SC.cid,phone:''});await load();st=X.st.find(s=>s.id===x.id)}catch(e){toast(e.message,true);return}}
     if(!st){toast('Bola qo’shilmadi',true);return}}
   const body={test_id:SC.tid,student_id:st.id,absent:false,mode:'harf',answers:ans,bits:'',variant:r.qr.v,src:'skaner'};
   SC.msg=SC_ERR.marker;
-  try{const x=await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,r:{...r,st}};SC.view='live';SC.res=null;scanDraw(true);await load();scanDraw(true)}
-  catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,r:{...r,st}};SC.view='live';SC.res=null;scanDraw(true)}
+  try{const x=await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);await load();scanDraw(true)}
+  catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img)}
     else{toast(e.message,true);if(auto){SC.res=r;SC.view='check';scanDraw()}}}}
 const fixNameC=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/([oOgG])[`'‘’ʻʼ´]/g,'$1‘').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
 function scanPhoto(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';
@@ -3051,7 +3076,7 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const c=X.cl[SC.c
    <div class="scan-ans">${r.ans.map((a,i)=>`<button data-sa="ch" data-i="${i}" class="${a==='*'?'x':a==='-'?'e':''}${r.unsure?.[i]?' u':''}"><small>${i+1}</small><b>${a==='*'?'2+':a==='-'?'—':a}</b></button>`).join('')}</div>
    <div class="actions"><button class="btn sec" data-sa="live">Bekor qilish</button><button class="btn pri" data-sa="save">Saqlash</button></div></div>`}
 function scanOkHtml(){const o=SC?.okMsg;if(!o)return '<div id="scanOk"></div>';
-  return `<div id="scanOk" class="scan-ok"><div class="m"><b>✓ ${esc(o.name)}</b><small>${o.score==null?'internet yo’q — telefonda saqlandi, keyin o’zi yuboriladi':`${o.qn===100?num(o.score)+' ball':o.score+' / '+o.qn+' to’g’ri'} · saqlandi`}</small></div><button class="btn sec sm" data-sa="fix">Tuzatish</button></div>`}
+  return `<div id="scanOk" class="scan-ok">${o.img?`<img src="${o.img}" alt="">`:''}<div class="m"><b>✓ ${esc(o.name)}</b><small>${o.score==null?'internet yo’q — telefonda saqlandi, keyin o’zi yuboriladi':`${o.qn===100?num(o.score)+' ball':o.score+' / '+o.qn+' to’g’ri'} · saqlandi`}</small></div><button class="btn sec sm" data-sa="fix">Tuzatish</button></div>`}
 async function scanClick(e){const b=e.target.closest('[data-sa]');e.stopPropagation();if(!b||!SC)return;const a=b.dataset.sa;
   try{
   if(a==='close'){scanClose();return}
@@ -3640,6 +3665,9 @@ function scrDemo(){
   <div class="card pad"><p style="margin:0">Kartochkani bossangiz, sayt aynan o’sha odam ko’radigandek ochiladi. Namuna ma’lumotlar (maktab, sinflar, bolalar) haqiqiy ro’yxat, reyting va statistikaga qo’shilmaydi. Jamoa sardori va a’zosi kabinetida faqat ko’rish mumkin — o’zgartirish bloklangan.</p></div>
   ${DEMO_C.map(([r,ic,t,s])=>`<div class="card pad dm-card"><div class="dm-h"><span class="dm-ic">${ic}</span><div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:16px">${t}</div><div class="note" style="margin-top:2px">${s}</div></div><button class="btn pri sm" data-act="demoGo" data-r="${r}">Kirib ko’rish</button></div>${r==='jamoa'||r==='sardor'?box(r):''}</div>`).join('')}
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
+window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>demoExit();
+const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
+window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
 const oqBo=()=>!!(S&&S.me&&S.me.demo&&!isTeam()&&!['direktor','rahbar'].includes(S.me.role));
 const demoBar=()=>''; // Namuna kabinetda ortiqcha lenta yo'q; CEO ga qaytish — yuqoridagi chiqish tugmasi
 async function demoGo(r){const perms={};document.querySelectorAll(`[data-dp="${r}"]`).forEach(i=>{if(i.checked)perms[i.value]=true});
@@ -3701,7 +3729,7 @@ function nActive(){const t=curTest();const l=t?S.schools.filter(s=>!s.test).map(
   return `<div class="nc e-act">${hT('medal','#2563eb','Eng faol maktablar <small>(o’rtacha natija)</small>')}${l.length?l.map((x,i)=>`<div class="nas"><span class="rk r${i+1}">${i+1}</span><span class="nn">${mkN(x.sc)} (Qorako’l)</span><span class="nb"><i style="width:${x.v}%"></i></span><b>${Math.round(x.v)}%</b></div>`).join(''):'<p class="note">Natijalar hali yo’q</p>'}</div>`}
 function nGifted(){const t=curTest();const n=t?X.st.filter(s=>{const p=pct(R(s.id,t.id));return p!=null&&p>=70}).length:0;
   return `<button class="nc ngf" data-side="yuqori">${hT('cup','#f5a400','Iqtidorli o’quvchilar')}<div class="ngf-b"><img src="${NP_GIFT}" alt=""><b>${nfm(n)}</b><span>&gt; 70%</span></div></button>`}
-function nRecent(){if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
+function nRecent(){if(!P('tarix'))return '<p class="note">Faoliyatlar tarixini ko’rish huquqi sizda yo’q.</p>';if(!RECENT)return '<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>';if(!RECENT.length)return '<p class="note">Hali faoliyat yo’q</p>';
   const nm=Object.fromEntries((S.team||[]).map(u=>[u.id,u.role==='ceo'?'CEO':u.name]));const IC=[['maktab','school','#2563eb'],['sinf','school','#2563eb'],['oquvchi','user','#7c3aed'],['natija','clip','#7c3aed'],['sertifikat','award','#16a34a'],['pin','key','#16a34a'],['sinov','clip','#7c3aed'],['dars','play','#7c3aed'],['test','file','#2563eb']];
   return RECENT.slice(0,5).map(h=>{const k=IC.find(x=>h.action.startsWith(x[0]))||['','clock','#2563eb'];const d=h.detail||{};const what=(typeof ACT_L!=='undefined'&&ACT_L[h.action])||h.action.replace('.',' ');
     return `<div class="nr">${SV(NPI[k[1]]||EI.clock,k[2],1.9)}<div><b>${esc(nm[h.user_id]||'')} ${esc(what)}${d.name?' · '+esc(d.name):d.num?' · '+mkN(d)+'':''}</b><small>${npAgo(h.at)}</small></div></div>`}).join('')}
@@ -3790,6 +3818,8 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=64" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=10" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
@@ -3974,14 +4004,14 @@ document.addEventListener('click',async e=>{
    case 'phoneEdit':openPhone(+d.id);break;
    case 'phoneSave':await api('student.phone',{id:+d.id,phone:val('inP')});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'noinst':ls.set('noinst',true);render();break;
-   case 'logout':await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logout':await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav');localStorage.removeItem('yx_act')}catch(e){};stack=[];tab=null;render();break;
    case 'rnoteSave':{const text=$('#rnote')?.value||'';await api('rnote.save',{student_id:+d.id,text});S.rnotes=S.rnotes||{};if(text.trim())S.rnotes[+d.id]={text,at:new Date().toISOString()};else delete S.rnotes[+d.id];toast(text.trim()?'Eslatma saqlandi':'Eslatma o’chirildi');render();break}
    case 'composeTo':{tab='xabar';stack=[];openCompose('ota');const sel=$('#cmStu');if(sel)sel.value=String(d.id);break}
    case 'rtAns':RT.ans=!RT.ans;render();break;
    case 'obunaSet':{const on=d.on==='1';if(!confirm(on?'Bu sinf uchun obuna yoqilsinmi?':'Obuna o’chirilsinmi?'))break;await api('class.obuna',{id:+d.id,on});toast(on?'Obuna yoqildi':'Obuna o’chirildi');await load();break}
    case 'rtMore':RT.rows=null;render();break;
    case 'rtPrint':rtPrint();break;
-   case 'logoutAsk':if(S.me&&S.me.demo){await demoExit();break}if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav')}catch(e){};stack=[];tab=null;render();break;
+   case 'logoutAsk':if(S.me&&S.me.demo){await demoExit();break}if(!confirm('Saytdan chiqmoqchimisiz?\n\nQayta kirish uchun PIN kodingiz kerak bo’ladi.'))break;closeSheet();await pushOff();await api('logout');S=null;try{localStorage.removeItem('yx_nav');localStorage.removeItem('yx_act')}catch(e){};stack=[];tab=null;render();break;
    case 'meInfo':NP_OPEN=false;document.body.classList.remove('np-open');openMeInfo();break;
    case 'nRange':NRANGE=+d.n;render();break;
    case 'npSoon':toast('Bu bo’lim tez kunda qo’shiladi');break;
@@ -4114,7 +4144,27 @@ document.addEventListener('click',async e=>{
   }}catch(err){toast(err.message,true)}
 });
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(!S&&/^\d$/.test(e.key)){document.querySelector(`[data-d="${e.key}"]`)?.click()}if(!S&&e.key==='Backspace'){pin=pin.slice(0,-1);render()}});
-if(location.pathname.startsWith('/t/'))renderVerify(decodeURIComponent(location.pathname.slice(3)));else load().then(flushQueue);
+// ---------------- 30 daqiqa hech narsa bosilmasa — kirish yopiladi, PIN (parol) qayta so'raladi. Brauzer yopilsa ham (server kirishni eslab qolmaydi).
+const IDLE=30*60*1000,IDLE_MSG='30 daqiqa hech narsa bosilmadi. Xavfsizlik uchun qaytadan kiring.';let actPing=0;
+const actGet=()=>{try{return +localStorage.getItem('yx_act')||0}catch(e){return 0}};
+async function idleOut(){if(!S)return;S=null;stack=[];tab=null;pin='';pinErr=IDLE_MSG;
+  try{localStorage.removeItem('yx_act');localStorage.removeItem('yx_nav')}catch(e){}
+  try{closeSheet()}catch(e){}render();try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'})}catch(e){}}
+function markAct(){const n=Date.now(),a=actGet();if(S&&a&&n-a>IDLE){idleOut();return}
+  try{if(S&&n-a>5000)localStorage.setItem('yx_act',String(n))}catch(e){}
+  if(S&&n-actPing>60000){actPing=n;fetch('/api/ping',{method:'POST',credentials:'same-origin'}).catch(()=>{})}}
+// harakat: bosish, yozish, aylantirish — ichki oynalarda ham (o'quvchi kabineti, darslar)
+const ACT_EV=['pointerdown','keydown','wheel','touchstart','input'];
+function actHook(w){try{const d=w.document;if(!d||d.__yxAct)return;d.__yxAct=1;ACT_EV.forEach(e=>d.addEventListener(e,markAct,{capture:true,passive:true}));
+  d.addEventListener('load',ev=>{if(ev.target&&ev.target.tagName==='IFRAME')actHook(ev.target.contentWindow)},true);
+  d.querySelectorAll('iframe').forEach(f=>actHook(f.contentWindow))}catch(e){}}
+actHook(window);
+function idleCheck(){const a=actGet();if(S&&a&&Date.now()-a>IDLE)idleOut()}
+setInterval(idleCheck,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)idleCheck()});
+if(location.pathname.startsWith('/t/'))renderVerify(decodeURIComponent(location.pathname.slice(3)));
+else{const a=actGet();if(a&&Date.now()-a>IDLE){try{localStorage.removeItem('yx_act');localStorage.removeItem('yx_nav')}catch(e){}pinErr=IDLE_MSG;
+  fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>load()).then(flushQueue)}
+ else load().then(flushQueue)}
 </script>
 </body>
 </html>
