@@ -131,7 +131,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
+const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
