@@ -3666,6 +3666,8 @@ function scrDemo(){
   ${DEMO_C.map(([r,ic,t,s])=>`<div class="card pad dm-card"><div class="dm-h"><span class="dm-ic">${ic}</span><div class="m" style="flex:1"><div class="n" style="font-weight:700;font-size:16px">${t}</div><div class="note" style="margin-top:2px">${s}</div></div><button class="btn pri sm" data-act="demoGo" data-r="${r}">Kirib ko’rish</button></div>${r==='jamoa'||r==='sardor'?box(r):''}</div>`).join('')}
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
 window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>demoExit();
+const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
+window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
 const oqBo=()=>!!(S&&S.me&&S.me.demo&&!isTeam()&&!['direktor','rahbar'].includes(S.me.role));
 const demoBar=()=>''; // Namuna kabinetda ortiqcha lenta yo'q; CEO ga qaytish — yuqoridagi chiqish tugmasi
 async function demoGo(r){const perms={};document.querySelectorAll(`[data-dp="${r}"]`).forEach(i=>{if(i.checked)perms[i.value]=true});
@@ -3816,6 +3818,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=63" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=10" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
