@@ -10,9 +10,18 @@ APP="/opt/yx"
 APPT="/opt/yx-test"
 export DEBIAN_FRONTEND=noninteractive
 
+# Rejim: "full" (birinchi o'rnatish yoki qo'lda) — hammasi; "update" (avtomatik yangilanish) — faqat o'zgargan fayllar.
+# Qoida: ASOSIY sayt faqat o'zining server.js fayli o'zgarganda qayta ishga tushadi. Sinov fayllari unga tegmaydi.
+MODE="${1:-full}"
+case "$MODE" in full|update) ;; *) echo "Noma'lum rejim: $MODE (full yoki update)"; exit 1;; esac
 say(){ echo; echo "==> $*"; }
+# faylni olish: yangilovchi allaqachon yuklab qo'ygan bo'lsa (YX_SRC) — o'sha yerdan, bo'lmasa GitHub'dan
+TS=$(date +%s)
+olish(){ # $1 = fayl nomi, $2 = qayerga
+  if [ -n "${YX_SRC:-}" ] && [ -s "$YX_SRC/$1" ]; then cp "$YX_SRC/$1" "$2"; else curl -fsSL "$REPO/$1?$TS" -o "$2"; fi; }
 [ "$(id -u)" = "0" ] || { echo "Bu buyruqni root sifatida ishga tushiring (yoki boshiga sudo qo'shing)."; exit 1; }
 
+if [ "$MODE" = full ]; then
 say "1/8 Kerakli dasturlar o'rnatilmoqda (bir necha daqiqa)"
 apt-get update -qq
 apt-get install -y -qq curl ca-certificates nginx certbot python3-certbot-nginx sqlite3 >/dev/null
@@ -23,26 +32,41 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
 apt-get install -y -qq nodejs >/dev/null
 fi
 echo "Node.js $(node -v)"
+fi
 
 # rasmlar.tar.gz → public/a  (sayt rasmlari alohida fayl: telefon bir marta yuklab, keyin xotiradan oladi)
-put_rasmlar(){ # $1 = public papka
-  if curl -fsSL "$REPO/rasmlar.tar.gz?$TS" -o /tmp/yx-rasm.tgz 2>/dev/null && tar -tzf /tmp/yx-rasm.tgz >/dev/null 2>&1; then
-    rm -rf "$1/a.new"; mkdir -p "$1/a.new"; tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner
-    rm -rf "$1/a.old"; [ -d "$1/a" ] && mv "$1/a" "$1/a.old"; mv "$1/a.new" "$1/a"; rm -rf "$1/a.old"
-  fi; }
+# Arxiv ichidagi k/ papka — hali tugallanmagan kabinet sahifalari. Ular FAQAT sinov saytiga ochiladi;
+# asosiy saytga (asosiy) k/ umuman chiqarilmaydi. Arxivning o'zi va sahifalar kodi o'zgarmaydi.
+RASM_OK=0
+rasm_olish(){ RASM_OK=0; if olish rasmlar.tar.gz /tmp/yx-rasm.tgz 2>/dev/null && tar -tzf /tmp/yx-rasm.tgz >/dev/null 2>&1; then RASM_OK=1; fi; }
+put_rasmlar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi
+  [ "$RASM_OK" = 1 ] || return 0
+  if [ -d "$1/a" ] && cmp -s /tmp/yx-rasm.tgz "$3" && { [ "$2" = sinov ] || [ ! -e "$1/a/k" ]; }; then return 0; fi # o'zgarmagan
+  rm -rf "$1/a.new"; mkdir -p "$1/a.new"
+  if [ "$2" = asosiy ]; then tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner --anchored --exclude='k' --exclude='./k'
+  else tar -xzf /tmp/yx-rasm.tgz -C "$1/a.new" --no-same-owner; fi
+  rm -rf "$1/a.old"; [ -d "$1/a" ] && mv "$1/a" "$1/a.old"; mv "$1/a.new" "$1/a"; rm -rf "$1/a.old"
+  cp /tmp/yx-rasm.tgz "$3"; echo "Rasmlar yangilandi ($2)"; }
 
 say "2/8 Sayt fayllari yuklanmoqda"
 id yx >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin -d "$APP" yx
 mkdir -p "$APP/public" "$APP/data" "$APP/backups"
-TS=$(date +%s)
-curl -fsSL "$REPO/server.js?$TS" -o "$APP/server.js.new"
-curl -fsSL "$REPO/index.html?$TS" -o "$APP/public/index.html.new"
+olish server.js "$APP/server.js.new"
+olish index.html "$APP/public/index.html.new"
 grep -q "Yosh Xorazmiylar" "$APP/server.js.new" || { echo "server.js yuklanmadi. GitHub'dagi fayl nomini tekshiring."; exit 1; }
 grep -q "YOSH XORAZMIYLAR" "$APP/public/index.html.new" || { echo "index.html yuklanmadi. GitHub'dagi fayl nomini tekshiring."; exit 1; }
-cp "$APP/server.js.new" /tmp/yx-check.js && node --check /tmp/yx-check.js && rm -f /tmp/yx-check.js
-mv "$APP/server.js.new" "$APP/server.js"
-mv "$APP/public/index.html.new" "$APP/public/index.html"
-if curl -fsSL "$REPO/darslar.tar.gz?$TS" -o /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt && grep -qx 'index.html' /tmp/yx-darslar.txt; then
+# yozuvida xato bor server.js hech qachon o'rnatilmaydi: ishlab turgan fayl joyida qoladi
+cp "$APP/server.js.new" /tmp/yx-check.js
+node --check /tmp/yx-check.js || { echo "Yangi server.js da yozuv xatosi bor — o'rnatilmadi, sayt eski fayl bilan ishlayapti."; rm -f /tmp/yx-check.js "$APP/server.js.new" "$APP/public/index.html.new"; exit 1; }
+rm -f /tmp/yx-check.js
+# server.js faqat haqiqatan o'zgargan bo'lsa almashtiriladi (shundagina xizmat qayta ishga tushadi); eski nusxa saqlab qo'yiladi
+SRV_CH=0
+if cmp -s "$APP/server.js.new" "$APP/server.js" 2>/dev/null; then rm -f "$APP/server.js.new"
+else [ -f "$APP/server.js" ] && cp -p "$APP/server.js" "$APP/server.js.prev"; mv "$APP/server.js.new" "$APP/server.js"; SRV_CH=1; fi
+# sahifa: server uni har so'rovda diskdan o'qiydi — qayta ishga tushirish kerak emas
+if cmp -s "$APP/public/index.html.new" "$APP/public/index.html" 2>/dev/null; then rm -f "$APP/public/index.html.new"
+else mv "$APP/public/index.html.new" "$APP/public/index.html"; echo "Sahifa yangilandi (asosiy)"; fi
+if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && ! cmp -s /tmp/yx-darslar.tgz "$APP/.darslar.tgz" && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt && grep -qx 'index.html' /tmp/yx-darslar.txt; then
 rm -rf "$APP/public/darslar.new"; mkdir -p "$APP/public/darslar.new"
 tar -xzf /tmp/yx-darslar.tgz -C "$APP/public/darslar.new" --no-same-owner
 rm -rf "$APP/public/darslar.old"; [ -d "$APP/public/darslar" ] && mv "$APP/public/darslar" "$APP/public/darslar.old"
@@ -51,13 +75,14 @@ cp /tmp/yx-darslar.tgz "$APP/.darslar.tgz"
 echo "Mavzu darslari o'rnatildi: $(ls "$APP/public/darslar/m" | wc -l) ta mavzu"
 fi
 rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
-put_rasmlar "$APP/public"; [ -f /tmp/yx-rasm.tgz ] && cp /tmp/yx-rasm.tgz "$APP/.rasmlar.tgz"
+rasm_olish; put_rasmlar "$APP/public" asosiy "$APP/.rasmlar.tgz"
 # yangi o'quvchi kabineti hozircha saytda yo'q (kelishilgandan keyin qo'yiladi): eski sinov fayllari o'chiriladi
 rm -rf "$APP/public/oq" "$APP/public/oq.new" "$APP/public/oq.old" "$APP/.oq.tgz"
 chown -R yx:yx "$APP"
 chmod 700 "$APP/data" "$APP/backups"
 
 say "3/8 Sayt xizmati sozlanmoqda"
+if [ "$MODE" = full ] || [ ! -f /etc/systemd/system/yx.service ]; then
 cat > /etc/systemd/system/yx.service <<EOF
 [Unit]
 Description=Yosh Xorazmiylar
@@ -75,10 +100,25 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable yx >/dev/null 2>&1
-systemctl restart yx
-sleep 2
-systemctl is-active --quiet yx || { echo "Sayt ishga tushmadi:"; journalctl -u yx -n 30 --no-pager; exit 1; }
+fi
+if [ "$SRV_CH" = 1 ] || ! systemctl is-active --quiet yx; then
+  systemctl restart yx
+  sleep 2
+  if ! systemctl is-active --quiet yx; then
+    echo "Sayt yangi server.js bilan ishga tushmadi:"; journalctl -u yx -n 30 --no-pager || true
+    if [ "$SRV_CH" = 1 ] && [ -f "$APP/server.js.prev" ]; then # avvalgi ishlab turgan nusxaga qaytish
+      cp -p "$APP/server.js" "$APP/server.js.yomon"; cp -p "$APP/server.js.prev" "$APP/server.js"; chown yx:yx "$APP/server.js"
+      systemctl restart yx; sleep 2
+      systemctl is-active --quiet yx && echo "Avvalgi server.js qaytarildi — sayt ishlayapti." || echo "DIQQAT: avvalgi nusxa bilan ham ishga tushmadi!"
+    fi
+    exit 1
+  fi
+  echo "Asosiy sayt qayta ishga tushirildi (server.js o'zgardi)."
+else
+  echo "Asosiy sayt qayta ishga tushirilmadi (server.js o'zgarmagan)."
+fi
 
+if [ "$MODE" = full ]; then
 say "4/8 Veb-server (nginx) sozlanmoqda"
 if [ ! -f /etc/nginx/sites-available/yx ]; then
 cat > /etc/nginx/sites-available/yx <<EOF
@@ -115,23 +155,32 @@ certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --re
 else
 echo "https allaqachon sozlangan."
 fi
+fi
 
 say "6/8 Sinov sayti (test.$DOMAIN)"
 sinov_sayti(){
 # GitHub'da test-server.js va test-index.html bo'lsa — alohida sinov sayti ishga tushadi.
 # U haqiqiy bazaning NUSXASI bilan ishlaydi: u yerdagi o'zgarishlar asosiy saytga hech qachon tegmaydi.
-if curl -fsSL "$REPO/test-server.js?$TS" -o /tmp/yx-ts.js 2>/dev/null && curl -fsSL "$REPO/test-index.html?$TS" -o /tmp/yx-ti.html 2>/dev/null \
+# Bu qism FAQAT sinov saytiga tegadi: asosiy xizmat (yx) bu yerda hech qachon qayta ishga tushirilmaydi.
+if olish test-server.js /tmp/yx-ts.js 2>/dev/null && olish test-index.html /tmp/yx-ti.html 2>/dev/null \
    && grep -q "Yosh Xorazmiylar" /tmp/yx-ts.js && node --check /tmp/yx-ts.js; then
   mkdir -p "$APPT/public" "$APPT/data" "$APPT/backups"
-  mv /tmp/yx-ts.js "$APPT/server.js"; mv /tmp/yx-ti.html "$APPT/public/index.html"
+  TST_CH=0
+  if cmp -s /tmp/yx-ts.js "$APPT/server.js" 2>/dev/null; then rm -f /tmp/yx-ts.js; else mv /tmp/yx-ts.js "$APPT/server.js"; TST_CH=1; fi
+  if cmp -s /tmp/yx-ti.html "$APPT/public/index.html" 2>/dev/null; then rm -f /tmp/yx-ti.html; else mv /tmp/yx-ti.html "$APPT/public/index.html"; echo "Sahifa yangilandi (sinov)"; fi
   ln -sfn "$APP/public/darslar" "$APPT/public/darslar"
-  put_rasmlar "$APPT/public"
+  put_rasmlar "$APPT/public" sinov "$APPT/.rasmlar.tgz"
   if [ ! -f "$APPT/data/yx.db" ] || [ -f "$APPT/.yangila" ]; then
     systemctl stop yx-test 2>/dev/null || true
     rm -f "$APPT/data/yx.db" "$APPT/data/yx.db-wal" "$APPT/data/yx.db-shm" "$APPT/.yangila"
     sqlite3 "$APP/data/yx.db" ".backup '$APPT/data/yx.db'" && echo "Sinov saytiga haqiqiy bazaning nusxasi qo'yildi."
+    # nusxadan haqiqiy odamlarga xabar yuborish vositalari olib tashlanadi (bot kaliti, Telegram bog'lanishlari, bildirishnoma obunalari).
+    # Bu faqat SINOV nusxasiga tegadi; asosiy baza faqat o'qiladi.
+    sqlite3 "$APPT/data/yx.db" "DELETE FROM settings WHERE key='bot_token'; DELETE FROM tg_users; DELETE FROM push_subs;" 2>/dev/null || true
+    TST_CH=1
   fi
   chown -R yx:yx "$APPT"; chmod 700 "$APPT/data"
+  if [ "$MODE" = full ] || [ ! -f /etc/systemd/system/yx-test.service ]; then
   cat > /etc/systemd/system/yx-test.service <<EOF
 [Unit]
 Description=Yosh Xorazmiylar (sinov)
@@ -150,7 +199,10 @@ RestartSec=3
 [Install]
 WantedBy=multi-user.target
 EOF
-  systemctl daemon-reload; systemctl enable yx-test >/dev/null 2>&1; systemctl restart yx-test
+  systemctl daemon-reload; systemctl enable yx-test >/dev/null 2>&1; TST_CH=1
+  fi
+  if [ "$TST_CH" = 1 ] || ! systemctl is-active --quiet yx-test; then systemctl restart yx-test; echo "Sinov sayti qayta ishga tushirildi."; fi
+  if [ "$MODE" = full ]; then
   if [ ! -f /etc/nginx/sites-available/yx-test ]; then
   cat > /etc/nginx/sites-available/yx-test <<EOF
 server {
@@ -172,6 +224,7 @@ EOF
     certbot --nginx -d "test.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect -q \
     || echo "DIQQAT: test.$DOMAIN uchun https sozlanmadi — domen panelida 'test' yozuvi qo'shilganini tekshiring."
   fi
+  fi
   echo "Sinov sayti: https://test.$DOMAIN"
 else
   echo "GitHub'da test-server.js / test-index.html yo'q — sinov sayti o'tkazib yuborildi."
@@ -187,41 +240,47 @@ EOF
 chmod 644 /etc/cron.d/yx-backup
 
 # Avtomatik yangilanish: GitHub'ga yangi fayl yuklansa, server 5 daqiqa ichida o'zi o'rnatadi.
-cat > /usr/local/bin/yx-update <<'UPD'
+# avval yoniga yoziladi, keyin bir zumda almashtiriladi: ishlab turgan yangilovchi yarim yozilgan faylni o'qib qolmasin
+cat > /usr/local/bin/yx-update.new <<'UPD'
 #!/bin/bash
+# Har 5 daqiqada: GitHub'dagi fayllar o'zgargan bo'lsa, install.sh "update" rejimida ishlaydi.
+# U har faylni alohida solishtiradi: sinov fayli o'zgarsa — faqat sinov sayti; asosiy sayt faqat o'z server.js o'zgarsa qayta ishga tushadi.
 R="https://raw.githubusercontent.com/sirojapps/yoshxorazmiylar/main"
 exec 9>/run/yx-update.lock; flock -n 9 || exit 0
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 TS=$(date +%s)
-curl -fsSL "$R/server.js?$TS" -o "$T/s" || exit 0
-curl -fsSL "$R/index.html?$TS" -o "$T/i" || exit 0
-g(){ curl -fsSL "$R/$1?$TS" -o "$T/$2" 2>/dev/null || : > "$T/$2"; }
-g darslar.tar.gz d; g rasmlar.tar.gz r; g oq.tar.gz q; g test-server.js ts; g test-index.html ti
+curl -fsSL "$R/server.js?$TS" -o "$T/server.js" || exit 0
+curl -fsSL "$R/index.html?$TS" -o "$T/index.html" || exit 0
+curl -fsSL "$R/install.sh?$TS" -o "$T/install.sh" || exit 0
+g(){ curl -fsSL "$R/$1?$TS" -o "$T/$1" 2>/dev/null || rm -f "$T/$1"; }
+g darslar.tar.gz; g rasmlar.tar.gz; g test-server.js; g test-index.html
 ch=0
-cmp -s "$T/s" /opt/yx/server.js || ch=1
-cmp -s "$T/i" /opt/yx/public/index.html || ch=1
-[ -s "$T/d" ] && ! cmp -s "$T/d" /opt/yx/.darslar.tgz && ch=1
-[ -s "$T/r" ] && ! cmp -s "$T/r" /opt/yx/.rasmlar.tgz && ch=1
-[ -s "$T/q" ] && ! cmp -s "$T/q" /opt/yx/.oq.tgz && ch=1
-[ -s "$T/ts" ] && ! cmp -s "$T/ts" /opt/yx-test/server.js && ch=1
-[ -s "$T/ti" ] && ! cmp -s "$T/ti" /opt/yx-test/public/index.html && ch=1
+cmp -s "$T/server.js" /opt/yx/server.js || ch=1
+cmp -s "$T/index.html" /opt/yx/public/index.html || ch=1
+cmp -s "$T/install.sh" /opt/yx/.install.sh || ch=1
+[ -s "$T/darslar.tar.gz" ] && ! cmp -s "$T/darslar.tar.gz" /opt/yx/.darslar.tgz && ch=1
+[ -s "$T/rasmlar.tar.gz" ] && ! cmp -s "$T/rasmlar.tar.gz" /opt/yx/.rasmlar.tgz && ch=1
+[ -s "$T/test-server.js" ] && ! cmp -s "$T/test-server.js" /opt/yx-test/server.js && ch=1
+[ -s "$T/test-index.html" ] && ! cmp -s "$T/test-index.html" /opt/yx-test/public/index.html && ch=1
 [ -f /opt/yx-test/.yangila ] && ch=1
 [ $ch = 0 ] && exit 0
 H=$(cat "$T"/* | sha256sum | cut -c1-16)
 [ "$(cat /opt/yx/.last-try 2>/dev/null)" = "$H" ] && [ ! -f /opt/yx-test/.yangila ] && exit 0
 echo "=== $(date '+%F %T') yangilanish boshlandi" >> /var/log/yx-update.log
-curl -fsSL "$R/install.sh?$TS" | bash >> /var/log/yx-update.log 2>&1 \
-&& echo "=== $(date '+%F %T') muvaffaqiyatli" >> /var/log/yx-update.log \
+YX_SRC="$T" bash "$T/install.sh" update >> /var/log/yx-update.log 2>&1 \
+&& { cp "$T/install.sh" /opt/yx/.install.sh; echo "=== $(date '+%F %T') muvaffaqiyatli" >> /var/log/yx-update.log; } \
 || { echo "$H" > /opt/yx/.last-try; echo "=== $(date '+%F %T') XATO, eski versiya ishlab turibdi" >> /var/log/yx-update.log; }
 UPD
-chmod 755 /usr/local/bin/yx-update
+chmod 755 /usr/local/bin/yx-update.new
+mv -f /usr/local/bin/yx-update.new /usr/local/bin/yx-update
 echo "*/5 * * * * root /usr/local/bin/yx-update" > /etc/cron.d/yx-update
 chmod 644 /etc/cron.d/yx-update
 echo "Avtomatik yangilanish yoqildi."
 
 say "8/8 Tayyor!"
 echo "Sayt: https://$DOMAIN"
-if [ -f "$APP/data/ceo-pin.txt" ]; then
+# CEO PIN kodi hech qachon jurnalga yozilmaydi: faqat qo'lda (terminalda) to'liq o'rnatishda bir marta ko'rsatiladi
+if [ "$MODE" = full ] && [ -t 1 ] && [ -f "$APP/data/ceo-pin.txt" ]; then
 echo
 echo " Sizning CEO PIN kodingiz: $(cat "$APP/data/ceo-pin.txt")"
 echo " Uni yozib oling. Keyin ko'rish uchun: cat $APP/data/ceo-pin.txt"
