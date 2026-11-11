@@ -1505,6 +1505,7 @@ function extras(u, out) {
 const TG_API = process.env.TG_API || 'https://api.telegram.org';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function tg(method, body) {
+  if (process.env.YX_TEST === '1') return null; // sinov sayti: haqiqiy odamlarga Telegram orqali hech narsa yuborilmaydi
   const token = getSet('bot_token'); if (!token) return null;
   try {
     const r = await fetch(`${TG_API}/bot${token}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
@@ -2077,6 +2078,7 @@ function pushEncrypt(sub, text) { // RFC 8291, aes128gcm
   return Buffer.concat([salt, rs, Buffer.from([as.length]), as, body]);
 }
 async function pushOne(sub, data) {
+  if (process.env.YX_TEST === '1') return; // sinov sayti: telefonlarga bildirishnoma yuborilmaydi
   try {
     const r = await fetch(sub.endpoint, { method: 'POST', headers: { TTL: '86400', Urgency: 'high', 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', Authorization: vapidAuth(sub.endpoint) }, body: pushEncrypt(sub, JSON.stringify(data)), signal: AbortSignal.timeout(10000) });
     if (r.status === 404 || r.status === 410) run('DELETE FROM push_subs WHERE endpoint=?', sub.endpoint); // obuna eskirgan
@@ -2560,6 +2562,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/darslar') { res.writeHead(301, { Location: '/darslar/', ...SEC }); return res.end(); }
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
+    // Tugallanmagan kabinet sahifalari (/a/k/) faqat sinov saytida beriladi. Asosiy saytda bu yo'l yopiq: fayl diskda bo'lsa ham berilmaydi.
+    if (process.env.YX_TEST !== '1' && /^\/a\/k(\/|$)/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); }
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
