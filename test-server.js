@@ -512,7 +512,7 @@ A['students.merge'] = (u, b) => {
 A['student.delete'] = (u, b) => {
   need(ownsSchool(u, schoolOfStudent(b.id)));
   const s = one('SELECT s.id,s.name,c.name cls,sc.num,sc.id sid FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE s.id=? AND s.active=1', +b.id); if (!s) return {};
-  tx(() => { run('UPDATE students SET active=0 WHERE id=?', s.id); run('INSERT INTO trash(kind,ref_id,label,info,school_id,by,at) VALUES(?,?,?,?,?,?,?)', 'student', s.id, s.name, `${s.num}-maktab · ${s.cls}`, s.sid, u.id, now()); });
+  tx(() => { run('UPDATE students SET active=0 WHERE id=?', s.id); run('INSERT INTO trash(kind,ref_id,label,info,school_id,by,at) VALUES(?,?,?,?,?,?,?)', 'student', s.id, s.name, `${mkNum(s.num)} · ${s.cls}`, s.sid, u.id, now()); });
   log(u.id, 'oquvchi.ochirish', { id: s.id, name: s.name }); return {};
 };
 A['student.restore'] = (u, b) => { need(ownsSchool(u, schoolOfStudent(b.id))); run('UPDATE students SET active=1 WHERE id=?', b.id); run("DELETE FROM trash WHERE kind='student' AND ref_id=?", +b.id); log(u.id, 'oquvchi.qaytarish', { id: b.id }); return {}; };
@@ -552,7 +552,7 @@ A['school.delete'] = (u, b) => {
     run(`DELETE FROM iresults WHERE itest_id IN (${inList(its)})`, ...its); run('DELETE FROM itests WHERE school_id=?', sc.id);
     dropStudents(sids); run('DELETE FROM approvals WHERE school_id=?', sc.id); run('DELETE FROM announcements WHERE school_id=?', sc.id);
     run('DELETE FROM classes WHERE school_id=?', sc.id); run('DELETE FROM schools WHERE id=?', sc.id);
-    toTrash(u, 'school', sc.id, `${sc.num}-maktab`, `${cls.length} sinf · ${sids.length} o‘quvchi`, sc.id, d);
+    toTrash(u, 'school', sc.id, `${mkNum(sc.num)}`, `${cls.length} sinf · ${sids.length} o‘quvchi`, sc.id, d);
     log(u.id, 'maktab.ochirish', { num: sc.num, sinf: cls.length, oquvchi: sids.length }); return {};
   });
 };
@@ -568,8 +568,8 @@ A['class.delete'] = (u, b) => {
     d.users = offUsers("role='rahbar' AND class_id=?", c.id);
     run(`DELETE FROM iresults WHERE itest_id IN (${inList(its)})`, ...its); run('DELETE FROM itests WHERE class_id=?', c.id);
     dropStudents(sids); run('DELETE FROM classes WHERE id=?', c.id);
-    toTrash(u, 'class', c.id, `${c.num}-maktab · ${c.name} sinf`, `${sids.length} o‘quvchi`, c.school_id, d);
-    log(u.id, 'sinf.ochirish', { name: `${c.num}-maktab ${c.name}`, oquvchi: sids.length }); return {};
+    toTrash(u, 'class', c.id, `${mkNum(c.num)} · ${c.name} sinf`, `${sids.length} o‘quvchi`, c.school_id, d);
+    log(u.id, 'sinf.ochirish', { name: `${mkNum(c.num)} ${c.name}`, oquvchi: sids.length }); return {};
   });
 };
 A['test.delete'] = (u, b) => {
@@ -1204,11 +1204,11 @@ function pinTargets() {
   const list = [];
   for (const s of all('SELECT * FROM schools ORDER BY num')) {
     const us = users.find(x => x.role === 'direktor' && x.school_id === s.id && x.active);
-    list.push({ kind: 'direktor', ref: s.id, school_id: s.id, name: s.director_name || (s.num + '-maktab direktori'), phone: s.director_phone, user: us || null });
+    list.push({ kind: 'direktor', ref: s.id, school_id: s.id, name: s.director_name || (mkNum(s.num) + ' direktori'), phone: s.director_phone, user: us || null });
   }
   for (const c of all('SELECT c.*,s.num FROM classes c JOIN schools s ON s.id=c.school_id ORDER BY s.num,c.grade,c.name')) {
     const us = users.find(x => x.role === 'rahbar' && x.class_id === c.id && x.active);
-    list.push({ kind: 'rahbar', ref: c.id, school_id: c.school_id, class_id: c.id, name: c.teacher_name || (c.num + '-maktab ' + c.name + ' sinf rahbari'), phone: c.teacher_phone, user: us || null });
+    list.push({ kind: 'rahbar', ref: c.id, school_id: c.school_id, class_id: c.id, name: c.teacher_name || (mkNum(c.num) + ' ' + c.name + ' sinf rahbari'), phone: c.teacher_phone, user: us || null });
   }
   const byPhone = {};
   for (const s of all('SELECT s.id,s.name,s.phone,s.class_id,c.school_id,c.name cls FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1')) {
@@ -1312,7 +1312,7 @@ A['audit'] = (u, b) => {
       const o = auditRow(r);
       if (sch && o.school_id !== sch) continue;
       o.who = whoName(r.user_id);
-      if (q && !`${o.stu || ''} ${o.who} ${o.num ? o.num + '-maktab' : ''} ${o.cls || ''} ${o.detail.name || ''} ${o.detail.child || ''} ${o.test || ''} ${o.detail.code || ''}`.toLowerCase().replace(/[`‘’'ʻʼ]/g, "'").includes(q)) continue;
+      if (q && !`${o.stu || ''} ${o.who} ${o.num ? mkNum(o.num) + '' : ''} ${o.cls || ''} ${o.detail.name || ''} ${o.detail.child || ''} ${o.test || ''} ${o.detail.code || ''}`.toLowerCase().replace(/[`‘’'ʻʼ]/g, "'").includes(q)) continue;
       out.push(o); if (out.length >= 120) break;
     }
   }
@@ -1491,7 +1491,7 @@ function extras(u, out) {
   const sIds = new Set((out.students || []).map(s => s.id));
   ex.certs = all('SELECT c.code,c.test_id,c.student_id,c.at,c.issued,l.status,l.reason FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
-  if (isTeam(u) && can(u, 'pinlar')) ex.rxNew = one("SELECT count(*) n FROM royxat WHERE status='yangi'").n;
+  if (isTeam(u) && can(u, 'pinlar')) { ex.rxNew = one("SELECT count(*) n FROM royxat WHERE status='kutilmoqda'").n; ex.rxAll = one('SELECT count(*) n FROM royxat').n; }
   if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
   if (isTeam(u)) ex.kjNew = one('SELECT count(*) n FROM kj_xato WHERE st=0').n;
   if (u.role === 'ota') {
@@ -1612,7 +1612,7 @@ function rxSave(chat, st) {
   const old = one("SELECT id FROM royxat WHERE phone=? AND rol=? AND fam=? AND ism=? AND status='yangi'", st.phone, st.rol, st.fam, st.ism);
   if (old) run('UPDATE royxat SET chat_id=?,viloyat=?,tuman=?,maktab_num=?,maktab_nom=?,jins=?,pat=?,sinf=?,at=? WHERE id=?', chat, st.vil, st.tum, st.mnum || null, st.mnom || '', st.jins, st.pat, st.sinf || '', now(), old.id);
   else run('INSERT INTO royxat(chat_id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', chat, st.phone, st.vil, st.tum, st.mnum || null, st.mnom || '', st.rol, st.jins, st.fam, st.ism, st.pat, st.sinf || '', now());
-  pushUsers([ceoId(), ...sardorIds()], 'Yangi ro‘yxatdan o‘tish (Telegram)', '/#xabar', 'royxat');
+  return old ? old.id : one('SELECT max(id) m FROM royxat WHERE chat_id=?', chat).m;
 }
 // Tugma bosilganda. true qaytarsa — shu yerda hal bo'ldi.
 function rxCallback(chat, st, k, v) {
@@ -1624,17 +1624,7 @@ function rxCallback(chat, st, k, v) {
   else if (k === 'rj' && (v === 'a' || v === 'e') && st.rol) { st.jins = v; st.step = 'r_fam'; }
   else if (k === 'ro' && st.step === 'r_ok') {
     if (v === 'n') { const p = st.phone; tgState.set(chat, { step: 'r_vil', phone: p }); tgSend(chat, 'Yaxshi, qaytadan to‘ldiramiz.'); rxAsk(chat, tgState.get(chat)); return true; }
-    rxSave(chat, st); tgState.delete(chat);
-    // Saytda bor maktab va sinfning o'quvchisi bo'lsa — avvalgidek sinf rahbariga so'rov boradi, u tasdiqlagach PIN keladi
-    const sk = x => String(x || '').toLowerCase().replace(/sinf|[^0-9a-zа-яё]/g, '');
-    const cl = st.rol === 'o' && st.mnum && st.vil === 'Buxoro viloyati' && st.tum === 'Qorako‘l tumani' ? all('SELECT c.id,c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.num=?', st.mnum).find(c => sk(c.name) === sk(st.sinf)) : null;
-    if (cl) {
-      const child = st.fam + ' ' + st.ism;
-      run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', chat, st.phone, cl.id, child, now());
-      notifyUsers(rahbarsOf(cl.id).map(r => r.id), `Yangi so‘rov: ${child} (${cl.num}-maktab, ${cl.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
-      tgSend(chat, `Rahmat! So‘rovingiz ${cl.num}-maktab ${cl.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.`); return true;
-    }
-    tgSend(chat, 'Rahmat! Ma’lumotlaringiz qabul qilindi.\n\nKabinetingiz tayyor bo‘lgach, PIN kodingiz shu yerga keladi.'); return true;
+    const rid = rxSave(chat, st); tgState.delete(chat); rxProcess(rid); return true;
   }
   rxAsk(chat, st); return true;
 }
@@ -1689,8 +1679,8 @@ async function onUpdate(up) {
     run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', chat, st.phone, st.class_id, str(txt, 100), now());
     const c = one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', st.class_id);
     pushUsers([ceoId(), ...sardorIds()], 'Yangi PIN so‘rovi (Telegram)', '/#xabar', 'tgreq');
-    notifyUsers(rahbarsOf(st.class_id).map(r => r.id), `Yangi so‘rov: ${str(txt, 100)} (${c.num}-maktab, ${c.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
-    return tgSend(chat, `So‘rovingiz ${c.num}-maktab ${c.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.`);
+    notifyUsers(rahbarsOf(st.class_id).map(r => r.id), `Yangi so‘rov: ${str(txt, 100)} (${mkNum(c.num)}, ${c.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
+    return tgSend(chat, `So‘rovingiz ${mkNum(c.num)} ${c.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.`);
   }
   const linked = one('SELECT phone FROM tg_users WHERE chat_id=?', chat);
   if (linked && (txt === '/pin' || txt.startsWith('/start'))) {
@@ -1718,6 +1708,108 @@ async function tgLoop() {
 if (process.env.NO_BOT !== '1' && process.env.YX_TEST !== '1') tgLoop().catch(e => console.error('bot loop', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
+
+// ---------------------------------------------------------------- Ro'yxatdan o'tish (2-bo'lak): kabinet o'zi ochiladi
+// Maktab raqami (num) butun bazada yagona ICHKI kod bo'lib qoladi. Boshqa tumanlar maktabi uchun kod 100001 dan beriladi,
+// odam ko'radigan haqiqiy raqam — raqam ustunida (tuman ichida yagona). Shuning uchun hozirgi maktablarga tegilmaydi.
+try { db.exec('ALTER TABLE schools ADD COLUMN raqam INTEGER'); } catch (e) { }
+try { db.exec("ALTER TABLE students ADD COLUMN jins TEXT DEFAULT ''"); } catch (e) { }
+try { db.exec('ALTER TABLE students ADD COLUMN ozi INTEGER DEFAULT 0'); } catch (e) { } // 1 = botda o'zi ro'yxatdan o'tgan
+const rxFixRaqam = () => run("UPDATE schools SET raqam=num WHERE raqam IS NULL AND num<100000 AND NOT (num>=101 AND name<>'')");
+rxFixRaqam();
+function mkNum(num) {
+  const s = one('SELECT num,name,raqam,tuman FROM schools WHERE num=?', num); if (!s) return num + '-maktab';
+  if (s.num >= 100000) return (s.raqam ? s.raqam + '-maktab' : (s.name || s.num + '-maktab')) + ' (' + s.tuman + ')';
+  return s.num >= 101 && s.name ? s.name : s.num + '-maktab';
+}
+const rxSk = x => String(x || '').toLowerCase().replace(/sinf|[^0-9a-zа-яё]/g, '');
+function rxSchool(r, create) {
+  rxFixRaqam(); const v = rxQisqa(r.viloyat), t = rxQisqa(r.tuman);
+  const DS = demoIds().school || 0; // namuna maktabga hech kim ro'yxatdan o'ta olmaydi
+  const s = r.maktab_num ? one('SELECT * FROM schools WHERE viloyat=? AND tuman=? AND raqam=? AND id<>?', v, t, r.maktab_num, DS)
+    : all('SELECT * FROM schools WHERE viloyat=? AND tuman=? AND id<>?', v, t, DS).find(x => x.name && nameKey(x.name) === nameKey(r.maktab_nom));
+  if (s || !create) return s || null;
+  const num = Math.max(100001, (one('SELECT max(num) m FROM schools').m || 0) + 1);
+  const id = Number(run('INSERT INTO schools(num,name,viloyat,tuman,raqam,created_at) VALUES(?,?,?,?,?,?)', num, r.maktab_num ? '' : r.maktab_nom, v, t, r.maktab_num || null, now()).lastInsertRowid);
+  log(null, 'maktab.qoshish', { num, royxat: r.id, viloyat: v, tuman: t }); return one('SELECT * FROM schools WHERE id=?', id);
+}
+function rxClass(sc, sinf, create) {
+  const c = all('SELECT * FROM classes WHERE school_id=?', sc.id).find(c => rxSk(c.name) === rxSk(sinf)); if (c || !create) return c || null;
+  const name = clsName(sinf); if (!name) return null;
+  const id = Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, name, gradeOf(name)).lastInsertRowid);
+  return one('SELECT * FROM classes WHERE id=?', id);
+}
+const rxPinMsg = pin => 'Ro‘yxatdan o‘tdingiz. Kabinetingiz ochildi.\n\nPIN kodingiz:\n' + pin + '\n\nSaytga kirish: ' + siteUrl() + '\nPIN kodni hech kimga bermang.';
+const RX_KUT = 'Rahmat! Ma’lumotlaringiz qabul qilindi.\n\n';
+// Sinf rahbarini sinfga yozish va PIN berish (majbur = oldingi rahbar o'rniga)
+function rxTeacher(r, cl, by) {
+  const p = phone9(r.phone);
+  run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', r.fam + ' ' + r.ism, p, cl.id);
+  const t = pinTargets().find(x => x.kind === 'rahbar' && x.ref === cl.id); const g = ensurePin(t, by, true);
+  run("UPDATE users SET jins=? WHERE role='rahbar' AND class_id=? AND active=1", r.jins, cl.id); return g.pin;
+}
+// Arizani ko'rib, kabinetni ochadi yoki tasdiqqa qoldiradi. Qaytaradi: { status, msg }
+function rxOpen(r) {
+  const p = phone9(r.phone), full = r.fam + ' ' + r.ism;
+  if (r.rol === 'd') return { status: 'kutilmoqda', msg: RX_KUT + 'Jamoamiz maktabingiz bilan bog‘lanib tekshiradi. Tasdiqlangach, PIN kodingiz shu yerga keladi.' };
+  if (!clsName(r.sinf)) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
+  const sc = rxSchool(r, true); let cl = rxClass(sc, r.sinf, false);
+  if (r.rol === 'u') {
+    if (cl) {
+      const rb = one("SELECT pin FROM users WHERE role='rahbar' AND class_id=? AND active=1", cl.id);
+      const kids = one('SELECT count(*) n FROM students WHERE class_id=? AND active=1', cl.id).n;
+      if (phone9(cl.teacher_phone) !== p && ((rb && rb.pin) || phone9(cl.teacher_phone) || kids))
+        return { status: 'kutilmoqda', msg: RX_KUT + mkNum(sc.num) + ' ' + cl.name + ' sinfi saytda allaqachon bor, shuning uchun avval tekshiriladi. Tasdiqlangach, PIN kodingiz shu yerga keladi.' };
+    } else cl = rxClass(sc, r.sinf, true);
+    return { status: 'ochildi', msg: rxPinMsg(rxTeacher(r, cl, null)) };
+  }
+  if (!cl) cl = rxClass(sc, r.sinf, true);
+  const twin = all('SELECT id,name,phone FROM students WHERE class_id=? AND active=1', cl.id).find(x => nameKey(x.name) === nameKey(full));
+  if (twin && phone9(twin.phone) !== p) { // ro'yxatda shu ismli bola bor: avvalgidek sinf rahbari (yoki jamoa) tasdiqlaydi
+    run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', r.chat_id, p, cl.id, full, now());
+    notifyUsers(rahbarsOf(cl.id).map(x => x.id), `Yangi so‘rov: ${full} (${mkNum(sc.num)}, ${cl.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
+    return { status: 'sorov', msg: `Rahmat! So‘rovingiz ${mkNum(sc.num)} ${cl.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.` };
+  }
+  if (!twin) {
+    if (kidsOfPhone(p).length >= MAX_KIDS) return { status: 'kutilmoqda', msg: RX_KUT + 'Bu raqamga juda ko‘p o‘quvchi yozilgan, shuning uchun avval tekshiriladi.' };
+    run('INSERT INTO students(class_id,name,patronymic,phone,jins,ozi,created_at) VALUES(?,?,?,?,?,1,?)', cl.id, full, r.pat, p, r.jins, now());
+    notifyUsers(rahbarsOf(cl.id).map(x => x.id), `Sinfingizga yangi o‘quvchi ro‘yxatdan o‘tdi: ${full} (${cl.name}). Ko‘rish: ${siteUrl()}`);
+  }
+  const t = pinTargets().find(x => x.kind === 'ota' && x.ref === p); if (!t) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
+  return { status: 'ochildi', msg: rxPinMsg(ensurePin(t, null, false).pin) };
+}
+function rxProcess(id) {
+  const r = one('SELECT * FROM royxat WHERE id=?', id); if (!r || r.status !== 'yangi') return null;
+  let o; try { o = tx(() => rxOpen(r)); } catch (e) { console.error('royxat', e); o = { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' }; }
+  run('UPDATE royxat SET status=? WHERE id=?', o.status, r.id);
+  if (o.status === 'kutilmoqda') pushUsers([ceoId(), ...sardorIds()], 'Ro‘yxatdan o‘tish: tasdiq kutilmoqda', '/#xabar', 'royxat');
+  if (r.chat_id) tgSend(r.chat_id, o.msg); return o;
+}
+// 1-bo'lakda saqlangan arizalar: sayt ishga tushgach kabinetlari ochiladi
+if (process.env.YX_TEST !== '1') setTimeout(() => { try { for (const r of all("SELECT id FROM royxat WHERE status='yangi'")) rxProcess(r.id); } catch (e) { console.error('royxat boot', e); } }, 8000);
+// Jamoa tasdig'i: direktor yoki band sinfga yozilgan o'qituvchi
+A['royxat.act'] = async (u, b) => {
+  need(u.role === 'ceo' || (isTeam(u) && can(u, 'pinlar')), 'Ro‘yxatdan o‘tganlarni jamoa tasdiqlaydi');
+  const r = one('SELECT * FROM royxat WHERE id=?', +b.id); if (!r) bad('Topilmadi'); if (r.status !== 'kutilmoqda') bad('Bu ariza allaqachon ko‘rib chiqilgan');
+  if (b.rad) {
+    run("UPDATE royxat SET status='rad',by=? WHERE id=?", u.id, r.id); log(u.id, 'royxat.rad', { id: r.id, name: r.fam + ' ' + r.ism });
+    if (r.chat_id) tgSend(r.chat_id, 'Ma’lumotlaringiz tasdiqlanmadi.\nRad etdi: Yosh Xorazmiylar jamoasi.\n\nMa’lumotlaringizni qayta ko‘rib chiqing va /start yozib, qaytadan to‘ldiring.');
+    return {};
+  }
+  const pin = tx(() => {
+    const sc = rxSchool(r, true), p = phone9(r.phone);
+    if (r.rol === 'd') {
+      run('UPDATE schools SET director_name=?,director_phone=? WHERE id=?', r.fam + ' ' + r.ism, p, sc.id);
+      const t = pinTargets().find(x => x.kind === 'direktor' && x.ref === sc.id); const g = ensurePin(t, u.id, true);
+      run("UPDATE users SET jins=? WHERE role='direktor' AND school_id=? AND active=1", r.jins, sc.id); return g.pin;
+    }
+    if (r.rol === 'u') { const cl = rxClass(sc, r.sinf, true); if (!cl) bad('Sinf nomi noto‘g‘ri'); return rxTeacher(r, cl, u.id); }
+    bad('Bu arizani sinf rahbari tasdiqlaydi');
+  });
+  run("UPDATE royxat SET status='ochildi',by=? WHERE id=?", u.id, r.id); log(u.id, 'royxat.tasdiq', { id: r.id, name: r.fam + ' ' + r.ism, rol: r.rol });
+  if (r.chat_id) await tgSend(r.chat_id, rxPinMsg(pin));
+  return { ok: true };
+};
 A['royxat.list'] = u => { need(can(u, 'pinlar')); return { rows: all('SELECT id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,status,at FROM royxat ORDER BY id DESC LIMIT 500') }; };
 A['tg.requests'] = u => {
   need(u.role === 'rahbar' || can(u, 'pinlar'));
@@ -1974,9 +2066,9 @@ function threadTitle(t, u) {
   if (t.kind === 'drhs') return 'Sinf rahbarlari guruhi (direktor bilan)';
   if (t.kind === 'dota') { if (u?.role === 'ota') return `Maktab direktori${s ? ' · ' + (s.name.split(' ')[1] || s.name) : ''}`; return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${s.cls}` : 'Ota-ona'; }
   if (t.kind === 'dotalar') { const c = t.class_id ? one('SELECT name FROM classes WHERE id=?', t.class_id) : null; return `Direktordan e’lon · ${c ? c.name + ' sinf ota-onalari' : 'butun maktab ota-onalari'}`; }
-  if (t.kind === 'sinf') { const c = one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', t.class_id); return `${c?.num}-maktab ${c?.name} — butun sinfga`; }
+  if (t.kind === 'sinf') { const c = one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', t.class_id); return `${mkNum(c?.num)} ${c?.name} — butun sinfga`; }
   if (t.kind === 'ota' && u?.role === 'ota') { const c = one('SELECT teacher_name FROM classes WHERE id=?', t.class_id); return `${c?.teacher_name || 'Sinf rahbari'} · ${s ? s.name.split(' ')[1] || s.name : ''}`; }
-  if (t.kind === 'ota') return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${s.num}-maktab ${s.cls}` : 'Ota-ona';
+  if (t.kind === 'ota') return s ? `${s.name.split(' ')[1] || s.name}ning ota-onasi · ${mkNum(s.num)} ${s.cls}` : 'Ota-ona';
   return (who?.name || '') + (s ? ' · ' + s.name : '');
 }
 function recipients(t, fromId) {
@@ -2138,7 +2230,7 @@ function demoWipe() {
   setSet('demo_school', ''); setSet('demo_users', '');
 }
 // namuna kabinetda ham ishlatib bo'lmaydigan (haqiqiy odamlarga yoki butun saytga ta'sir qiladigan) amallar
-const DEMO_BLOCK = new Set(['pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
+const DEMO_BLOCK = new Set(['royxat.act', 'pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
 A['demo.info'] = u => { need(u.role === 'ceo' && !u._demo); const D = demoIds();
   const pj = id => { const x = id ? one('SELECT perms FROM users WHERE id=?', id) : null; try { return JSON.parse(x?.perms || '{}'); } catch { return {}; } };
   const all1 = Object.fromEntries(PERMS.map(k => [k, true]));
@@ -2215,7 +2307,7 @@ const TOPICS = ['xato', 'pin', 'savol', 'taklif'];
 // suhbat toifasi (ko'ruvchiga nisbatan qarshi tomon): dir / oq / ota / jam, va qisqa izoh (kim, qaysi maktab)
 function threadCat(t, u) {
   const who = one('SELECT role,school_id,class_id FROM users WHERE id=?', t.user_id) || {};
-  const sch = id => { const x = id ? one('SELECT num FROM schools WHERE id=?', id) : null; return x ? x.num + '-maktab' : ''; };
+  const sch = id => { const x = id ? one('SELECT num FROM schools WHERE id=?', id) : null; return x ? mkNum(x.num) + '' : ''; };
   const cls = id => id ? one('SELECT c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', id) : null;
   const k = t.kind, r = u.role;
   const R = threadCat0(t, u, who, sch, cls); let sid = 0, cid = 0;
@@ -2223,7 +2315,7 @@ function threadCat(t, u) {
   else if (['ota', 'sinf', 'drh'].includes(k)) cid = t.class_id; else if (['dota', 'dotalar', 'drhs'].includes(k)) { sid = t.school_id; cid = t.class_id || 0; }
   if (cid && !sid) sid = schoolOfClass(cid);
   const S = sid ? one('SELECT num,viloyat,tuman FROM schools WHERE id=?', sid) : null; const C = cid ? one('SELECT name FROM classes WHERE id=?', cid) : null;
-  if (S) Object.assign(R, { v: S.viloyat || 'Buxoro', tm: S.tuman || 'Qorako‘l', sc: S.num + '-maktab' }); if (C) R.cl = C.name;
+  if (S) Object.assign(R, { v: S.viloyat || 'Buxoro', tm: S.tuman || 'Qorako‘l', sc: mkNum(S.num) + '' }); if (C) R.cl = C.name;
   return R;
 }
 function threadCat0(t, u, who, sch, cls) {
@@ -2232,10 +2324,10 @@ function threadCat0(t, u, who, sch, cls) {
   if (k === 'jamoa') {
     if (t.user_id === u.id && r !== 'jamoa') return { cat: 'jam', sub: 'Loyiha jamoasi' };
     if (who.role === 'direktor') return { cat: 'dir', sub: ['Direktor', sch(who.school_id)].filter(Boolean).join(' · ') };
-    if (who.role === 'rahbar') { const c = cls(who.class_id); return { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${c.num}-maktab, ${c.name}` : '') }; }
+    if (who.role === 'rahbar') { const c = cls(who.class_id); return { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${mkNum(c.num)}, ${c.name}` : '') }; }
     return { cat: 'jam', sub: 'Jamoa a’zosi' };
   }
-  if (['ota', 'sinf'].includes(k)) { const c = cls(t.class_id); return r === 'ota' ? { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${c.name}` : '') } : { cat: 'ota', sub: (k === 'sinf' ? 'Butun sinf ota-onalari' : 'Ota-ona') + (c ? ` · ${c.num}-maktab, ${c.name}` : '') }; }
+  if (['ota', 'sinf'].includes(k)) { const c = cls(t.class_id); return r === 'ota' ? { cat: 'oq', sub: 'Sinf rahbari' + (c ? ` · ${c.name}` : '') } : { cat: 'ota', sub: (k === 'sinf' ? 'Butun sinf ota-onalari' : 'Ota-ona') + (c ? ` · ${mkNum(c.num)}, ${c.name}` : '') }; }
   if (['dota', 'dotalar'].includes(k)) return r === 'ota' ? { cat: 'dir', sub: 'Maktab direktori' } : { cat: 'ota', sub: k === 'dotalar' ? 'Ota-onalarga e’lon' : 'Ota-ona' };
   if (['drh', 'drhs'].includes(k)) return r === 'rahbar' ? { cat: 'dir', sub: 'Direktor' } : { cat: 'oq', sub: k === 'drhs' ? 'Barcha sinf rahbarlari' : 'Sinf rahbari' };
   return { cat: 'jam', sub: '' };
