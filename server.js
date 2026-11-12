@@ -2582,7 +2582,11 @@ const server = http.createServer(async (req, res) => {
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') || p.startsWith('/a/k/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) }); return fs.createReadStream(file).pipe(res);
+      // Tezlik: (1) o'zgarmagan fayl qayta yuborilmaydi (304); (2) versiyali kabinet sahifasi (/a/k/...html?v=N) brauzerda saqlanadi — har kirganda 3 MB qayta yuklanmaydi
+      const lm = new Date(Math.floor(fs.statSync(file).mtimeMs / 1000) * 1000).toUTCString(), ver = ext === '.html' && p.startsWith('/a/k/') && url.searchParams.has('v');
+      const hd = { 'Content-Type': type, 'Last-Modified': lm, 'Cache-Control': ver ? 'private, max-age=2592000, immutable' : (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') || p.startsWith('/a/k/') ? { 'X-Frame-Options': 'SAMEORIGIN' } : {}) };
+      if (req.headers['if-modified-since'] === lm) { res.writeHead(304, hd); return res.end(); }
+      res.writeHead(200, hd); return fs.createReadStream(file).pipe(res);
     }
     if (url.pathname.startsWith('/t/')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SEC }); return fs.createReadStream(path.join(PUBLIC, 'index.html')).pipe(res); }
     res.writeHead(302, { Location: '/' }); res.end();
