@@ -3035,7 +3035,7 @@ function scanFlat(r){try{const s=r.cv,H=r.H,L=r.L,k=4,x0=6,y0=6,W=Math.round(198
 function scanFlash(img){if(!img||!SC)return;const c=document.querySelector('#scan .scan-cam');if(!c)return;c.querySelector('.scan-fl')?.remove();
   const i=new Image();i.className='scan-fl';i.alt='';i.src=img;c.appendChild(i);const ov=$('#scanOv');if(ov)ov.width=ov.width;SC.hold=Date.now()+900;setTimeout(()=>i.remove(),900)}
 function scanBeep(){try{const A=scanBeep.a||(scanBeep.a=new (window.AudioContext||window.webkitAudioContext)());if(A.state==='suspended')A.resume();const o=A.createOscillator(),g=A.createGain(),t=A.currentTime;
-  o.frequency.value=1250;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(A.destination);o.start(t);o.stop(t+.15)}catch(e){}}
+  o.type='triangle';o.frequency.value=1250;g.gain.setValueAtTime(.9,t);g.gain.setValueAtTime(.9,t+.12);g.gain.exponentialRampToValueAtTime(.001,t+.26);o.connect(g);g.connect(A.destination);o.start(t);o.stop(t+.27)}catch(e){}}
 function scanMsg(m){if(!SC||SC.msg===m)return;SC.msg=m;const el=$('#scanMsg');if(el)el.textContent=m}
 async function scanSave(r,auto){
   const ans=r.ans.join('').replace(/\*/g,'-');let st=r.st;const img=scanFlat(r);
