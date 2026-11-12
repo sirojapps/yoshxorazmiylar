@@ -2300,9 +2300,51 @@ A['ustoz.get'] = (u, b) => {
     const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
     const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
     return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
-      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)) };
+      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0 };
   });
-  return { me: { name: u.name, demo: !!u._demo }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+};
+// Ustoz ayol yoki erkak ekani (kabinetdagi rasm uchun). Bir marta tanlanadi, tanlanmaguncha kabinet ochilmaydi.
+try { db.exec("ALTER TABLE users ADD COLUMN jins TEXT DEFAULT ''"); } catch (e) { }
+A['ustoz.jins'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const v = b.v === 'a' || b.v === 'e' ? b.v : ''; if (!v) bad('Ayol yoki erkak ekaningizni tanlang');
+  run('UPDATE users SET jins=? WHERE id=?', v, u.id); return { jins: v };
+};
+// Ota-ona PIN'i: faqat shu raqamga birinchi marta PIN ochilganda ko'rsatiladi. Oldin PIN olgan ota-onaning PIN'i ustozga ko'rsatilmaydi (boshqa sinfdagi farzandlari ham bo'lishi mumkin).
+function ustozOtaPin(u, p) {
+  if (!p) return { pin: '', pinHol: 'raqamsiz' };
+  if (u._demo) return { pin: '', pinHol: 'namuna' };
+  const t = pinTargets().find(x => x.kind === 'ota' && x.ref === p); if (!t) return { pin: '', pinHol: 'raqamsiz' };
+  if (t.user && t.user.pin) return { pin: '', pinHol: 'bor' };
+  return { pin: ensurePin(t, u.id, false).pin, pinHol: 'yangi' };
+}
+const ustozIsm = (v, nom) => { const x = fixName(v, 60).trim(); if (/[0-9]/.test(x)) bad(nom + 'da raqam bo‘lmaydi'); return x; };
+// Sinf rahbari o'z sinfiga o'quvchi qo'shadi: familiya, ism, otasining ismi. Ota-ona raqami yozilsa, PIN beriladi.
+A['ustoz.kid.add'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const fam = ustozIsm(b.fam, 'Familiya'), ism = ustozIsm(b.ism, 'Ism'), pat = ustozIsm(b.pat, 'Otasining ismi');
+  if (fam.length < 2) bad('Familiyani yozing'); if (ism.length < 2) bad('Ismni yozing'); if (pat.length < 2) bad('Otasining ismini yozing');
+  if (/\s/.test(fam) || /\s/.test(ism)) bad('Familiya va ism bittadan so‘z bo‘lsin');
+  const name = fam + ' ' + ism, raw = String(b.phone || '').trim(), p = phone9(raw);
+  if (raw && !p) bad('Telefon raqamini to‘liq yozing (masalan, 90 123 45 67)');
+  checkPhone(p, 0);
+  if (all('SELECT id FROM students WHERE active=1 AND class_id=?', u.class_id).length >= 60) bad('Bitta sinfda 60 tadan ko‘p o‘quvchi bo‘lmaydi');
+  const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1', u.class_id).find(x => nameKey(x.name) === nameKey(name));
+  if (twin) bad(`Bu sinfda «${twin.name}» allaqachon bor`);
+  const r = run('INSERT INTO students(class_id,name,patronymic,phone,created_at) VALUES(?,?,?,?,?)', u.class_id, name, pat, p, now());
+  log(u.id, 'oquvchi.qoshish', { id: Number(r.lastInsertRowid), name, class_id: u.class_id, ustoz: true });
+  return { id: Number(r.lastInsertRowid), name, ...ustozOtaPin(u, p) };
+};
+// Oldin qo'shilgan o'quvchiga ota-ona raqamini yozish (PIN shundan keyin beriladi)
+A['ustoz.kid.phone'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const s = one('SELECT * FROM students WHERE id=? AND active=1 AND class_id=?', +b.id, u.class_id); if (!s) bad('O‘quvchi topilmadi');
+  const p = phone9(String(b.phone || '')); if (!p) bad('Telefon raqamini to‘liq yozing (masalan, 90 123 45 67)');
+  checkPhone(p, s.id);
+  run('UPDATE students SET phone=? WHERE id=?', p, s.id); run('DELETE FROM phone_hints WHERE student_id=?', s.id);
+  log(u.id, 'oquvchi.telefon', { id: s.id, old: s.phone, new: p, ustoz: true });
+  return { id: s.id, name: s.name, ...ustozOtaPin(u, p) };
 };
 // O'qituvchi o'zi tuzgan testlar (yangi kabinet): test, variantlar, kimlarga berilgani va natijalar bitta yozuvda. Faqat sinf rahbari, faqat o'z sinfi.
 db.exec("CREATE TABLE IF NOT EXISTS utests(id INTEGER PRIMARY KEY, class_id INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT, updated_at TEXT)");
