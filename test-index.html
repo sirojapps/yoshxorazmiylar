@@ -2937,18 +2937,20 @@ async function omrRead(src){
   const k=Math.min(1,1280/Math.max(sw,shh)),cv=omrRead.cv||(omrRead.cv=document.createElement('canvas'));cv.width=Math.round(sw*k);cv.height=Math.round(shh*k);
   cv.getContext('2d',{willReadFrequently:true}).drawImage(src,0,0,cv.width,cv.height);
   const G=omrGray(cv);const quads=omrQuads(omrBlobs(omrBin(G),G.w,G.h));if(!quads.length)return {err:'marker'};
-  const qrs=await omrQR(cv,G);
+  // TEZ YO'L: har to'rtburchakda QR turadigan joyning o'zi to'g'rilab olinadi (200×200) va o'qiladi — butun kadrdan QR izlashdan bir necha barobar tez.
+  // Kadrga 2 ta titul tushsa, ikkalasining QR'i ham shu yerda topiladi.
+  let qrs=[],pre=null,qr=null;
+  if(window.jsQR){const L0=tLayout(20,4),qc0=[L0.qr.x+L0.qr.s/2,L0.qr.y+L0.qr.s/2];
+    for(const qd of quads.slice(0,3))for(let i=0;i<(qrs.length?1:4);i++){const r=((omrRead.rot||0)+i)%4,H=homog(L0.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue; // avval oldingi kadrdagi burilish sinaladi
+      const t=omrWarpQR(G,H,L0.qr);if(t){omrRead.rot=r;const [ux,uy]=hmap(H,...qc0);if(!qrs.some(o=>o.t===t)){qrs.push({t,x:ux,y:uy});if(!pre)pre={H,qd}}break}}}
+  // Topilmasa — eski, sekinroq yo'l: butun kadrdan, keyin har to'rtburchak atrofidan
+  if(!qrs.length){pre=null;qrs=await omrQR(cv,G);
   if(window.jsQR)for(const qd of quads.slice(0,4)){const xs=qd.p.map(p=>p.x),ys=qd.p.map(p=>p.y),pw=(Math.max(...xs)-Math.min(...xs))*.06,ph_=(Math.max(...ys)-Math.min(...ys))*.06;
     const x0=Math.max(0,Math.floor(Math.min(...xs)-pw)),y0=Math.max(0,Math.floor(Math.min(...ys)-ph_)),x1=Math.min(G.w,Math.ceil(Math.max(...xs)+pw)),y1=Math.min(G.h,Math.ceil(Math.max(...ys)+ph_));
     if(x1-x0<40||y1-y0<40)continue;const d=cv.getContext('2d').getImageData(x0,y0,x1-x0,y1-y0);const r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
     if(r&&/^Y[XZ]:/.test(r.data)){const l=r.location,q={t:r.data,x:x0+(l.topLeftCorner.x+l.topRightCorner.x+l.bottomLeftCorner.x+l.bottomRightCorner.x)/4,y:y0+(l.topLeftCorner.y+l.topRightCorner.y+l.bottomLeftCorner.y+l.bottomRightCorner.y)/4};
-      if(!qrs.some(o=>Math.hypot(o.x-q.x,o.y-q.y)<20))qrs.push(q)}}
-  // Qiyshiq/burilgan titul: 4 burchakdan to'g'rilangan (perspektivasi tuzatilgan) rasm olib, QR shundan o'qiladi
-  let pre=null,qr=null;
-  if(!qrs.length&&window.jsQR){const L0=tLayout(20,4),qc0=[L0.qr.x+L0.qr.s/2,L0.qr.y+L0.qr.s/2];
-    outer:for(const qd of quads.slice(0,3))for(let r=0;r<4;r++){const H=homog(L0.mk,[0,1,2,3].map(m=>{const p=qd.p[(m+r)%4];return [p.x,p.y]}));if(!H)continue;
-      const t=omrWarpQR(G,H,L0.qr);if(t){const [ux,uy]=hmap(H,...qc0);qr={t,x:ux,y:uy};pre={H,qd};break outer}}}
-  if(qr)qrs.push(qr);if(!qrs.length)return {err:'qr',quads};
+      if(!qrs.some(o=>Math.hypot(o.x-q.x,o.y-q.y)<20))qrs.push(q)}}}
+  if(!qrs.length)return {err:'qr',quads};
   // Har bir QR uchun o'zining 4 burchagini izlaymiz. Kadrga 2 ta titul tushsa (bitta A4 dagi ikkalasi), 4 burchagi
   // to'liq ko'ringan va ramka markaziga eng yaqin titul olinadi — ikkinchisi xalaqit bermaydi.
   let best=null,info=null,L=null;const fcx=cv.width/2,fcy=cv.height/2,diag=Math.hypot(cv.width,cv.height);
@@ -2998,7 +3000,7 @@ async function scanStart(){
   if(!SC){return}const v=$('#scanV');if(v){v.srcObject=SC.stream;try{await v.play()}catch(e){}}SC.msg='Titulni ramkaga sig’diring: 4 ta qora kvadrat va QR kod ko’rinsin';scanDraw(true);scanLoop()}
 function scanLoop(){if(!SC)return;clearTimeout(SC.timer);SC.timer=setTimeout(async()=>{if(!SC)return;
   if(SC.view==='live'&&!SC.busy&&!(SC.hold>Date.now())){const v=$('#scanV');if(v&&v.readyState>=2){SC.busy=true;try{await scanHandle(await omrRead(v),false)}catch(e){console.error(e)}SC.busy=false}}
-  scanLoop()},160)}
+  scanLoop()},40)}
 const SC_ERR={kamera:'Kamera tayyorlanmoqda…',marker:'Titulni ramkaga sig’diring',qr:'4 burchak topildi, QR o’qilmoqda — bir soniya kuting',one:'Bir vaqtda faqat bitta titulni tuting'};
 function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;const cv=r&&r.cv;const qd=r&&(r.quad||r.quads?.[0]?.p);
   if(!cv||!qd){ov.width=ov.width;return}if(ov.width!==cv.width||ov.height!==cv.height){ov.width=cv.width;ov.height=cv.height}
@@ -3031,7 +3033,7 @@ function scanFlat(r){try{const s=r.cv,H=r.H,L=r.L,k=4,x0=6,y0=6,W=Math.round(198
   return c.toDataURL('image/jpeg',.8)}catch(e){return ''}}
 // o'qilishi bilan to'g'rilangan varaq kamera o'rnida katta bo'lib ko'rinadi, keyin kamera keyingi varaqqa qaytadi
 function scanFlash(img){if(!img||!SC)return;const c=document.querySelector('#scan .scan-cam');if(!c)return;c.querySelector('.scan-fl')?.remove();
-  const i=new Image();i.className='scan-fl';i.alt='';i.src=img;c.appendChild(i);const ov=$('#scanOv');if(ov)ov.width=ov.width;SC.hold=Date.now()+1600;setTimeout(()=>i.remove(),1600)}
+  const i=new Image();i.className='scan-fl';i.alt='';i.src=img;c.appendChild(i);const ov=$('#scanOv');if(ov)ov.width=ov.width;SC.hold=Date.now()+900;setTimeout(()=>i.remove(),900)}
 function scanBeep(){try{const A=scanBeep.a||(scanBeep.a=new (window.AudioContext||window.webkitAudioContext)());if(A.state==='suspended')A.resume();const o=A.createOscillator(),g=A.createGain(),t=A.currentTime;
   o.frequency.value=1250;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(A.destination);o.start(t);o.stop(t+.15)}catch(e){}}
 function scanMsg(m){if(!SC||SC.msg===m)return;SC.msg=m;const el=$('#scanMsg');if(el)el.textContent=m}
