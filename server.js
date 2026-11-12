@@ -2230,7 +2230,7 @@ function demoWipe() {
   setSet('demo_school', ''); setSet('demo_users', '');
 }
 // namuna kabinetda ham ishlatib bo'lmaydigan (haqiqiy odamlarga yoki butun saytga ta'sir qiladigan) amallar
-const DEMO_BLOCK = new Set(['royxat.act', 'pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
+const DEMO_BLOCK = new Set(['royxat.act', 'ustoz.kid.tasdiq', 'pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
 A['demo.info'] = u => { need(u.role === 'ceo' && !u._demo); const D = demoIds();
   const pj = id => { const x = id ? one('SELECT perms FROM users WHERE id=?', id) : null; try { return JSON.parse(x?.perms || '{}'); } catch { return {}; } };
   const all1 = Object.fromEntries(PERMS.map(k => [k, true]));
@@ -2485,7 +2485,7 @@ A['yol.yoz'] = (u, b) => {
 A['ustoz.get'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
   const c = one('SELECT c.id,c.name,c.grade,sc.num FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE c.id=?', u.class_id); if (!c) bad('Sinf topilmadi');
-  const studs = all('SELECT id,name,phone FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
+  const studs = all('SELECT id,name,phone,patronymic,ozi FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
   const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
   const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
   const kids = studs.map(s => {
@@ -2493,9 +2493,26 @@ A['ustoz.get'] = (u, b) => {
     const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
     const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
     return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
-      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0 };
+      cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0, ...(s.ozi === 1 ? { yangi: 1, pat: s.patronymic || '' } : {}) };
   });
-  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNum(c.num) }, kids };
+};
+// Botda o'zi yozilgan bolani sinf rahbari tasdiqlaydi yoki sinfdan chiqaradi (kabineti yopilmaydi, kim rad etgani aytiladi)
+A['ustoz.kid.tasdiq'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const s = one('SELECT s.id,s.name,s.phone,c.name cls,sc.num,sc.id sid FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE s.id=? AND s.class_id=? AND s.active=1 AND s.ozi=1', +b.id, u.class_id);
+  if (!s) bad('Bu o‘quvchi topilmadi yoki allaqachon ko‘rib chiqilgan');
+  if (!b.rad) { run('UPDATE students SET ozi=2 WHERE id=?', s.id); log(u.id, 'oquvchi.tasdiq', { id: s.id, name: s.name }); return { ok: true }; }
+  const p = phone9(s.phone);
+  tx(() => {
+    run('UPDATE students SET active=0 WHERE id=?', s.id);
+    run('INSERT INTO trash(kind,ref_id,label,info,school_id,by,at) VALUES(?,?,?,?,?,?,?)', 'student', s.id, s.name, `${mkNum(s.num)} · ${s.cls}`, s.sid, u.id, now());
+    if (p) run("UPDATE royxat SET status='rad',by=? WHERE phone=? AND rol='o' AND status='ochildi' AND trim(fam||' '||ism)=?", u.id, p, s.name);
+  });
+  log(u.id, 'oquvchi.rad', { id: s.id, name: s.name });
+  if (p) for (const t of all('SELECT chat_id FROM tg_users WHERE phone=?', p))
+    tgSend(t.chat_id, `Ma’lumotlaringiz tasdiqlanmadi.\nRad etdi: sinf rahbari ${u.name} (${mkNum(s.num)}, ${s.cls}).\n\n${s.name} bu sinf o‘quvchisi emas deb belgilandi. Maktab va sinfni tekshirib, qaytadan to‘ldiring: /start`);
+  return { ok: true };
 };
 // Ustoz ayol yoki erkak ekani (kabinetdagi rasm uchun). Bir marta tanlanadi, tanlanmaguncha kabinet ochilmaydi.
 try { db.exec("ALTER TABLE users ADD COLUMN jins TEXT DEFAULT ''"); } catch (e) { }
