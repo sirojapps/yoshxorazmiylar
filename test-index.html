@@ -1966,6 +1966,7 @@ function scrMessages(){
     if(!TH.some(t=>t.kind==='chat'))top+=`<button class="tg-it" data-act="openChat" style="background:var(--surface,#fff);border:1px solid var(--line)"><div class="tg-av" style="background:#1e9e93">JC</div><div class="m"><div class="r1"><b>Jamoa chati</b></div><div class="r2"><span class="ls">CEO, sardor va jamoa a’zolari uchun</span></div></div></button>`;
     if(r==='jamoa')nw=true;
     top=`<button class="row card" data-act="kjx"><div class="m"><div class="n">Xato xabarlari</div><div class="s">Kelajak matematikasi: o’quvchilar misoldagi xato haqida yozgan</div></div>${S.kjNew?badge(S.kjNew):''}${I.chev}</button>`+top;
+    if(P('pinlar')&&S.rxNew)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Botda ro’yxatdan o’tganlar</div><div class="s">Telegram bot orqali yozilganlar</div></div>${badge(S.rxNew)}${I.chev}</button>`+top;
     if(P('pinlar')&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">Telegram so’rovlari</div><div class="s">Raqami ro’yxatda yo’q ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`+top;
   }else{nw=true;if(r==='rahbar'&&S.tgPending)top=`<button class="row card" data-act="tgReq"><div class="m"><div class="n">PIN so’rovlari</div><div class="s">Telegram orqali so’ragan ota-onalar</div></div>${badge(S.tgPending)}${I.chev}</button>`}
   const cats=isTeam()?['dir','oq','jam']:r==='direktor'?['oq','ota','jam']:r==='rahbar'?['dir','ota','jam']:[];
@@ -2133,7 +2134,7 @@ function openCompose(kind){
    <div style="display:grid;grid-template-columns:auto auto 1fr;gap:10px"><button class="btn sec" data-act="cmImgPick">Rasm</button><span id="cmRecBtn">${recBtn('cm')}</span><button class="btn pri" data-act="cmSend">Yuborish</button></div>`);
 }
 // ---------------- telegram requests
-async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;drawTgReq()}catch(e){toast(e.message,true)}}
+let RXL=[];async function openTgReq(){try{TREQ=(await api('tg.requests')).rows;try{RXL=(await api('royxat.list')).rows||[]}catch(e){RXL=[]}drawTgReq()}catch(e){toast(e.message,true)}}
 let KJX=[],KJF=0;const KJT=['Misol sharti xato','Javob noto’g’ri','Tushuntirish tushunarsiz','Rasm noto’g’ri','Boshqa'],KJS=['Yangi','Ko’rildi','Tuzatildi'],KJM={shifr:'Shifr ustasi',ehtimol:'Ehtimollar',tejamkor:'Tejamkor',dasturchi:'Kichik dasturchi',chamalash:'Chamalash',tahlil:'Ma’lumot tahlili'};
 async function openKjx(){try{KJX=(await api('kj.list')).rows;drawKjx()}catch(e){toast(e.message,true)}}
 function drawKjx(){const L=KJX.filter(r=>r.st===KJF);
@@ -2149,6 +2150,7 @@ function drawTgReq(){const pend=TREQ.filter(r=>r.status==='kutilmoqda');const do
     return `<div class="card pad"><div><b>${esc(r.child)}</b><div class="note">${mkN(r.cls)} · ${esc(r.cls?.name)} · ${ph(r.phone)} · ${fmtDate(r.at)}</div></div>
     <label class="field"><span class="label">Ro’yxatdagi qaysi bola?</span><select id="tr${r.id}"><option value="">— tanlang —</option>${opts.map(s=>`<option value="${s.id}" ${norm(s.name).split(' ')[0]===norm(r.child).split(' ')[0]?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
     <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px"><button class="btn dan sm" data-act="trNo" data-id="${r.id}">Rad etish</button><button class="btn pri sm" data-act="trYes" data-id="${r.id}">Tasdiqlash va PIN yuborish</button></div></div>`}).join('')||'<div class="card empty">Yangi so’rov yo’q</div>'}
+  ${RXL.length?`<p class="label">Botda ro’yxatdan o’tganlar · ${RXL.length} nafar</p><div class="card list">${RXL.map((r,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(r.fam+' '+r.ism+' '+r.pat)}</div><div class="s">${({d:'Direktor',u:'O‘qituvchi',o:'O‘quvchi'})[r.rol]||''}${r.sinf?' · '+esc(r.sinf):''} · ${r.maktab_num?r.maktab_num+'-maktab':esc(r.maktab_nom)} · ${esc(r.tuman)}, ${esc(r.viloyat)} · ${ph(r.phone)} · ${fmtDate(r.at)}</div></div></div>`).join('')}</div>`:''}
   ${done.length?`<p class="label">Ko’rib chiqilganlar</p><div class="card list">${done.map(r=>`<div class="row"><div class="m"><div class="n">${esc(r.child)}</div><div class="s">${ph(r.phone)} · ${r.status==='tasdiqlandi'?'→ '+esc(r.student||''):'rad etildi'}</div></div></div>`).join('')}</div>`:''}`)}
 
 // ---------------- certificates

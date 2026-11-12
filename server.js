@@ -1491,6 +1491,7 @@ function extras(u, out) {
   const sIds = new Set((out.students || []).map(s => s.id));
   ex.certs = all('SELECT c.code,c.test_id,c.student_id,c.at,c.issued,l.status,l.reason FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => isTeam(u) || sIds.has(c.student_id));
   if (isTeam(u) && can(u, 'pinlar')) ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'").n;
+  if (isTeam(u) && can(u, 'pinlar')) ex.rxNew = one("SELECT count(*) n FROM royxat WHERE status='yangi'").n;
   if (u.role === 'rahbar') ex.tgPending = one("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda' AND class_id=?", u.class_id).n;
   if (isTeam(u)) ex.kjNew = one('SELECT count(*) n FROM kj_xato WHERE st=0').n;
   if (u.role === 'ota') {
@@ -1512,7 +1513,9 @@ async function tg(method, body) {
     return await r.json();
   } catch (e) { return null; }
 }
-const tgSend = (chat_id, text, extra = {}) => tg('sendMessage', { chat_id, text, disable_web_page_preview: true, ...extra });
+// «Masalan: …» qatori qalin chiqadi (suratdagidek)
+const tgHtml = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/^(Masalan: .*)$/gm, '<b>$1</b>');
+const tgSend = (chat_id, text, extra = {}) => tg('sendMessage', /^Masalan: /m.test(text) ? { chat_id, text: tgHtml(text), parse_mode: 'HTML', disable_web_page_preview: true, ...extra } : { chat_id, text, disable_web_page_preview: true, ...extra });
 const chatsOfPhone = p => p ? all('SELECT chat_id FROM tg_users WHERE phone=?', p).map(r => r.chat_id) : [];
 function notifyUsers(userIds, msg) {
   const seen = new Set();
@@ -1554,12 +1557,110 @@ function pinMessage(got) {
 const CONTACT_KB = { reply_markup: { keyboard: [[{ text: '📱 Telefon raqamni yuborish', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true } };
 const NO_KB = { reply_markup: { remove_keyboard: true } };
 const tgState = new Map();
+
+// ---------------------------------------------------------------- Telegram botda ro'yxatdan o'tish (1-bo'lak: savollar va saqlash)
+// Viloyat va tumanlar: /mnt/project-files/hududlar/hududlar.json dan (14 hudud, 208 tuman va shahar)
+const HUDUD = [{"v":"Qoraqalpog‘iston Respublikasi","t":["Amudaryo tumani","Beruniy tumani","Bo‘zatov tumani","Chimboy tumani","Ellikqal‘a tumani","Kegeyli tumani","Mo‘ynoq tumani","Nukus shahri","Nukus tumani","Qo‘ng‘irot tumani","Qonliko‘l tumani","Qorao‘zak tumani","Shumanay tumani","Taxiatosh tumani","Taxtako‘pir tumani","To‘rtko‘l tumani","Xo‘jayli tumani"]},{"v":"Andijon viloyati","t":["Andijon shahri","Andijon tumani","Asaka tumani","Baliqchi tumani","Bo‘ston tumani","Buloqboshi tumani","Izboskan tumani","Jalaquduq tumani","Marhamat tumani","Oltinko‘l tumani","Paxtaobod tumani","Qo‘rg‘ontepa tumani","Shahrixon tumani","Ulug‘nor tumani","Xo‘jaobod tumani","Xonobod shahri"]},{"v":"Buxoro viloyati","t":["Buxoro shahri","Buxoro tumani","G‘ijduvon tumani","Jondor tumani","Kogon shahri","Kogon tumani","Olot tumani","Peshku tumani","Qorako‘l tumani","Qorovulbozor tumani","Romitan tumani","Shofirkon tumani","Vobkent tumani"]},{"v":"Jizzax viloyati","t":["Arnasoy tumani","Baxmal tumani","Do‘stlik tumani","Forish tumani","G‘allaorol tumani","Jizzax shahri","Mirzacho‘l tumani","Paxtakor tumani","Sharof Rashidov tumani","Yangiobod tumani","Zafarobod tumani","Zarbdor tumani","Zomin tumani"]},{"v":"Qashqadaryo viloyati","t":["Chiroqchi tumani","Dehqonobod tumani","G‘uzor tumani","Kasbi tumani","Kitob tumani","Ko‘kdala tumani","Koson tumani","Mirishkor tumani","Muborak tumani","Nishon tumani","Qamashi tumani","Qarshi shahri","Qarshi tumani","Shahrisabz shahri","Shahrisabz tumani","Yakkabog‘ tumani"]},{"v":"Navoiy viloyati","t":["G‘ozg‘on shahri","Karmana tumani","Konimex tumani","Navbahor tumani","Navoiy shahri","Nurota tumani","Qiziltepa tumani","Tomdi tumani","Uchquduq tumani","Xatirchi tumani","Zarafshon shahri"]},{"v":"Namangan viloyati","t":["Chortoq tumani","Chust tumani","Davlatobod tumani","Kosonsoy tumani","Mingbuloq tumani","Namangan shahri","Namangan tumani","Norin tumani","Pop tumani","To‘raqo‘rg‘on tumani","Uchqo‘rg‘on tumani","Uychi tumani","Yangiqo‘rg‘on tumani"]},{"v":"Samarqand viloyati","t":["Bulung‘ur tumani","Ishtixon tumani","Jomboy tumani","Kattaqo‘rg‘on shahri","Kattaqo‘rg‘on tumani","Narpay tumani","Nurobod tumani","Oqdaryo tumani","Pastdarg‘om tumani","Paxtachi tumani","Payariq tumani","Qo‘shrabot tumani","Samarqand shahri","Samarqand tumani","Toyloq tumani","Urgut tumani"]},{"v":"Surxondaryo viloyati","t":["Angor tumani","Bandixon tumani","Boysun tumani","Denov tumani","Jarqo‘rg‘on tumani","Muzrabot tumani","Oltinsoy tumani","Qiziriq tumani","Qumqo‘rg‘on tumani","Sariosiyo tumani","Sherobod tumani","Sho‘rchi tumani","Termiz shahri","Termiz tumani","Uzun tumani"]},{"v":"Sirdaryo viloyati","t":["Boyovut tumani","Guliston shahri","Guliston tumani","Mirzaobod tumani","Oqoltin tumani","Sardoba tumani","Sayxunobod tumani","Shirin shahri","Sirdaryo tumani","Xovos tumani","Yangiyer shahri"]},{"v":"Toshkent viloyati","t":["Angren shahri","Bekobod shahri","Bekobod tumani","Bo‘ka tumani","Bo‘stonliq tumani","Chinoz tumani","Chirchiq shahri","Nurafshon shahri","Ohangaron shahri","Ohangaron tumani","Olmaliq shahri","Oqqo‘rg‘on tumani","O‘rtachirchiq tumani","Parkent tumani","Piskent tumani","Qibray tumani","Quyichirchiq tumani","Toshkent tumani","Yangiyo‘l shahri","Yangiyo‘l tumani","Yuqorichirchiq tumani","Zangiota tumani"]},{"v":"Farg‘ona viloyati","t":["Bag‘dod tumani","Beshariq tumani","Buvayda tumani","Dang‘ara tumani","Farg‘ona shahri","Farg‘ona tumani","Furqat tumani","Marg‘ilon shahri","Oltiariq tumani","O‘zbekiston tumani","Qo‘qon shahri","Qo‘shtepa tumani","Quva tumani","Quvasoy shahri","Rishton tumani","So‘x tumani","Toshloq tumani","Uchko‘prik tumani","Yozyovon tumani"]},{"v":"Xorazm viloyati","t":["Bog‘ot tumani","Do‘stlik shahri","Gurlan tumani","Hazorasp tumani","Qo‘shko‘pir tumani","Shovot tumani","Tuproqqal‘a tumani","Urganch shahri","Urganch tumani","Xiva shahri","Xiva tumani","Xonqa tumani","Yangiariq tumani","Yangibozor tumani"]},{"v":"Toshkent shahri","t":["Bektemir tumani","Chilonzor tumani","Mirobod tumani","Mirzo Ulug‘bek tumani","Olmazor tumani","Shayxontohur tumani","Sirg‘ali tumani","Uchtepa tumani","Yakkasaroy tumani","Yangihayot tumani","Yashnobod tumani","Yunusobod tumani"]}];
+db.exec("CREATE TABLE IF NOT EXISTS royxat(id INTEGER PRIMARY KEY, chat_id TEXT, phone TEXT, viloyat TEXT, tuman TEXT, maktab_num INTEGER, maktab_nom TEXT DEFAULT '', rol TEXT, jins TEXT, fam TEXT, ism TEXT, pat TEXT, sinf TEXT DEFAULT '', status TEXT DEFAULT 'yangi', by INTEGER, at TEXT)");
+const RX_ROL = { d: 'Direktor', u: 'O‘qituvchi', o: 'O‘quvchi' };
+const rxKb = (items, pre, cols = 2) => { const rows = []; for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols).map(x => ({ text: x[1], callback_data: pre + ':' + x[0] }))); return { reply_markup: { inline_keyboard: rows } }; };
+const rxQisqa = s => String(s).replace(/ (viloyati|tumani)$/, '');
+// Familiya va ism: bitta so'z, faqat harf; bosh harf to'g'rilanadi. Xato bo'lsa null.
+function rxSoz(v) {
+  const x = fixName(v, 40).trim();
+  if (x.length < 2 || !/^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ‘’\-]+$/.test(x)) return null;
+  return x[0].toUpperCase() + x.slice(1);
+}
+// Otasining ismi: yozilganicha qoladi. Faqat tanlangan jinsga zid bo'lsa to'g'rilanadi (ayol + "o'g'li" → "qizi", "-ovich" → "-ovna" va teskarisi).
+function rxPat(v, jins) {
+  let x = fixName(v, 60).replace(/\s+/g, ' ').trim();
+  if (jins === 'a') x = x.replace(/(^|\s)o[‘’]?g[‘’]?li$/i, '$1qizi').replace(/([oe])vich$/i, '$1vna');
+  else x = x.replace(/(^|\s)qizi$/i, '$1o‘g‘li').replace(/([oe])vna$/i, '$1vich');
+  return x;
+}
+// Sinf: "2-B" shaklida. Xato bo'lsa null.
+function rxSinf(v) {
+  const m = /^\s*(\d{1,2})\s*-\s*([A-Za-zА-Яа-яЁё])\s*$/.exec(String(v || '')); if (!m) return null;
+  const g = +m[1]; if (g < 1 || g > 11) return null;
+  return g + '-' + m[2].toUpperCase();
+}
+const rxMaktab = st => st.mnum ? st.mnum + '-maktab' : st.mnom;
+const rxJins = st => st.rol === 'o' ? (st.jins === 'a' ? 'qiz bola' : 'o‘g‘il bola') : (st.jins === 'a' ? 'ayol' : 'erkak');
+function rxXulosa(st) {
+  return 'Tekshiring:\n\n' + st.vil + ', ' + st.tum + '\n' + rxMaktab(st) + '\n' + RX_ROL[st.rol] + ' (' + rxJins(st) + ')' + (st.sinf ? ', ' + st.sinf + (st.rol === 'u' ? ' sinf rahbari' : ' sinf') : '') +
+    '\n' + st.fam + ' ' + st.ism + ' ' + st.pat + '\n\nHammasi to‘g‘rimi?';
+}
+function rxAsk(chat, st) {
+  const kim = st.rol === 'o' ? 'O‘quvchining' : '';
+  switch (st.step) {
+    case 'r_vil': return tgSend(chat, 'Viloyatingizni tanlang:', rxKb(HUDUD.map((h, i) => [i, rxQisqa(h.v)]), 'rv'));
+    case 'r_tum': return tgSend(chat, 'Tumaningizni tanlang:', rxKb([...HUDUD[st.vi].t.map((t, i) => [i, rxQisqa(t)]), ['x', 'Boshqa']], 'rt'));
+    case 'r_tumtxt': return tgSend(chat, 'Tumaningiz nomini yozing.\nMasalan: Qorako‘l tumani');
+    case 'r_mak': return tgSend(chat, 'Maktabingiz raqamini yozing.\nMasalan: 12', rxKb([['n', 'Nomi bor maktab (raqamsiz)']], 'rm', 1));
+    case 'r_maknom': return tgSend(chat, 'Maktabingiz nomini to‘liq yozing.\nMasalan: Karakul International School');
+    case 'r_rol': return tgSend(chat, 'Siz kimsiz?', rxKb([['d', 'Direktor'], ['u', 'O‘qituvchi'], ['o', 'O‘quvchi']], 'rr', 3));
+    case 'r_jins': return st.rol === 'o' ? tgSend(chat, 'O‘quvchi o‘g‘il bolami yoki qiz bola?\nBirini tanlamaguncha davom etmaydi.', rxKb([['e', 'O‘g‘il bola'], ['a', 'Qiz bola']], 'rj'))
+      : tgSend(chat, (st.rol === 'd' ? 'Ayol direktormisiz yoki erkak direktor?' : 'Ayol ustozmisiz yoki erkak ustoz?') + '\nBirini tanlamaguncha davom etmaydi.', rxKb([['a', 'Ayol'], ['e', 'Erkak']], 'rj'));
+    case 'r_fam': return tgSend(chat, (kim ? kim + ' familiyasini' : 'Familiyangizni') + ' yozing.\nMasalan: ' + (st.jins === 'a' ? 'Karimova' : 'Karimov'));
+    case 'r_ism': return tgSend(chat, (kim ? kim + ' ismini' : 'Ismingizni') + ' yozing.\nMasalan: ' + (st.jins === 'a' ? 'Dilfuza' : 'Aziz'));
+    case 'r_pat': return tgSend(chat, (kim ? kim + ' otasining ismini' : 'Otangizning ismini') + ' yozing.\nMasalan: ' + (st.jins === 'a' ? 'Anvar qizi' : 'Anvar o‘g‘li'));
+    case 'r_sinf': return tgSend(chat, (st.rol === 'u' ? 'Qaysi sinf rahbarisiz?' : 'O‘quvchi nechanchi sinfda o‘qiydi?') + '\nMasalan: 2-B');
+    case 'r_ok': return tgSend(chat, rxXulosa(st), rxKb([['y', 'Ha, to‘g‘ri'], ['n', 'Tuzataman']], 'ro'));
+  }
+}
+function rxSave(chat, st) {
+  const old = one("SELECT id FROM royxat WHERE phone=? AND rol=? AND fam=? AND ism=? AND status='yangi'", st.phone, st.rol, st.fam, st.ism);
+  if (old) run('UPDATE royxat SET chat_id=?,viloyat=?,tuman=?,maktab_num=?,maktab_nom=?,jins=?,pat=?,sinf=?,at=? WHERE id=?', chat, st.vil, st.tum, st.mnum || null, st.mnom || '', st.jins, st.pat, st.sinf || '', now(), old.id);
+  else run('INSERT INTO royxat(chat_id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', chat, st.phone, st.vil, st.tum, st.mnum || null, st.mnom || '', st.rol, st.jins, st.fam, st.ism, st.pat, st.sinf || '', now());
+  pushUsers([ceoId(), ...sardorIds()], 'Yangi ro‘yxatdan o‘tish (Telegram)', '/#xabar', 'royxat');
+}
+// Tugma bosilganda. true qaytarsa — shu yerda hal bo'ldi.
+function rxCallback(chat, st, k, v) {
+  if (!/^r[vtmrjo]$/.test(k) || !String(st.step || '').startsWith('r_')) return false;
+  if (k === 'rv' && HUDUD[+v]) { st.vi = +v; st.vil = HUDUD[+v].v; st.step = 'r_tum'; }
+  else if (k === 'rt' && st.vi != null) { if (v === 'x') st.step = 'r_tumtxt'; else if (HUDUD[st.vi].t[+v]) { st.tum = HUDUD[st.vi].t[+v]; st.step = 'r_mak'; } }
+  else if (k === 'rm' && st.step === 'r_mak') st.step = 'r_maknom';
+  else if (k === 'rr' && RX_ROL[v] && st.tum && (st.mnum || st.mnom)) { st.rol = v; st.step = 'r_jins'; }
+  else if (k === 'rj' && (v === 'a' || v === 'e') && st.rol) { st.jins = v; st.step = 'r_fam'; }
+  else if (k === 'ro' && st.step === 'r_ok') {
+    if (v === 'n') { const p = st.phone; tgState.set(chat, { step: 'r_vil', phone: p }); tgSend(chat, 'Yaxshi, qaytadan to‘ldiramiz.'); rxAsk(chat, tgState.get(chat)); return true; }
+    rxSave(chat, st); tgState.delete(chat);
+    // Saytda bor maktab va sinfning o'quvchisi bo'lsa — avvalgidek sinf rahbariga so'rov boradi, u tasdiqlagach PIN keladi
+    const sk = x => String(x || '').toLowerCase().replace(/sinf|[^0-9a-zа-яё]/g, '');
+    const cl = st.rol === 'o' && st.mnum && st.vil === 'Buxoro viloyati' && st.tum === 'Qorako‘l tumani' ? all('SELECT c.id,c.name,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.num=?', st.mnum).find(c => sk(c.name) === sk(st.sinf)) : null;
+    if (cl) {
+      const child = st.fam + ' ' + st.ism;
+      run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', chat, st.phone, cl.id, child, now());
+      notifyUsers(rahbarsOf(cl.id).map(r => r.id), `Yangi so‘rov: ${child} (${cl.num}-maktab, ${cl.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
+      tgSend(chat, `Rahmat! So‘rovingiz ${cl.num}-maktab ${cl.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.`); return true;
+    }
+    tgSend(chat, 'Rahmat! Ma’lumotlaringiz qabul qilindi.\n\nKabinetingiz tayyor bo‘lgach, PIN kodingiz shu yerga keladi.'); return true;
+  }
+  rxAsk(chat, st); return true;
+}
+// Matn yozilganda. true qaytarsa — shu yerda hal bo'ldi.
+function rxText(chat, st, txt) {
+  if (!st || !String(st.step || '').startsWith('r_') || !txt || txt.startsWith('/')) return false;
+  const yana = m => { tgSend(chat, m); return true; };
+  switch (st.step) {
+    case 'r_tumtxt': { const t = fixName(txt, 60).trim(); if (t.length < 3) return yana('Tuman nomini to‘liq yozing.\nMasalan: Qorako‘l tumani'); st.tum = t; st.step = 'r_mak'; break; }
+    case 'r_mak': { if (!/^\d{1,4}$/.test(txt) || +txt < 1) return yana('Faqat maktab raqamini yozing.\nMasalan: 12\n\nMaktabingizning raqami bo‘lmasa, yuqoridagi «Nomi bor maktab» tugmasini bosing.'); st.mnum = +txt; st.mnom = ''; st.step = 'r_rol'; break; }
+    case 'r_maknom': { const t = fixName(txt, 80).replace(/\s+/g, ' ').trim(); if (t.length < 4) return yana('Maktab nomini to‘liq yozing.\nMasalan: Karakul International School'); st.mnom = t; st.mnum = 0; st.step = 'r_rol'; break; }
+    case 'r_fam': { const t = rxSoz(txt); if (!t) return yana('Familiya bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Karimova' : 'Karimov')); st.fam = t; st.step = 'r_ism'; break; }
+    case 'r_ism': { const t = rxSoz(txt); if (!t) return yana('Ism bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Dilfuza' : 'Aziz')); st.ism = t; st.step = 'r_pat'; break; }
+    case 'r_pat': { const t = rxPat(txt, st.jins); if (t.length < 2) return yana('Otasining ismini yozing.\nMasalan: ' + (st.jins === 'a' ? 'Anvar qizi' : 'Anvar o‘g‘li')); st.pat = t; st.step = st.rol === 'd' ? 'r_ok' : 'r_sinf'; break; }
+    case 'r_sinf': { const t = rxSinf(txt); if (!t) return yana('Bunday yozilmaydi. Sinf raqami, chiziqcha va harf bo‘lsin.\nMasalan: 2-B'); st.sinf = t; st.step = 'r_ok'; break; }
+    default: return yana('Iltimos, yuqoridagi tugmalardan birini bosing.');
+  }
+  rxAsk(chat, st); return true;
+}
 async function onUpdate(up) {
   const cb = up.callback_query;
   if (cb) {
     const chat = String(cb.message.chat.id); tg('answerCallbackQuery', { callback_query_id: cb.id });
     const st = tgState.get(chat); if (!st) return;
     const [k, v] = String(cb.data).split(':');
+    if (rxCallback(chat, st, k, v)) return;
     if (k === 'sc') {
       const cls = all('SELECT id,name FROM classes WHERE school_id=? ORDER BY grade,name', +v);
       const rows = []; for (let i = 0; i < cls.length; i += 4) rows.push(cls.slice(i, i + 4).map(c => ({ text: c.name, callback_data: 'cl:' + c.id })));
@@ -1576,14 +1677,13 @@ async function onUpdate(up) {
     run('INSERT INTO tg_users(chat_id,phone,at) VALUES(?,?,?) ON CONFLICT(chat_id) DO UPDATE SET phone=excluded.phone,at=excluded.at', chat, p, now());
     const got = grantByPhone(p);
     if (got.length) return tgSend(chat, pinMessage(got), NO_KB);
-    const schools = all('SELECT id,num FROM schools ORDER BY num');
-    tgState.set(chat, { step: 'school', phone: p });
-    const rows = []; for (let i = 0; i < schools.length; i += 4) rows.push(schools.slice(i, i + 4).map(s => ({ text: s.num + '-maktab', callback_data: 'sc:' + s.id })));
-    await tgSend(chat, 'Raqamingiz ro‘yxatda topilmadi. Bu holda sinf rahbari tasdiqlaydi.', NO_KB);
-    return tgSend(chat, 'Farzandingiz o‘qiydigan maktabni tanlang:', { reply_markup: { inline_keyboard: rows } });
+    tgState.set(chat, { step: 'r_vil', phone: p });
+    await tgSend(chat, 'Raqamingiz qabul qilindi. Endi bir necha savolga javob bering.', NO_KB);
+    return rxAsk(chat, tgState.get(chat));
   }
   const txt = String(m.text || '').trim();
   const st = tgState.get(chat);
+  if (rxText(chat, st, txt)) return;
   if (st?.step === 'child' && txt && !txt.startsWith('/')) {
     tgState.delete(chat);
     run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', chat, st.phone, st.class_id, str(txt, 100), now());
@@ -1597,7 +1697,7 @@ async function onUpdate(up) {
     const got = grantByPhone(linked.phone);
     if (got.length) return tgSend(chat, pinMessage(got), NO_KB);
   }
-  return tgSend(chat, 'Assalomu alaykum! "Yosh Xorazmiylar" saytiga kirish uchun PIN kodingizni olish uchun pastdagi tugmani bosib, telefon raqamingizni yuboring.', CONTACT_KB);
+  return tgSend(chat, 'Assalomu alaykum! Ro‘yxatdan o‘tish uchun pastdagi tugma bilan telefon raqamingizni yuboring.', CONTACT_KB);
 }
 let tgGen = 0;
 async function tgLoop() {
@@ -1618,6 +1718,7 @@ async function tgLoop() {
 if (process.env.NO_BOT !== '1' && process.env.YX_TEST !== '1') tgLoop().catch(e => console.error('bot loop', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
+A['royxat.list'] = u => { need(can(u, 'pinlar')); return { rows: all('SELECT id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,status,at FROM royxat ORDER BY id DESC LIMIT 500') }; };
 A['tg.requests'] = u => {
   need(u.role === 'rahbar' || can(u, 'pinlar'));
   const rows = u.role === 'rahbar' ? all("SELECT * FROM tg_requests WHERE class_id=? ORDER BY id DESC LIMIT 100", u.class_id) : all('SELECT * FROM tg_requests ORDER BY id DESC LIMIT 200');
