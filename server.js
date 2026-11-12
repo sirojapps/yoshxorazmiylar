@@ -556,6 +556,45 @@ A['school.delete'] = (u, b) => {
     log(u.id, 'maktab.ochirish', { num: sc.num, sinf: cls.length, oquvchi: sids.length }); return {};
   });
 };
+// Sinov uchun ochilgan (soxta) maktabni IZSIZ o'chirish: savatga tushmaydi, botdagi so'rovnomalar va ota-ona PINlari ham ketadi.
+// look:true — faqat nima o'chishini sanaydi.
+A['school.wipe'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo, 'Buni faqat CEO qiladi');
+  const sc = one('SELECT * FROM schools WHERE id=?', +b.id); if (!sc) bad('Maktab topilmadi');
+  if (!sc.test || sc.id === demoIds().school) bad('Bu tugma faqat «Sinov uchun maktab» deb belgilangan maktabda ishlaydi');
+  const cls = all('SELECT * FROM classes WHERE school_id=?', sc.id), cids = cls.map(c => c.id), C = inList(cids);
+  const studs = all(`SELECT id,phone FROM students WHERE class_id IN (${C})`, ...cids), sids = studs.map(s => s.id), SL = inList(sids);
+  const phones = new Set([sc.director_phone, ...cls.map(c => c.teacher_phone), ...studs.map(s => s.phone), ...all(`SELECT phone FROM student_phones WHERE student_id IN (${SL})`, ...sids).map(r => r.phone)].map(phone9).filter(Boolean));
+  const rx = all('SELECT * FROM royxat').filter(r => { try { return rxSchool(r, false)?.id === sc.id; } catch { return false; } }); for (const r of rx) { const p = phone9(r.phone); if (p) phones.add(p); }
+  const sidSet = new Set(sids);
+  // kirishlar: shu maktab direktori, shu sinflar rahbarlari va boshqa (qoladigan) farzandi yo'q ota-onalar
+  const users = all(`SELECT id,role,phone FROM users WHERE (role='direktor' AND school_id=?) OR (role='rahbar' AND class_id IN (${C}))`, sc.id, ...cids);
+  for (const o of all("SELECT id,role,phone FROM users WHERE role='ota'")) { const p = phone9(o.phone); if (p && phones.has(p) && !kidsOfPhone(p).some(id => !sidSet.has(id))) users.push(o); }
+  const uids = users.map(x => x.id), UL = inList(uids);
+  const n = { sinf: cls.length, oquvchi: sids.length, kirish: uids.length, sorovnoma: rx.length, test: one(`SELECT count(*) n FROM utests WHERE class_id IN (${C})`, ...cids).n + one('SELECT count(*) n FROM itests WHERE school_id=?', sc.id).n };
+  if (b.look) return { n, nom: mkNum(sc.num) };
+  const nom = mkNum(sc.num);
+  tx(() => {
+    const ths = all(`SELECT id FROM threads WHERE school_id=? OR class_id IN (${C}) OR student_id IN (${SL}) OR user_id IN (${UL})`, sc.id, ...cids, ...sids, ...uids).map(r => r.id), TL = inList(ths);
+    const mids = all(`SELECT id FROM messages WHERE thread_id IN (${TL}) OR user_id IN (${UL})`, ...ths, ...uids).map(r => r.id), ML = inList(mids);
+    run(`DELETE FROM msg_hidden WHERE msg_id IN (${ML}) OR user_id IN (${UL})`, ...mids, ...uids); run(`DELETE FROM messages WHERE id IN (${ML})`, ...mids);
+    run(`DELETE FROM reads WHERE thread_id IN (${TL}) OR user_id IN (${UL})`, ...ths, ...uids); run(`DELETE FROM threads WHERE id IN (${TL})`, ...ths);
+    const its = all(`SELECT id FROM itests WHERE school_id=? OR class_id IN (${C})`, sc.id, ...cids).map(r => r.id);
+    run(`DELETE FROM iresults WHERE itest_id IN (${inList(its)})`, ...its); run(`DELETE FROM itests WHERE id IN (${inList(its)})`, ...its);
+    for (const t of ['rnotes', 'yol_prog', 'tg_requests']) run(`DELETE FROM ${t} WHERE student_id IN (${SL})`, ...sids);
+    run(`DELETE FROM tg_requests WHERE class_id IN (${C})`, ...cids); run(`DELETE FROM utests WHERE class_id IN (${C})`, ...cids);
+    dropStudents(sids);
+    for (const t of ['approvals', 'announcements', 'trash']) run(`DELETE FROM ${t} WHERE school_id=?`, sc.id);
+    run(`DELETE FROM ex_answers WHERE exercise_id IN (SELECT id FROM exercises WHERE user_id IN (${UL}))`, ...uids);
+    for (const t of ['sessions', 'push_subs', 'visits', 'notes', 'rnotes', 'kj_xato', 'exercises', 'approvals', 'audit']) run(`DELETE FROM ${t} WHERE user_id IN (${UL})`, ...uids);
+    run(`DELETE FROM users WHERE id IN (${UL})`, ...uids);
+    run(`DELETE FROM royxat WHERE id IN (${inList(rx.map(r => r.id))})`, ...rx.map(r => r.id));
+    run('DELETE FROM classes WHERE school_id=?', sc.id); run('DELETE FROM schools WHERE id=?', sc.id);
+    // Telegram bog'lanishi: saytda boshqa kirishi qolmagan raqamlar unutiladi (botda yangidan boshlaydi)
+    for (const p of phones) if (!all('SELECT phone FROM users').some(x => phone9(x.phone) === p) && !kidsOfPhone(p).length) { run('DELETE FROM tg_users WHERE phone=?', p); run('DELETE FROM tg_requests WHERE phone=?', p); }
+  });
+  log(u.id, 'maktab.izsiz_ochirish', { nom, ...n }); return { ok: true, n };
+};
 A['class.delete'] = (u, b) => {
   need(u.role === 'ceo', 'Sinfni faqat CEO o‘chiradi');
   const c = one('SELECT c.*,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', +b.id); if (!c) bad('Sinf topilmadi');
@@ -2230,7 +2269,7 @@ function demoWipe() {
   setSet('demo_school', ''); setSet('demo_users', '');
 }
 // namuna kabinetda ham ishlatib bo'lmaydigan (haqiqiy odamlarga yoki butun saytga ta'sir qiladigan) amallar
-const DEMO_BLOCK = new Set(['royxat.act', 'ustoz.kid.tasdiq', 'pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
+const DEMO_BLOCK = new Set(['school.wipe', 'royxat.act', 'ustoz.kid.tasdiq', 'pin.issue', 'pin.revoke', 'team.save', 'team.remove', 'backup.restore', 'settings.save', 'tg.approve', 'push.sub', 'certs.revoke', 'certs.assign', 'mcerts.save', 'approve', 'unapprove', 'results.import', 'students.import', 'school.delete', 'thread.forward']);
 A['demo.info'] = u => { need(u.role === 'ceo' && !u._demo); const D = demoIds();
   const pj = id => { const x = id ? one('SELECT perms FROM users WHERE id=?', id) : null; try { return JSON.parse(x?.perms || '{}'); } catch { return {}; } };
   const all1 = Object.fromEntries(PERMS.map(k => [k, true]));
