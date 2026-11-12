@@ -195,7 +195,7 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .lb{height:32px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:600}
 .lb[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--bg)}
 .actions{display:grid;grid-template-columns:1fr 2fr;gap:10px;position:sticky;bottom:0;background:var(--bg);padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
-.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:48;background:var(--fg);color:var(--bg);padding:11px 16px;border-radius:12px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--fg);color:var(--bg);padding:11px 16px;border-radius:12px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);text-align:center}
 .toast.err{background:var(--wrong);color:#fff}
 .login{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:20px;padding-block:44px 32px;text-align:center}
 .logo{width:140px;height:140px}
@@ -2986,7 +2986,11 @@ function scanOpen(cid,tid){const t=S.tests.find(x=>x.id===tid);if(!t){toast('Imt
   SC={cid,tid:t.id,stream:null,busy:false,live:true,last:'',same:0,view:'live',res:null,msg:'Kamera ochilmoqda…',okMsg:null,timer:0};
   let el=$('#scan');if(!el){el=document.createElement('div');el.id='scan';el.className='scan';document.body.appendChild(el);el.addEventListener('click',scanClick)}
   el.hidden=false;document.body.style.overflow='hidden';scanDraw();navSync();loadJsQR();scanStart()}
-function scanClose(){if(!SC)return;clearTimeout(SC.timer);SC.stream?.getTracks().forEach(t=>t.stop());SC=null;const el=$('#scan');if(el){el.hidden=true;el.innerHTML=''}if($('#sheet').hidden)document.body.style.overflow='';navSync();render()}
+function scanClose(){if(!SC)return;const _e=SC.ext;clearTimeout(SC.timer);SC.stream?.getTracks().forEach(t=>t.stop());SC=null;const el=$('#scan');if(el){el.hidden=true;el.innerHTML=''}if($('#sheet').hidden)document.body.style.overflow='';navSync();render();if(_e)try{_e.close()}catch(e){}}
+// Yangi o'qituvchi kabineti (/a/k/ustoz.html) o'zi tuzgan testni shu skaner bilan tekshiradi: bola, eski natija va saqlash kabinet tomonida
+window.ustozScan=cfg=>{SC={ext:cfg,cid:0,tid:cfg.tid,stream:null,busy:false,live:true,last:'',same:0,view:'live',res:null,msg:'Kamera ochilmoqda…',okMsg:null,timer:0};
+  let el=$('#scan');if(!el){el=document.createElement('div');el.id='scan';el.className='scan';document.body.appendChild(el);el.addEventListener('click',scanClick)}
+  el.style.zIndex=60;el.hidden=false;document.body.style.overflow='hidden';scanDraw();navSync();loadJsQR();scanStart()};
 async function scanStart(){
   if(!navigator.mediaDevices?.getUserMedia){SC.msg='Bu brauzerda kamera ochilmadi. “Rasmdan” tugmasini bosing.';scanDraw();return}
   try{SC.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}
@@ -3004,14 +3008,14 @@ function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;co
 async function scanHandle(r,still){
   if(!still)scanOverlay(r);
   if(r.err){if(still){toast(SC_ERR[r.err]==null?'O’qib bo’lmadi':SC_ERR[r.err].replace('Titulni ramkaga','Rasmda titulni'),true)}SC.same=0;scanMsg(SC_ERR[r.err]);return}
-  const q=r.qr;if(q.tid!==SC.tid){const o=S.tests.find(x=>x.id===q.tid);scanMsg(o?`Bu titul «${o.name}» uchun chiqarilgan. Bu yerda «${S.tests.find(x=>x.id===SC.tid)?.name}» tekshirilyapti`:'Bu titul boshqa imtihon uchun chiqarilgan');return}
+  const q=r.qr;if(SC.ext&&q.tid!==SC.tid){scanMsg('Bu titul boshqa test uchun chiqarilgan');return}if(q.tid!==SC.tid){const o=S.tests.find(x=>x.id===q.tid);scanMsg(o?`Bu titul «${o.name}» uchun chiqarilgan. Bu yerda «${S.tests.find(x=>x.id===SC.tid)?.name}» tekshirilyapti`:'Bu titul boshqa imtihon uchun chiqarilgan');return}
   const key=r.raw+'|'+r.ans;if(!still){if(key!==SC.last){SC.last=key;SC.same=1;scanMsg('O’qilmoqda… qimirlatmang');return}if(++SC.same<2)return}
-  const st=q.spare?null:X.st.find(s=>s.id===q.id);
+  const st=SC.ext?SC.ext.kid(q.id):q.spare?null:X.st.find(s=>s.id===q.id);
   if(!q.spare&&!st){scanMsg('Bu bola ro’yxatda topilmadi (o’chirilgan bo’lishi mumkin)');return}
-  const old=st?R(st.id,SC.tid):null;
+  const old=st?(SC.ext?SC.ext.old(st.id):R(st.id,SC.tid)):null;
   if(old&&!old.absent&&old.mode==='harf'&&old.answers===r.ans.replace(/\*/g,'-')&&(old.variant||'A')===q.v){scanMsg(`✓ ${st.name} allaqachon saqlangan: ${old.score??'?'}/${old.qn}`);return}
   const blanks=[...r.ans].filter(a=>a==='-').length,multi=[...r.ans].filter(a=>a==='*').length;
-  const other=st&&st.class_id!==SC.cid;
+  const other=!SC.ext&&st&&st.class_id!==SC.cid;
   const uns=(r.unsure||[]).filter(Boolean).length;r.uns=uns;r.st=st;r.old=old;r.multi=multi;r.blanks=blanks;r.other=other;r.ans=r.ans.split('');
   if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
   // muammosiz titul avtomatik saqlanadi; shubhali joyi bo'lsa — tasdiqlash oynasi
@@ -3039,7 +3043,7 @@ async function scanSave(r,auto){
     if(!st){toast('Bola qo’shilmadi',true);return}}
   const body={test_id:SC.tid,student_id:st.id,absent:false,mode:'harf',answers:ans,bits:'',variant:r.qr.v,src:'skaner'};
   SC.msg=SC_ERR.marker;
-  try{const x=await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);await load();scanDraw(true)}
+  try{const x=SC.ext?await SC.ext.save(st.id,ans,r.qr.v):await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);if(!SC.ext)await load();scanDraw(true)}
   catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img)}
     else{toast(e.message,true);if(auto){SC.res=r;SC.view='check';scanDraw()}}}}
 const fixNameC=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/([oOgG])[`'‘’ʻʼ´]/g,'$1‘').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
@@ -3050,20 +3054,21 @@ function scanPreview(r){const c=document.createElement('canvas'),s=r.cv,k=Math.m
   g.lineWidth=3/k*1.3;g.strokeStyle='#12a39f';g.beginPath();r.quad.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.closePath();g.stroke();
   r.marks.forEach((row,i)=>row.forEach(o=>{if(!o.on&&!o.u)return;g.strokeStyle=o.u&&!o.on?'#e0a800':r.ans[i]==='*'?'#c2414b':'#1f8a4c';g.lineWidth=Math.max(2,o.r*.25);g.beginPath();g.arc(o.x,o.y,o.r*1.25,0,7);g.stroke()}));
   return c.toDataURL('image/jpeg',.8)}
-function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const c=X.cl[SC.cid],l=scanSt(),done=l.filter(s=>R(s.id,SC.tid)).length;
-  const top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${esc(c?.name||'')} sinf · ${esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
+function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const E=SC.ext,c=E?null:X.cl[SC.cid],l=E?[]:scanSt(),done=E?E.done():l.filter(s=>R(s.id,SC.tid)).length;
+  const top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${E?esc(E.title):esc(c?.name||'')+' sinf · '+esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${E?E.total():l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
   if(SC.view==='live'){
     if(keepVideo&&$('#scanV')){el.querySelector('.scan-top').outerHTML=top;const ok=$('#scanOk');if(ok)ok.outerHTML=scanOkHtml();$('#scanMsg').textContent=SC.msg;return}
     el.innerHTML=`${top}<div class="scan-cam"><video id="scanV" playsinline muted autoplay></video><canvas id="scanOv" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none"></canvas><div class="scan-guide"><i></i><i></i><i></i><i></i></div></div>
     ${scanOkHtml()}<div class="scan-msg" id="scanMsg">${esc(SC.msg)}</div>
     <div class="scan-bot"><button class="btn sec" data-sa="photo">📸 Rasmdan</button></div>`;
     if(SC.stream){const v=$('#scanV');v.srcObject=SC.stream;v.play().catch(()=>{})}return}
+  if(SC.view==='left'&&E){const left=E.left();el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${left.length} ta</p><div class="card list">${left.map((n,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(n)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   if(SC.view==='left'){const left=l.filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
     el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${left.length} ta</p><div class="card list">${left.map((s,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(s.name)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div>
     ${left.length&&P('kiritish')?`<button class="btn sec" data-sa="absRest">Qolgan ${left.length} tasini “Kelmadi” deb belgilash</button>`:''}<button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   const r=SC.res,q=r.qr,keyLen=q.qn;
   el.innerHTML=`${top}<div class="scan-body">
-   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div><div class="note">${mkN(r.st)} · ${esc(r.st.cls)}</div>`
+   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div>${E?'':`<div class="note">${mkN(r.st)} · ${esc(r.st.cls)}</div>`}`
      :`<div class="n" style="font-weight:700">Zaxira titul</div><div class="note">Bola ismini titulga qo’lda yozgan</div>`}</div><span class="pill gold">${VL(q.v)}-variant</span></div>
     ${r.st?'':(()=>{const left=scanSt().filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));return `${left.length?`<p class="note" style="margin:0">Titulda yozilgan bola ro’yxatda bo’lsa, ismini bosing:</p><div class="spk">${left.map(s=>`<button data-sa="pick" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div><p class="note" style="margin:0">Ro’yxatda yo’q bo’lsa — familiya va ismini yozing, u shu sinfga yangi o’quvchi bo’lib qo’shiladi:</p>`:''}<label class="field"><input id="scName" type="text" autocomplete="off" placeholder="Familiya Ism"></label>`})()}
     ${r.other?`<div class="note" style="color:var(--wrong)">Bu bola ${esc(r.st.cls)} sinfdan. Natija o’z sinfiga yoziladi.</div>`:''}
@@ -3083,7 +3088,7 @@ async function scanClick(e){const b=e.target.closest('[data-sa]');e.stopPropagat
   if(a==='left'){SC.view='left';scanDraw();return}
   if(a==='live'){SC.view='live';SC.res=null;SC.last='';SC.same=0;scanDraw();return}
   if(a==='photo'){scanPhoto();return}
-  if(a==='fix'){const o=SC.okMsg;if(!o)return;const r=o.r;r.old=R(r.st.id,SC.tid);SC.res=r;SC.okMsg=null;SC.view='check';scanDraw();return}
+  if(a==='fix'){const o=SC.okMsg;if(!o)return;const r=o.r;r.old=SC.ext?SC.ext.old(r.st.id):R(r.st.id,SC.tid);SC.res=r;SC.okMsg=null;SC.view='check';scanDraw();return}
   if(a==='ch'){const r=SC.res,i=+b.dataset.i,seq=[...'ABCDE'.slice(0,r.qr.nopt),'-'],cur=r.ans[i]==='*'?'-':r.ans[i];r.ans[i]=seq[(seq.indexOf(cur)+1)%seq.length];
     r.multi=r.ans.filter(x=>x==='*').length;b.className=r.ans[i]==='-'?'e':'';b.querySelector('b').textContent=r.ans[i]==='-'?'—':r.ans[i];return}
   if(a==='save'){b.disabled=true;await scanSave(SC.res,false);b.disabled=false;return}
@@ -3819,7 +3824,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=71" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=72" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=11" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
@@ -3900,7 +3905,7 @@ addEventListener('popstate',e=>{
   if(navSkip){navSkip=0;navDo();return}
   const d=+(e.state?.yxd||0);
   while(appDepth()>d){
-    if(SC){clearTimeout(SC.timer);SC.stream?.getTracks().forEach(t=>t.stop());SC=null;const se=$('#scan');if(se){se.hidden=true;se.innerHTML=''}if($('#sheet').hidden)document.body.style.overflow=''}
+    if(SC){const _e=SC.ext;clearTimeout(SC.timer);SC.stream?.getTracks().forEach(t=>t.stop());SC=null;const se=$('#scan');if(se){se.hidden=true;se.innerHTML=''}if(_e)try{_e.close()}catch(e){}if($('#sheet').hidden)document.body.style.overflow=''}
     else if(!$('#sheet').hidden)closeSheet();
     else if(document.getElementById('darsOv')){document.getElementById('darsOv').remove();document.body.style.overflow='';if(DARS_NP){NP_OPEN=true;document.body.classList.add('np-open')}DARS_NP=false}
     else if(typeof NP_OPEN!=='undefined'&&NP_OPEN){NP_OPEN=false;document.body.classList.remove('np-open')}
