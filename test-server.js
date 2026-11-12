@@ -2302,7 +2302,22 @@ A['ustoz.get'] = (u, b) => {
     return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
       cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)) };
   });
-  return { me: { name: u.name }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+  return { me: { name: u.name, demo: !!u._demo }, cls: { name: c.name, grade: c.grade }, school: { num: c.num }, kids };
+};
+// O'qituvchi o'zi tuzgan testlar (yangi kabinet): test, variantlar, kimlarga berilgani va natijalar bitta yozuvda. Faqat sinf rahbari, faqat o'z sinfi.
+db.exec("CREATE TABLE IF NOT EXISTS utests(id INTEGER PRIMARY KEY, class_id INTEGER NOT NULL, data TEXT NOT NULL, created_at TEXT, updated_at TEXT)");
+const ustozCls = u => { need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun'); return u.class_id; };
+A['ustoz.tests'] = u => {
+  const c = ustozCls(u);
+  return { rows: all('SELECT id,data FROM utests WHERE class_id=? ORDER BY id', c).map(r => { let d = null; try { d = JSON.parse(r.data); } catch { } return { id: r.id, data: d }; }).filter(r => r.data) };
+};
+A['ustoz.test.save'] = (u, b) => {
+  const c = ustozCls(u); if (!b.data || typeof b.data !== 'object' || Array.isArray(b.data)) bad('Ma’lumot yo‘q');
+  const data = JSON.stringify(b.data); if (data.length > 600000) bad('Ma’lumot juda katta');
+  if (b.id) { const r = one('SELECT id FROM utests WHERE id=? AND class_id=?', +b.id, c); if (!r) bad('Test topilmadi'); run('UPDATE utests SET data=?,updated_at=? WHERE id=?', data, now(), r.id); return { id: r.id }; }
+  if (one('SELECT count(*) n FROM utests WHERE class_id=?', c).n >= 500) bad('Testlar soni chegaraga yetdi');
+  const r = run('INSERT INTO utests(class_id,data,created_at,updated_at) VALUES(?,?,?,?)', c, data, now(), now());
+  return { id: Number(r.lastInsertRowid) };
 };
 A['ex.delete'] = (u, b) => { need(can(u, 'mashq')); run('DELETE FROM exercises WHERE id=?', b.id); run('DELETE FROM ex_answers WHERE exercise_id=?', b.id); log(u.id, 'mashq.ochirish', { id: b.id }); return {}; };
 A['ex.list'] = u => {
