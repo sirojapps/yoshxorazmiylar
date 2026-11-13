@@ -2810,12 +2810,13 @@ A['ceo.dash'] = (u, b) => {
   const stMap = new Map(studs.map(s => [s.id, s]));
   const tests = all('SELECT id,name,date,status,gifted_min FROM tests ORDER BY id DESC').map(t => ({ ...t, bosqich: +(/(\d)\s*-?\s*bosqich/i.exec(t.name) || [])[1] || 1 }));
   const tMap = new Map(tests.map(t => [t.id, t]));
-  const best = new Map(), st1 = new Set(), st2 = new Set(), g70 = new Set(), perTest = new Map(), perMon = new Map();
-  for (const r of all('SELECT test_id,student_id,score,qn,at FROM results WHERE absent=0 AND score IS NOT NULL')) {
+  const best = new Map(), st1 = new Set(), st2 = new Set(), g70 = new Set(), perTest = new Map(), perMon = new Map(), xq = new Map();
+  for (const r of all('SELECT test_id,student_id,score,qn,at,bits FROM results WHERE absent=0 AND score IS NOT NULL')) {
     const t = tMap.get(r.test_id); if (!t || !stMap.has(r.student_id)) continue; const v = r.qn ? Math.min(100, r.score * 100 / r.qn) : 0;
     if (!best.has(r.student_id) || best.get(r.student_id) < v) best.set(r.student_id, v);
     (t.bosqich >= 2 ? st2 : st1).add(r.student_id); if (v >= (t.gifted_min || 70)) g70.add(r.student_id);
     perTest.set(r.test_id, (perTest.get(r.test_id) || 0) + 1);
+    const bt = String(r.bits || ''), gr = stMap.get(r.student_id).grade; for (let q = 0; q < bt.length && q < 60; q++) { const k = r.test_id + '|' + gr + '|' + (q + 1); const o = xq.get(k) || xq.set(k, [0, 0]).get(k); o[1]++; if (bt[q] !== '1') o[0]++; }
     const m = String(r.at || '').slice(0, 7); if (m) { const o = perMon.get(m) || perMon.set(m, [0, 0]).get(m); o[t.bosqich >= 2 ? 1 : 0]++; }
   }
   const bv = [...best.values()], topsh = new Set(best.keys());
@@ -2830,6 +2831,8 @@ A['ceo.dash'] = (u, b) => {
     sinf: [1, 2, 3, 4].map(g => { const a = studs.filter(s => s.grade === g); return { g, n: a.length, t: a.filter(s => topsh.has(s.id)).length }; }),
     jadval: tests.slice(0, 5).map(t => ({ nom: t.name, bosqich: t.bosqich, sana: t.date || '', holat: t.status === 'yakunlandi' ? 'Yakunlangan' : perTest.get(t.id) ? 'Tekshirilmoqda' : 'Rejalashtirilgan', n: perTest.get(t.id) || 0 })),
     top: [...otgan].map(sid => { const sc = scMap.get(sid); const a = (stBySc.get(sid) || []).filter(s => topsh.has(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, p70: pct(a.filter(s => g70.has(s.id)).length, a.length) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
+    tek: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).length,
+    xato: (() => { const t = tests.find(t => perTest.get(t.id)); if (!t) return { nom: '', list: [] }; return { nom: t.name, list: [...xq].filter(([k, o]) => k.startsWith(t.id + '|') && o[1] >= 5).map(([k, o]) => ({ g: +k.split('|')[1], q: +k.split('|')[2], p: pct(o[0], o[1]) })).sort((a, c) => c.p - a.p).slice(0, 5) }; })(),
     kut: { n: kut.length, top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
   };
   return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
