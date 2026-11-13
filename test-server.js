@@ -131,7 +131,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
+const KUZ_READ = new Set(['state', 'ceo.stats', 'ceo.dash', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
@@ -2755,6 +2755,84 @@ A['ceo.stats'] = u => {
     obuna: c("SELECT count(*) n FROM audit WHERE action='obuna.yoqish' AND at>=?", t0), tests: c('SELECT count(DISTINCT test_id) n FROM results WHERE at>=?', t0) };
   return { roles, delta, bugun, users: Object.values(roles).reduce((a, b) => a + b, 0), misol: one('SELECT count(*) n FROM probs WHERE active=1').n, first,
     days: days.map(d => ({ d, a: va[d] || 0, n: vn[d] || 0 })) };
+};
+
+// Yangi CEO kabineti (/a/k/ceo.html): ikki yo'nalish bo'yicha umumiy raqamlar. Faqat o'qiydi, hech narsani o'zgartirmaydi.
+// Platforma = oilasi PIN olgan yoki botda o'zi yozilgan bolalar. Imtihonlar = jamoa kiritgan hamma maktab va bolalar.
+// b: {kun: 7|30|365, v: viloyat, t: tuman, m: maktab id} — tanlangan davr va hudud.
+A['ceo.dash'] = (u, b) => {
+  need(isTeam(u));
+  const dm = demoIds(), td = today(), dayAgo = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
+  const per = [7, 30, 365].includes(+b.kun) ? +b.kun : 30, pct = (a, c) => c ? Math.round(a * 100 / c) : 0;
+  const allSc = all('SELECT id,num,viloyat,tuman FROM schools WHERE COALESCE(test,0)=0 AND id<>? ORDER BY num', dm.school).map(s => ({ ...s, nom: mkNum(s.num) }));
+  // hudud daraxti (tanlov uchun) — hamma maktablardan
+  const tree = []; for (const s of allSc) { let v = tree.find(x => x.v === s.viloyat); if (!v) tree.push(v = { v: s.viloyat, t: [] }); let t = v.t.find(x => x.t === s.tuman); if (!t) v.t.push(t = { t: s.tuman, m: [] }); t.m.push({ id: s.id, nom: s.nom }); }
+  const f = { v: typeof b.v === 'string' && tree.some(x => x.v === b.v) ? b.v : '', t: '', m: 0 };
+  if (f.v && typeof b.t === 'string' && tree.find(x => x.v === f.v).t.some(x => x.t === b.t)) f.t = b.t;
+  if (f.t && allSc.some(s => s.id === +b.m && s.viloyat === f.v && s.tuman === f.t)) f.m = +b.m;
+  const schools = allSc.filter(s => (!f.v || s.viloyat === f.v) && (!f.t || s.tuman === f.t) && (!f.m || s.id === f.m));
+  const scMap = new Map(schools.map(s => [s.id, s]));
+  const studs = all('SELECT s.id,s.phone,s.ozi,s.created_at,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid));
+  const otaBy = new Map(); for (const o of all("SELECT id,phone,created_at,last_login FROM users WHERE role='ota' AND active=1 AND pin IS NOT NULL")) { const p = phone9(o.phone); if (p && !dm.set.has(o.id)) otaBy.set(p, o); }
+  const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
+  const d0 = dayAgo(per), vis = new Map(); for (const r of all('SELECT day,user_id FROM visits WHERE day>=?', dayAgo(per + Math.ceil(per / 6)))) (vis.get(r.user_id) || vis.set(r.user_id, []).get(r.user_id)).push(r.day);
+  const plat = [];
+  for (const s of studs) {
+    let fam = null; for (const p of [phone9(s.phone), ...(extra.get(s.id) || [])]) if (p && otaBy.has(p)) { fam = otaBy.get(p); break; }
+    if (!fam && !(s.ozi > 0)) continue;
+    const days = fam ? (vis.get(fam.id) || []) : [];
+    plat.push({ ...s, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0) });
+  }
+  const platIds = new Set(plat.map(s => s.id));
+  const mast = new Map();
+  for (const s of plat) { try { const sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum; if (sm && +sm.total > 0) mast.set(s.id, Math.min(100, Math.max(0, (+sm.done || 0) * 100 / +sm.total))); } catch { } }
+  const mv = [...mast.values()], avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0;
+  const stepD = Math.max(1, Math.round(per / 6)), pts = [6, 5, 4, 3, 2, 1, 0].map(i => dayAgo(i * stepD));
+  // hudud bo'yicha: hech narsa tanlanmagan — viloyatlar; viloyat — tumanlar; tuman yoki maktab — maktablar
+  const key = s => { const sc = scMap.get(s.sid); return f.t ? sc.nom : f.v ? sc.tuman : sc.viloyat; }, daraja = f.t ? 'Maktab' : f.v ? 'Tuman' : 'Viloyat';
+  const grp = (arr, fn) => { const m = new Map(); for (const x of arr) { const k = fn(x); (m.get(k) || m.set(k, []).get(k)).push(x); } return m; };
+  const bySc = grp(plat, s => s.sid);
+  const cnt = (q, ...a) => { try { return one(q, ...a).n; } catch { return 0; } };
+  const ustoz = all("SELECT id,school_id FROM users WHERE role='rahbar' AND active=1 AND pin IS NOT NULL").filter(x => scMap.has(x.school_id) && !dm.set.has(x.id)).length;
+  const ROL = { d: 'Direktor', u: 'O‘qituvchi', o: 'O‘quvchi' };
+  const p = {
+    jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length,
+    din: pts.map((d, i) => ({ d, jami: plat.filter(s => s.since <= d).length, faol: plat.filter(s => s.days.some(x => x <= d && x > (i ? pts[i - 1] : dayAgo(7 * stepD)))).length })),
+    ozl: { n: mv.length, avg: avg(mv), b: [mv.filter(x => x >= 90).length, mv.filter(x => x >= 70 && x < 90).length, mv.filter(x => x >= 50 && x < 70).length, mv.filter(x => x < 50).length],
+      sinf: [1, 2, 3, 4].map(g => { const a = plat.filter(s => s.grade === g); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { g, n: a.length, avg: avg(m) }; }) },
+    hudud: [...grp(plat, key)].map(([nom, a]) => ({ nom, n: a.length, faol: a.filter(s => s.faol).length })).sort((a, c) => c.n - a.n).slice(0, 6),
+    top: [...bySc].map(([sid, a]) => { const sc = scMap.get(sid); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, faol: pct(a.filter(s => s.faol).length, a.length), ozl: avg(m) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
+    son: all('SELECT fam,ism,rol,viloyat,tuman,maktab_num,maktab_nom,status,at FROM royxat ORDER BY id DESC LIMIT 5').map(r => ({ ism: (r.fam + ' ' + r.ism).trim(), rol: ROL[r.rol] || '', joy: (r.maktab_nom || (r.maktab_num ? r.maktab_num + '-maktab' : '')) + (r.tuman ? ', ' + r.tuman : ''), holat: r.status, at: r.at })),
+  };
+  const hal = { dir: cnt("SELECT count(*) n FROM royxat WHERE status='kutilmoqda'"), pin: cnt("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'"), yozilgan: studs.filter(s => s.ozi === 1).length,
+    bugun: cnt('SELECT count(*) n FROM royxat WHERE at>=?', new Date(Date.parse(td) - 5 * 3600e3).toISOString()) };
+  // imtihonlar (jamoa o'tkazadigan testlar). Bosqich test nomidan olinadi ("2-bosqich"), yozilmagan bo'lsa 1-bosqich.
+  const stMap = new Map(studs.map(s => [s.id, s]));
+  const tests = all('SELECT id,name,date,status,gifted_min FROM tests ORDER BY id DESC').map(t => ({ ...t, bosqich: +(/(\d)\s*-?\s*bosqich/i.exec(t.name) || [])[1] || 1 }));
+  const tMap = new Map(tests.map(t => [t.id, t]));
+  const best = new Map(), st1 = new Set(), st2 = new Set(), g70 = new Set(), perTest = new Map(), perMon = new Map();
+  for (const r of all('SELECT test_id,student_id,score,qn,at FROM results WHERE absent=0 AND score IS NOT NULL')) {
+    const t = tMap.get(r.test_id); if (!t || !stMap.has(r.student_id)) continue; const v = r.qn ? Math.min(100, r.score * 100 / r.qn) : 0;
+    if (!best.has(r.student_id) || best.get(r.student_id) < v) best.set(r.student_id, v);
+    (t.bosqich >= 2 ? st2 : st1).add(r.student_id); if (v >= (t.gifted_min || 70)) g70.add(r.student_id);
+    perTest.set(r.test_id, (perTest.get(r.test_id) || 0) + 1);
+    const m = String(r.at || '').slice(0, 7); if (m) { const o = perMon.get(m) || perMon.set(m, [0, 0]).get(m); o[t.bosqich >= 2 ? 1 : 0]++; }
+  }
+  const bv = [...best.values()], topsh = new Set(best.keys());
+  const mons = []; for (let i = 5; i >= 0; i--) mons.push(new Date(Date.parse(td.slice(0, 7) + '-15') - i * 30.4 * 864e5).toISOString().slice(0, 7));
+  const stBySc = grp(studs, s => s.sid), otgan = new Set([...topsh].map(id => stMap.get(id).sid));
+  const kut = schools.filter(s => !otgan.has(s.id));
+  const i = {
+    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: cnt('SELECT count(*) n FROM certificates') + cnt('SELECT count(*) n FROM mcerts'), plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
+    nat: [bv.filter(x => x >= 70).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x >= 30 && x < 50).length, bv.filter(x => x < 30).length],
+    din: mons.map(m => ({ m, b1: (perMon.get(m) || [0, 0])[0], b2: (perMon.get(m) || [0, 0])[1] })),
+    hudud: [...grp(schools, s => f.t ? s.nom : f.v ? s.tuman : s.viloyat)].map(([nom, a]) => { const ids = new Set(a.map(s => s.id)); const st = studs.filter(s => ids.has(s.sid)); return { nom, m: a.length, n: st.length, t: st.filter(s => topsh.has(s.id)).length }; }).sort((a, c) => c.n - a.n).slice(0, 6),
+    sinf: [1, 2, 3, 4].map(g => { const a = studs.filter(s => s.grade === g); return { g, n: a.length, t: a.filter(s => topsh.has(s.id)).length }; }),
+    jadval: tests.slice(0, 5).map(t => ({ nom: t.name, bosqich: t.bosqich, sana: t.date || '', holat: t.status === 'yakunlandi' ? 'Yakunlangan' : perTest.get(t.id) ? 'Tekshirilmoqda' : 'Rejalashtirilgan', n: perTest.get(t.id) || 0 })),
+    top: [...otgan].map(sid => { const sc = scMap.get(sid); const a = (stBySc.get(sid) || []).filter(s => topsh.has(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, p70: pct(a.filter(s => g70.has(s.id)).length, a.length) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
+    kut: { n: kut.length, top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
+  };
+  return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
 };
 
 const server = http.createServer(async (req, res) => {
