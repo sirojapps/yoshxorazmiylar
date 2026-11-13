@@ -3830,6 +3830,23 @@ document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.
     Promise.resolve(load()).finally(()=>{p.remove();toast('Yangilandi ✓')})}else p.remove()}
   mode=''},{passive:true});
 })();
+// Yangi kabinetlar (iframe ichida) ham tepadan pastga tortilsa yangilanadi
+(function(){
+ const hook=f=>{let w;try{w=f.contentWindow;if(!w||w.__ptr)return;w.__ptr=1}catch(e){return}
+  let sy=0,sx=0,m='',pd=0,p=null;
+  const top=t=>{for(let e=t;e&&e.nodeType===1;e=e.parentElement){if(e.scrollTop>0)return false}const se=w.document.scrollingElement;return !se||se.scrollTop<=0};
+  w.addEventListener('touchstart',e=>{m='';pd=0;const t=e.touches[0];sx=t.clientX;sy=t.clientY;if(e.touches.length===1&&!e.target.closest('input,textarea,select,[contenteditable]')&&top(e.target))m='?'},{passive:true});
+  w.addEventListener('touchmove',e=>{if(!m)return;const t=e.touches[0],x=t.clientX-sx,y=t.clientY-sy;
+   if(m==='?'){if(Math.abs(x)>10||Math.abs(y)>10)m=y>0&&y>Math.abs(x)*1.3?'pr':''}
+   if(m==='pr'){pd=Math.max(0,y);if(!p){p=document.createElement('div');p.id='ptr';p.innerHTML='<span>↓</span>';p.style.zIndex='99';document.body.appendChild(p)}
+    const h=Math.min(90,pd*.5);p.style.transform=`translate(-50%,${h}px)`;p.style.opacity=String(Math.min(1,h/60));p.classList.toggle('go',h>=60)}},{passive:true});
+  const end=()=>{if(m==='pr'&&p){const q=p;p=null;if(Math.min(90,pd*.5)>=60){q.classList.add('spin');q.style.transform='translate(-50%,60px)';try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}
+    let fn=null;try{fn=w.yxYangila||w.rLoad||w.yukla}catch(e){}
+    if(typeof fn==='function'){Promise.resolve().then(()=>fn(true)).then(r=>{q.remove();toast(r==='band'?'Avval boshlagan ishingizni tugating':'Yangilandi ✓')},()=>{q.remove();toast('Yangilanmadi. Internetni tekshiring')});m='';return}
+    const done=()=>{q.remove();toast('Yangilandi ✓')};f.addEventListener('load',done,{once:true});setTimeout(()=>{if(q.isConnected)done()},8000);try{w.location.reload()}catch(e){done()}}else q.remove()}m=''};
+  w.addEventListener('touchend',end,{passive:true});w.addEventListener('touchcancel',end,{passive:true})};
+ document.addEventListener('load',e=>{if(e.target&&e.target.tagName==='IFRAME'&&/\/a\/k\//.test(e.target.src||''))hook(e.target)},true);
+})();
 function render(){
   const __rpv=document.querySelector('#thPane #rpText')?.value||'';
   document.body.dataset.theme=!S?'sky':(THEME[tab]||'sky');
@@ -3842,7 +3859,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=76" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=77" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=15" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
