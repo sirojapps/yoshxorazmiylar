@@ -1875,7 +1875,7 @@ function scrParent(){
       ${cAvg!=null?`<section class="sec"><p class="label">Sinf bilan solishtirma</p><div class="card cmp"><div class="r"><span>Farzandingiz</span><div class="track"><i style="width:${p}%;background:var(--accent)"></i></div><b class="num">${pf(p)}%</b></div><div class="r"><span>Sinf o’rtachasi</span><div class="track"><i style="width:${cAvg}%;background:var(--low)"></i></div><b class="num">${pf(cAvg)}%</b></div></div>
       <p class="note">${rank?(rank[0]<=Math.ceil(rank[1]/2)?`Tumandagi ${s.grade}-sinflar orasida ${rank[0]}-o’rin (${rank[1]} ta bola).`:''):'Tumandagi o’rni sinov yakunlangach chiqadi.'} Boshqa bolalarning ismi va bali ko’rinmaydi.</p></section>`:''}
       <section class="sec"><p class="label">Savollar bo’yicha</p>${qGrid(r)}</section>`}}
-  return [s.name,`${mkN(s)} · ${s.cls}`,`${otaEski()&&!S.me.demo?`<button class="btn sec" data-act="otaYangi" style="margin-bottom:10px">Yangi ko’rinishga qaytish</button>`:''}<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
+  return [s.name,`${mkN(s)} · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
 // ota-ona: farzandining maktab ichki sinov natijalari
 function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!its.length)return'';
   return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${pf(p)}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
@@ -2682,7 +2682,6 @@ document.addEventListener('click',async e=>{
    case 'rxYes':await api('royxat.act',{id:+d.id});toast('Tasdiqlandi, PIN Telegram’ga yuborildi');await load();openTgReq();break;
    case 'rxNo':await api('royxat.act',{id:+d.id,rad:true});toast('Rad etildi');await load();openTgReq();break;
    case 'certPng':await certPng(d.c);break;
-   case 'otaYangi':try{sessionStorage.removeItem('yx_ota_eski')}catch(e){}location.reload();break;
    case 'dl':dlOpen(d.k,+d.id);break;
    case 'dlGo':await dlGo(d.f);break;
    case 'certDemo':await certDemo();break;
@@ -3681,8 +3680,7 @@ function scrDemo(){
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
 window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>demoExit();
 // Yangi ota-ona kabineti (/a/k/ota.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, sertifikat yuklaydi va chiqadi
-window.OTA={st:()=>S,api:(n,b)=>api(n,b),cert:c=>certPng(c),chiq:v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ota_eski','1')}catch(e){}location.reload();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
-const otaEski=()=>{try{return sessionStorage.getItem('yx_ota_eski')==='1'}catch(e){return false}};
+window.OTA={st:()=>S,api:(n,b)=>api(n,b),cert:c=>certPng(c),chiq:()=>{fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
 const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
 window.ustozPdf=async()=>{await loadLib(JSPDF,()=>window.jspdf);await loadLib(QRGEN,()=>window.qrcode);return{jsPDF:jspdf.jsPDF,drawTitul,pdfTxt,TIW,TIH}};
 window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
@@ -3837,7 +3835,7 @@ function render(){
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=76" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
-  if(S.me.role==='ota'&&!S.me.demo&&!otaEski()){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=1" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
+  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
   if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=11" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
