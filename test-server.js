@@ -2796,7 +2796,7 @@ A['ceo.dash'] = (u, b) => {
   const ustoz = all("SELECT id,school_id FROM users WHERE role='rahbar' AND active=1 AND pin IS NOT NULL").filter(x => scMap.has(x.school_id) && !dm.set.has(x.id)).length;
   const ROL = { d: 'Direktor', u: 'O‘qituvchi', o: 'O‘quvchi' };
   const p = {
-    jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length,
+    jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length, bugun: plat.filter(s => s.days.includes(td)).length,
     din: pts.map((d, i) => ({ d, jami: plat.filter(s => s.since <= d).length, faol: plat.filter(s => s.days.some(x => x <= d && x > (i ? pts[i - 1] : dayAgo(7 * stepD)))).length })),
     ozl: { n: mv.length, avg: avg(mv), b: [mv.filter(x => x >= 90).length, mv.filter(x => x >= 70 && x < 90).length, mv.filter(x => x >= 50 && x < 70).length, mv.filter(x => x < 50).length],
       sinf: [1, 2, 3, 4].map(g => { const a = plat.filter(s => s.grade === g); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { g, n: a.length, avg: avg(m) }; }) },
@@ -2825,7 +2825,8 @@ A['ceo.dash'] = (u, b) => {
   const kut = schools.filter(s => !otgan.has(s.id));
   const i = {
     maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: cnt('SELECT count(*) n FROM certificates') + cnt('SELECT count(*) n FROM mcerts'), plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
-    nat: [bv.filter(x => x >= 70).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x >= 30 && x < 50).length, bv.filter(x => x < 30).length],
+    nat: [bv.filter(x => x >= 90).length, bv.filter(x => x >= 70 && x < 90).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x < 50).length],
+    avg: bv.length ? Math.round(bv.reduce((a, c) => a + c, 0) / bv.length) : 0, max: bv.length ? Math.round(Math.max(...bv)) : 0, tn: tests.filter(t => perTest.get(t.id)).length,
     din: mons.map(m => ({ m, b1: (perMon.get(m) || [0, 0])[0], b2: (perMon.get(m) || [0, 0])[1] })),
     hudud: [...grp(schools, s => f.t ? s.nom : f.v ? s.tuman : s.viloyat)].map(([nom, a]) => { const ids = new Set(a.map(s => s.id)); const st = studs.filter(s => ids.has(s.sid)); return { nom, m: a.length, n: st.length, t: st.filter(s => topsh.has(s.id)).length }; }).sort((a, c) => c.n - a.n).slice(0, 6),
     sinf: [1, 2, 3, 4].map(g => { const a = studs.filter(s => s.grade === g); return { g, n: a.length, t: a.filter(s => topsh.has(s.id)).length }; }),
