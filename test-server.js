@@ -2562,7 +2562,8 @@ A['ustoz.get'] = (u, b) => {
     return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
       cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0, ...(s.ozi === 1 ? { yangi: 1, pat: s.patronymic || '' } : {}) };
   });
-  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNum(c.num) }, kids };
+  let holat = null; try { holat = JSON.parse(one('SELECT data FROM uholat WHERE class_id=?', c.id)?.data || 'null'); } catch { }
+  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNum(c.num) }, kids, holat };
 };
 // Botda o'zi yozilgan bolani sinf rahbari tasdiqlaydi yoki sinfdan chiqaradi (kabineti yopilmaydi, kim rad etgani aytiladi)
 A['ustoz.kid.tasdiq'] = (u, b) => {
@@ -2629,6 +2630,17 @@ const ustozCls = u => { need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf 
 A['ustoz.tests'] = u => {
   const c = ustozCls(u);
   return { rows: all('SELECT id,data FROM utests WHERE class_id=? ORDER BY id', c).map(r => { let d = null; try { d = JSON.parse(r.data); } catch { } return { id: r.id, data: d }; }).filter(r => r.data) };
+};
+// Sinf qaysi mavzuda, qaysi mavzu boshqa chorakka ko'chirilgan yoki rejadan olingan (yangi kabinet). Faqat sinf rahbari, o'z sinfi.
+db.exec("CREATE TABLE IF NOT EXISTS uholat(class_id INTEGER PRIMARY KEY, data TEXT NOT NULL, updated_at TEXT)");
+A['ustoz.holat'] = (u, b) => {
+  const c = ustozCls(u), ix = v => { const n = +v; return Number.isInteger(n) && n >= 0 && n < 400 ? n : null; };
+  const cur = ix(b.cur); if (cur === null) bad('Mavzu tanlanmagan');
+  const hid = {}, pl = {};
+  for (const k of Object.keys(b.hid || {}).slice(0, 400)) if (ix(k) !== null) hid[ix(k)] = 1;
+  for (const k of Object.keys(b.pl || {}).slice(0, 400)) { const q = +b.pl[k]; if (ix(k) !== null && q >= 1 && q <= 4) pl[ix(k)] = q; }
+  run('INSERT INTO uholat(class_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(class_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at', c, JSON.stringify({ cur, hid, pl }), now());
+  return { ok: true };
 };
 A['ustoz.test.save'] = (u, b) => {
   const c = ustozCls(u); if (!b.data || typeof b.data !== 'object' || Array.isArray(b.data)) bad('Ma’lumot yo‘q');
