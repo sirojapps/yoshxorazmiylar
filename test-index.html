@@ -3827,9 +3827,13 @@ document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.
    if(mode==='np'){if(dx<-w*.35||vx<-.35){NP_OPEN=false;document.body.classList.remove('np-open');buzz(8);navSync()}}
    else if(dx>w*.35||vx>.35){NP_OPEN=true;buzz(8);navSync()}else{document.body.classList.remove('np-open')}}
   if(mode==='pr'&&ptr){const p=ptr;ptr=null;if(Math.min(90,pd*.5)>=60){p.classList.add('spin');p.style.transform='translate(-50%,60px)';buzz(10);
-    Promise.resolve(load()).finally(()=>{p.remove();toast('Yangilandi ✓')})}else p.remove()}
+    yxYangiVer().then(nv=>{if(nv){location.reload();return new Promise(()=>{})}return load()}).finally(()=>{p.remove();toast('Yangilandi ✓')})}else p.remove()}
   mode=''},{passive:true});
 })();
+// Sayt yangilanganmi: tortib yangilashda yangi versiya bo'lsa butun sahifa qayta yuklanadi
+let YX_V0=null;const yxVer=()=>fetch('/api/ver',{cache:'no-store',credentials:'same-origin'}).then(r=>r.json()).then(j=>String(j.v||'')).catch(()=>'');
+yxVer().then(v=>{YX_V0=v});
+const yxYangiVer=async()=>{if(!YX_V0)return false;const v=await yxVer();return !!v&&v!==YX_V0};
 // Yangi kabinetlar (iframe ichida) ham tepadan pastga tortilsa yangilanadi
 (function(){
  const hook=f=>{let w;try{w=f.contentWindow;if(!w||w.__ptr)return;w.__ptr=1}catch(e){return}
@@ -3842,7 +3846,7 @@ document.addEventListener('click',e=>{if(e.target.closest('.kp button,.btn.pri,.
     const h=Math.min(90,pd*.5);p.style.transform=`translate(-50%,${h}px)`;p.style.opacity=String(Math.min(1,h/60));p.classList.toggle('go',h>=60)}},{passive:true});
   const end=()=>{if(m==='pr'&&p){const q=p;p=null;if(Math.min(90,pd*.5)>=60){q.classList.add('spin');q.style.transform='translate(-50%,60px)';try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}
     let fn=null;try{fn=w.yxYangila||w.rLoad||w.yukla}catch(e){}
-    if(typeof fn==='function'){Promise.resolve().then(()=>fn(true)).then(r=>{q.remove();toast(r==='band'?'Avval boshlagan ishingizni tugating':'Yangilandi ✓')},()=>{q.remove();toast('Yangilanmadi. Internetni tekshiring')});m='';return}
+    if(typeof fn==='function'){yxYangiVer().then(nv=>{if(nv){location.reload();return new Promise(()=>{})}}).then(()=>fn(true)).then(r=>{q.remove();toast(r==='band'?'Avval boshlagan ishingizni tugating':'Yangilandi ✓')},()=>{q.remove();toast('Yangilanmadi. Internetni tekshiring')});m='';return}
     const done=()=>{q.remove();toast('Yangilandi ✓')};f.addEventListener('load',done,{once:true});setTimeout(()=>{if(q.isConnected)done()},8000);try{w.location.reload()}catch(e){done()}}else q.remove()}m=''};
   w.addEventListener('touchend',end,{passive:true});w.addEventListener('touchcancel',end,{passive:true})};
  document.addEventListener('load',e=>{if(e.target&&e.target.tagName==='IFRAME'&&/\/a\/k\//.test(e.target.src||''))hook(e.target)},true);
