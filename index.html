@@ -3857,6 +3857,7 @@ function render(){
 }
 let lpEdit=false;
 const lpGet=()=>ls.get('lphone','');
+const lpFmt=i=>{const v=i.value,c=i.selectionStart??v.length;let k=v.slice(0,c).replace(/\D/g,'').length,d=v.replace(/\D/g,'');if(d.startsWith('998')&&d.length>9){d=d.slice(0,12);if(d.length===12){d=d.slice(3);k=Math.max(0,k-3)}}else d=d.slice(0,9);const g=d.length>9?[3,2,3,2,2]:[2,3,2,2];let o='',p=0,n=0,q=0;for(const x of g){if(p>=d.length)break;if(o)o+=' ';for(const ch of d.slice(p,p+x)){if(n===k)q=o.length;o+=ch;n++}p+=x}if(k>=n)q=o.length;if(o!==v){i.value=o;try{i.setSelectionRange(q,q)}catch{}}};
 const lpShow=p=>p?`+998 ${p.slice(0,2)} ${p.slice(2,5)} ** ${p.slice(7)}`:'';
 let lpKind=null,lpKindFor='';
 function lpKindLoad(lp){lpKindFor=lp;lpKind='?';fetch('/api/login-kind',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:lp})}).then(r=>r.json()).then(d=>{lpKind=d.kind==='parol'?'parol':'pin'}).catch(()=>{lpKind='pin'}).then(()=>{if(!S)render()})}
@@ -3877,11 +3878,11 @@ function renderLogin(){
   if(!lp||lpEdit){
     $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">Telefon raqamingizni kiriting</p></div>
     <label style="display:flex;align-items:center;gap:8px;width:100%;max-width:320px;border:1px solid var(--line,#ccd);border-radius:14px;padding:12px 14px;background:var(--card,#fff)"><span style="opacity:.6;font-weight:600">+998</span>
-     <input id="lpIn" type="tel" inputmode="tel" autocomplete="tel" maxlength="14" placeholder="90 123 45 67" value="${esc(lp?lp.replace(/(\d{2})(\d{3})(\d{2})(\d{2})/,'$1 $2 $3 $4'):'')}" style="flex:1;border:0;outline:0;font:inherit;font-size:18px;background:transparent;min-width:0"></label>
+     <input id="lpIn" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="90 123 45 67" value="${esc(lp?lp.replace(/(\d{2})(\d{3})(\d{2})(\d{2})/,'$1 $2 $3 $4'):'')}" style="flex:1;border:0;outline:0;font:inherit;font-size:18px;background:transparent;min-width:0"></label>
     <p class="err" role="alert">${esc(pinErr)}</p>
     <button class="btn pri" data-act="lpGo" style="width:100%;max-width:320px">Davom etish</button>
     <p class="note" style="max-width:320px">PIN kodni qaysi raqamga olgan bo’lsangiz, o’sha raqamni yozing. Sayt raqamni eslab qoladi, keyingi safar faqat PIN so’raladi.</p>${instBtn()}</div>`;
-    const i=$('#lpIn');if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')document.querySelector('[data-act=lpGo]')?.click()}}
+    const i=$('#lpIn');if(i){i.focus();i.oninput=()=>lpFmt(i);i.onkeydown=e=>{if(e.key==='Enter')document.querySelector('[data-act=lpGo]')?.click()}}
     return}
   $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">${lpShow(lp)} · <button class="lnk" data-act="lpChange">o’zgartirish</button></p><p class="note" style="margin-top:4px">PIN kodingizni kiriting</p></div>
   <div class="pinbox">${[0,1,2,3,4,5].map(i=>`<span class="${i<pin.length?'f':i===pin.length?'cur':''}">${i<pin.length?'•':''}</span>`).join('')}</div>
