@@ -3844,9 +3844,9 @@ function render(){
   document.body.dataset.theme=THEME[tab]||'sky';
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=76" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=12" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=13" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=12" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=13" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
