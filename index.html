@@ -1043,7 +1043,7 @@ let testId=ls.get('test',null);
 const P=k=>!!S?.me?.perms?.[k];
 const isDir=()=>S?.me?.role==='direktor';
 const ED=()=>P('maktab')||isDir(); // o'quvchi/sinf ma'lumotlarini tahrirlay oladi
-const isTeam=()=>S&&(S.me.role==='ceo'||S.me.role==='jamoa');
+const isTeam=()=>S&&(S.me.role==='ceo'||S.me.role==='jamoa');const brTum=()=>{if(isTeam())return'O‘zbekiston';const t=((S&&S.schools||[])[0]||{}).tuman||'Qorako‘l';return/ shahri$/.test(t)?t:t+' tumani'};
 
 let netTry=0,netTimer=null,SJ='';
 // auto=true — har daqiqadagi fon yangilanishi: ma'lumot o'zgarmagan bo'lsa sahifa qayta chizilmaydi (qotib qolmasligi uchun)
@@ -3843,7 +3843,7 @@ function render(){
    <button class="ib out-btn" data-act="logoutAsk" aria-label="Chiqish" title="Chiqish">${I.out}</button>
    <button class="ib" data-act="reload" aria-label="Yangilash" title="Yangilash" style="font-size:20px;line-height:1">↻</button></header>
    <main class="gut">${!oqBo()&&!stack.length&&tab===tabs[0]?.[0]?instBanner()+pushBanner()+(NUI()?'':avNudge()):''}${body}${!oqBo()&&!NUI()&&!stack.length&&tab===tabs[0]?.[0]?`<div class="mob-sch">${schoolCard()}</div>`:''}</main>
-   ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>Qorako’l tumani · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
+   ${tabs.length>1?`<nav class="tabs"><div class="in"><div class="dk brand"><img src="/icon-512.png?v=2" alt="Yosh Xorazmiylar logotipi" width="54" height="54"><div><b>Yosh Xorazmiylar</b><span>${esc(brTum())} · matematika</span></div></div>${tabs.map(([k,l,ic,n])=>`<button data-tab="${k}" aria-current="${tab===k&&!stack.length}"><span class="ti">${ic}${n?`<span class="badge">${n>99?'99+':n}</span>`:''}</span>${l}</button>`).join('')}${sideExtra()}</div></nav>`:''}`;
   if(S.me.demo)$('#app').insertAdjacentHTML('beforeend',demoBar());
   if(NUI()){$('#app').insertAdjacentHTML('beforeend',npPanel());{const _np=document.querySelector('.np-sc');if(_np)_np.scrollTop=window.__npY||0}const nq=$('#npq');if(nq){nq.value=gq;nq.oninput=e=>{gq=e.target.value;$('#npres').innerHTML=gq.trim()?searchRes():''}}}
   const gi=$('#gq');if(gi){gi.oninput=e=>{gq=e.target.value;$('#gres').innerHTML=searchRes()};if(gfocus){gi.focus();gi.setSelectionRange(gi.value.length,gi.value.length)}}

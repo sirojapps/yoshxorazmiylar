@@ -328,7 +328,7 @@ function state(u) {
   const ph = classIds.map(() => '?').join(',') || 'NULL';
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name,obuna${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
-  out.schools = all(`SELECT id,num,name${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
+  out.schools = all(`SELECT id,num,name,raqam,tuman,viloyat${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
   let studs = all(`SELECT id,class_id,name,phone,avatar,patronymic FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
