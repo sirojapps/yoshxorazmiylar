@@ -360,7 +360,7 @@ body{background:var(--bg)}
 .np,.np-dim,.np-burg{display:none}
 body.nui .tabs{display:none!important}
 body.nui .np{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;width:286px;background:linear-gradient(180deg,#eff6ff,#dbeafe);border-right:1px solid #cfe0f7;color:#1e293b;font-size:14.5px}
-.np-h{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid #d6e4f7}.np-h img{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 12px rgba(15,35,80,.18)}
+.np-h{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid #d6e4f7}.np-h img,.np-h>div,.nph img,.nph-t,img.logo{cursor:pointer}.np-h img{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 12px rgba(15,35,80,.18)}
 .np-h b{display:block;color:#0f2350;font-size:16px}.np-h small{color:#64748b;font-size:11.5px}.np-x{margin-left:auto;display:none;width:34px;height:34px;border:0;border-radius:10px;background:#fff;color:#1e293b;font-size:15px}
 .np-me{display:flex;align-items:center;gap:10px;margin:12px 12px 4px;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid #bfdbfe;text-align:left;font:inherit;cursor:pointer}
 .np-me b{display:block;color:#0f2350;font-size:14px}.np-me small{color:#2563eb;font-size:11.5px}
@@ -3688,6 +3688,8 @@ function ceoYSync(){const ok=!!(S&&S.me&&S.me.role==='ceo'&&!S.me.demo);let f=$(
   if(!show&&f)f.remove();
   if(ok&&!show&&!b){b=document.createElement('button');b.id='ceob';b.type='button';b.textContent='Yangi ko’rinish';b.style.cssText='position:fixed;right:14px;bottom:84px;z-index:45;border:0;border-radius:999px;padding:11px 18px;font:600 14px "Golos Text",system-ui,sans-serif;color:#fff;background:linear-gradient(180deg,#f7b733,#e08a00);box-shadow:0 4px 14px rgba(15,35,80,.25);cursor:pointer';b.onclick=()=>{window.__ceoY=1;try{localStorage.setItem('yx_ceo_yangi','1')}catch(e){}window.__ceoEski=false;ceoYSync()};document.body.appendChild(b)}
   if((!ok||show)&&b)b.remove()}
+// Logo bosilsa — qaysi sahifada bo'lsa ham bosh sahifaga qaytadi
+document.addEventListener('click',e=>{if(!e.target.closest('.np-h img,.np-h>div,.nph img,.nph-t,img.logo'))return;if(!S||!S.me)return;document.getElementById('darsOv')?.remove();try{if(!$('#sheet').hidden)closeSheet()}catch(x){}NP_OPEN=false;document.body.classList.remove('np-open');if(S.me.role==='ceo'&&!S.me.demo&&ceoYOn())window.__ceoEski=false;tab=null;stack=[];render();scrollTo(0,0)});
 window.ceoYangi=(cmd,v)=>{if(cmd==='out'){window.ustozChiq('out');return}
   if(cmd==='eski'){window.__ceoY=0;try{localStorage.removeItem('yx_ceo_yangi')}catch(e){}window.__ceoEski=true;tab='bosh';stack=[];render();return}
   if(cmd==='ochish'){const [k,x]=String(v||'').split(':');const el=document.createElement('button');el.type='button';el.style.display='none';
