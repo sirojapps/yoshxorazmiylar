@@ -2305,7 +2305,7 @@ function dlBuild(scope){
   else if(k==='S'){const sc=X.sc[+a];const l=X.st.filter(s=>s.school_id===sc.id);out.title=`${mkN(sc)}`;out.file=`${mkN(sc)}`;
     grades(l).forEach(g=>out.sections.push({h:`${g}-sinflar (umumiy)`,rows:dlRows(l.filter(s=>s.grade===g))}))}
   else if(k==='T'){const min=+a,g=+b,sc=+scope.split(':')[3]||0;const many=S.schools.length>1;
-    out.title=`${sc?mkN(X.sc[sc])+'':many?'Barcha maktablar':(X.sc[S.schools[0]?.id]?.num??'')+'-maktab'} · ${min}% va yuqori`;out.file=`Yuqori_${min}foiz${g?'_'+g+'-sinflar':''}${sc?'_'+mkN(X.sc[sc])+'':''}`;out.school=many&&!sc;out.cnt='Soni';
+    out.title=`${sc?mkN(X.sc[sc])+'':many?'Barcha maktablar':(S.schools[0]?mkN(S.schools[0]):'')} · ${min}% va yuqori`;out.file=`Yuqori_${min}foiz${g?'_'+g+'-sinflar':''}${sc?'_'+mkN(X.sc[sc])+'':''}`;out.school=many&&!sc;out.cnt='Soni';
     const l=topStu(min,g,sc);grades(l).forEach(gr=>out.sections.push({h:`${gr}-sinflar`,rows:dlRows(l.filter(s=>s.grade===gr),out.school)}))}
   else if(k==='DG'){out.title=`Tuman · ${a}-sinflar`;out.file=`Tuman_${a}-sinflar`;out.school=1;
     out.sections.push({h:`${a}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===+a),true)})}
@@ -3684,8 +3684,8 @@ window.OTA={st:()=>S,api:(n,b)=>api(n,b),cert:c=>certPng(c),chiq:()=>{kimSet2();
 const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
 window.ustozPdf=async()=>{await loadLib(JSPDF,()=>window.jspdf);await loadLib(QRGEN,()=>window.qrcode);return{jsPDF:jspdf.jsPDF,drawTitul,pdfTxt,TIW,TIH}};
 window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
-const kimGet=()=>{try{return sessionStorage.getItem('yx_kim')||''}catch(e){return window.__kim||''}};
-const kimSet=v=>{window.__kim=v;try{v?sessionStorage.setItem('yx_kim',v):sessionStorage.removeItem('yx_kim')}catch(e){}$('#app').innerHTML='';render()};
+const kimGet=()=>{let v='';try{v=sessionStorage.getItem('yx_kim')||''}catch(e){v=window.__kim||''}const i=v.indexOf(':');return S&&S.me&&i>0&&v.slice(0,i)===String(S.me.id)?v.slice(i+1):''}; // tanlov faqat shu kirgan odamga tegishli
+const kimSet=v=>{v=v&&S&&S.me?S.me.id+':'+v:'';window.__kim=v;try{v?sessionStorage.setItem('yx_kim',v):sessionStorage.removeItem('yx_kim')}catch(e){}$('#app').innerHTML='';render()};
 // Ota-ona PIN'i bilan kirgandan keyin: "Men o'quvchiman / Men ota-onaman" tanlovi
 const kimSet2=()=>{window.__kim='';try{sessionStorage.removeItem('yx_kim')}catch(e){}};
 function renderKim(){const ks=(S.students||[]).filter(s=>(S.children||[]).includes(s.id)),k=ks.length===1?X.st.find(x=>x.id===ks[0].id)||ks[0]:null;
@@ -3844,9 +3844,9 @@ function render(){
   document.body.dataset.theme=THEME[tab]||'sky';
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=76" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=13" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=14" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=13" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=14" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
@@ -3982,7 +3982,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='hQ'){
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-go]'); if(!b)return; const d=b.dataset;
   try{
-  if(d.d!=null){if(pin.length<6){pin+=d.d;pinErr=''}render();if(pin.length===6){const p=pin;pin='';try{await api('login',{pin:p,phone:lpGet()});await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}}return}
+  if(d.d!=null){if(pin.length<6){pin+=d.d;pinErr=''}render();if(pin.length===6){const p=pin;pin='';try{await api('login',{pin:p,phone:lpGet()});kimSet2();await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}}return}
   if(NP_OPEN&&(d.tab||d.go||d.side))NP_FROM=true;
   if(NP_OPEN&&(d.tab||d.go||d.side)){NP_OPEN=false;document.body.classList.remove('np-open')}
   if(d.side){navPush();stack=[];go(d.side,1);return}
@@ -4013,7 +4013,7 @@ document.addEventListener('click',async e=>{
    case 'lpChange':lpEdit=true;pin='';pinErr='';render();break;
    case 'pwEye':{const i=$('#pwIn');if(i)i.type=i.type==='password'?'text':'password';break}
    case 'pwGo':{const i=$('#pwIn');const v=i?i.value:'';if(!v){pinErr='Parolni yozing';render();break}
-     try{await api('login',{phone:lpGet(),password:v});pinErr='';await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}break}
+     try{await api('login',{phone:lpGet(),password:v});kimSet2();pinErr='';await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}break}
    case 'parolSet':openParol();break;
    case 'pwEyeF':{const i=$('#'+d.f);if(i){const sh=i.type==='password';i.type=sh?'text':'password';b.textContent=sh?'🙈 Yashirish':'👁 Ko’rsatish';i.focus()}break}
    case 'parolSave':{const o=$('#pwOld')?.value||'',n=$('#pwNew')?.value||'',n2=$('#pwNew2')?.value||'';const er=$('#pwErr');
@@ -4183,7 +4183,7 @@ document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.
 // ---------------- 30 daqiqa hech narsa bosilmasa — kirish yopiladi, PIN (parol) qayta so'raladi. Brauzer yopilsa ham (server kirishni eslab qolmaydi).
 const IDLE=30*60*1000,IDLE_MSG='30 daqiqa hech narsa bosilmadi. Xavfsizlik uchun qaytadan kiring.';let actPing=0;
 const actGet=()=>{try{return +localStorage.getItem('yx_act')||0}catch(e){return 0}};
-async function idleOut(){if(!S)return;S=null;stack=[];tab=null;pin='';pinErr=IDLE_MSG;
+async function idleOut(){if(!S)return;kimSet2();S=null;stack=[];tab=null;pin='';pinErr=IDLE_MSG;
   try{localStorage.removeItem('yx_act');localStorage.removeItem('yx_nav')}catch(e){}
   try{closeSheet()}catch(e){}render();try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'})}catch(e){}}
 function markAct(){const n=Date.now(),a=actGet();if(S&&a&&n-a>IDLE){idleOut();return}

@@ -1460,7 +1460,7 @@ A['itest.save'] = (u, b) => {
 A['itest.delete'] = (u, b) => {
   const t = one('SELECT * FROM itests WHERE id=?', +b.id); if (!t) return {}; need(canItest(u, t.school_id));
   tx(() => { const d = { itests: [t], iresults: all('SELECT * FROM iresults WHERE itest_id=?', t.id) }; run('DELETE FROM iresults WHERE itest_id=?', t.id); run('DELETE FROM itests WHERE id=?', t.id);
-    toTrash(u, 'itest', t.id, t.name, `${(one('SELECT num FROM schools WHERE id=?', t.school_id) || {}).num}-maktab · ichki sinov · ${d.iresults.length} ta ball`, t.school_id, d); });
+    toTrash(u, 'itest', t.id, t.name, `${mkNum((one('SELECT num FROM schools WHERE id=?', t.school_id) || {}).num)} · ichki sinov · ${d.iresults.length} ta ball`, t.school_id, d); });
   log(u.id, 'ichki.ochirish', { id: t.id, name: t.name }); return {};
 };
 // ball kiritish: direktor (o'z maktabi), sinf rahbari (o'z sinfi), jamoa (maktab huquqi)
