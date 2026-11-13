@@ -2520,6 +2520,34 @@ A['yol.yoz'] = (u, b) => {
   run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
   return { ok: true };
 };
+// ---------------- Yangi ota-ona kabineti (/a/k/ota.html): har farzandning o'quv yo'lidagi holati va sinf rahbari olgan testlardagi natijasi. Faqat o'qish.
+// Boshqa bolalarning ismi va natijasi berilmaydi: faqat sinf o'rtachasi (nechta to'g'ri javob).
+A['ota.get'] = u => {
+  need(u.role === 'ota', 'Bu sahifa ota-onalar uchun');
+  const kids = kidsOfPhone(phone9(u.phone)).map(id => {
+    const s = one('SELECT s.id,s.name,s.patronymic,s.jins,s.class_id,c.name cls,c.grade,c.teacher_name,sc.num FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE s.id=? AND s.active=1', id);
+    if (!s) return null;
+    let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
+    const yol = sm ? { total: Math.max(0, +sm.total || 0), done: Math.max(0, +sm.done || 0), cur: sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', days: sm.days && typeof sm.days === 'object' ? sm.days : {}, last: String(sm.last || '').slice(0, 30),
+      rep: (Array.isArray(sm.rep) ? sm.rep : []).map(x => String((x && x.name) || '').slice(0, 90)).filter(Boolean).slice(0, 5),
+      groups: sm.groups && typeof sm.groups === 'object' ? sm.groups : {}, tl: (Array.isArray(sm.tl) ? sm.tl : []).filter(Array.isArray).map(r => [String(r[1] || '').slice(0, 90), String(r[2] || ''), r[5] || r[6] ? 2 : r[3] || r[4] ? 1 : 0]) } : null;
+    const t = one("SELECT name,jins FROM users WHERE role='rahbar' AND class_id=? AND active=1 ORDER BY id LIMIT 1", s.class_id);
+    const key = String(s.id), tests = [];
+    for (const r of all('SELECT id,data FROM utests WHERE class_id=? ORDER BY id DESC LIMIT 200', s.class_id)) {
+      let d = null; try { d = JSON.parse(r.data); } catch { } if (!d || !d.yak || !Array.isArray(d.kids) || !Array.isArray(d.qs)) continue;
+      const ks = d.kids.map(String), i = ks.indexOf(key); if (i < 0) continue;
+      const vars = Math.max(1, +d.vars || 1), sc = d.sc || {};
+      const okOf = j => { const a = sc[ks[j]] && sc[ks[j]].a, Q = d.qs[j % vars]; return Array.isArray(a) && Array.isArray(Q) ? a.filter((x, n) => Q[n] && x === Q[n].ci).length : null; };
+      const all1 = ks.map((_, j) => okOf(j)).filter(x => x != null), mine = okOf(i), abs = !!(d.abs && d.abs[key]);
+      if (mine == null && !abs) continue;
+      tests.push({ id: r.id, name: String(d.name || 'Test').slice(0, 120), kind: d.kind === 'ch' ? 'ch' : 'm', date: String(d.yak || d.date || '').slice(0, 20), qn: +d.n || 0, abs: mine == null, ok: mine == null ? 0 : mine,
+        avg: all1.length ? Math.round(all1.reduce((x, y) => x + y, 0) / all1.length) : null });
+    }
+    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', pat: s.patronymic || '', cls: s.cls, grade: s.grade, maktab: mkNum(s.num),
+      ustoz: { name: (t && t.name) || s.teacher_name || '', jins: t && (t.jins === 'a' || t.jins === 'e') ? t.jins : '' }, yol, tests };
+  }).filter(Boolean);
+  return { me: { name: u.name || '', phone: u.phone || '' }, kids };
+};
 // ---------------- Yangi o'qituvchi kabineti (/a/k/ustoz.html): o'z sinfi ro'yxati va har bolaning o'quv yo'lidagi holati. Faqat o'qish.
 A['ustoz.get'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
