@@ -329,12 +329,12 @@ function state(u) {
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name,obuna${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name,raqam,tuman,viloyat${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
-  let studs = all(`SELECT id,class_id,name,phone,avatar,patronymic FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  let studs = all(`SELECT id,class_id,name,phone,avatar,patronymic,jins FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, patronymic: s.patronymic || '', avatar: kidPh(s.avatar),
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, patronymic: s.patronymic || '', jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', avatar: kidPh(s.avatar),
     ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
