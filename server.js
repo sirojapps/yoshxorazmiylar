@@ -1761,6 +1761,8 @@ function mkNum(num) {
   if (s.num >= 100000) return (s.raqam ? s.raqam + '-maktab' : (s.name || s.num + '-maktab')) + ' (' + s.tuman + ')';
   return s.num >= 101 && s.name ? s.name : s.num + '-maktab';
 }
+// Kabinetlarda maktab nomi qisqa: '777-maktab' (tuman qavsda yozilmaydi)
+const mkNumQ = num => mkNum(num).replace(/ \([^)]*\)$/, '');
 const rxSk = x => String(x || '').toLowerCase().replace(/sinf|[^0-9a-zа-яё]/g, '');
 function rxSchool(r, create) {
   rxFixRaqam(); const v = rxQisqa(r.viloyat), t = rxQisqa(r.tuman);
@@ -2543,7 +2545,7 @@ A['ota.get'] = u => {
       tests.push({ id: r.id, name: String(d.name || 'Test').slice(0, 120), kind: d.kind === 'ch' ? 'ch' : 'm', date: String(d.yak || d.date || '').slice(0, 20), qn: +d.n || 0, abs: mine == null, ok: mine == null ? 0 : mine,
         avg: all1.length ? Math.round(all1.reduce((x, y) => x + y, 0) / all1.length) : null });
     }
-    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', pat: s.patronymic || '', cls: s.cls, grade: s.grade, maktab: mkNum(s.num),
+    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', pat: s.patronymic || '', cls: s.cls, grade: s.grade, maktab: mkNumQ(s.num),
       ustoz: { name: (t && t.name) || s.teacher_name || '', jins: t && (t.jins === 'a' || t.jins === 'e') ? t.jins : '' }, yol, tests };
   }).filter(Boolean);
   return { me: { name: u.name || '', phone: u.phone || '' }, kids };
@@ -2563,7 +2565,7 @@ A['ustoz.get'] = (u, b) => {
       cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0, ...(s.ozi === 1 ? { yangi: 1, pat: s.patronymic || '' } : {}) };
   });
   let holat = null; try { holat = JSON.parse(one('SELECT data FROM uholat WHERE class_id=?', c.id)?.data || 'null'); } catch { }
-  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNum(c.num) }, kids, holat };
+  return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNumQ(c.num) }, kids, holat };
 };
 // Botda o'zi yozilgan bolani sinf rahbari tasdiqlaydi yoki sinfdan chiqaradi (kabineti yopilmaydi, kim rad etgani aytiladi)
 A['ustoz.kid.tasdiq'] = (u, b) => {
