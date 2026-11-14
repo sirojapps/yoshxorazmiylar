@@ -3867,7 +3867,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=82" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=83" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=15" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
@@ -4003,6 +4003,14 @@ function openImport(){
 
 // ================================================================ events
 document.addEventListener('change',e=>{const id=e.target.id;if(id==='hUser'||id==='hSch'){HF[id==='hUser'?'user':'school']=e.target.value;HIST=null;HOPEN={};render()}});
+// Enter = oynadagi asosiy tugma (kompyuter klaviaturasi). Qizil (o'chirish) tugmalar, bazani tiklash, qidiruv va ko'p qatorli matn bundan mustasno.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.shiftKey||e.ctrlKey||e.altKey||e.metaKey||e.isComposing||e.repeat||e.defaultPrevented)return;
+  const t=e.target;if(!t||t.tagName!=='INPUT'||t.onkeydown||/^(checkbox|radio|file|range|search|button|submit)$/.test(t.type)||/^(gq|q|hQ|rq|tgQ|npq|delConf|bkC)$/.test(t.id))return;
+  const sh=t.closest('#sheet'),box=sh||t.closest('.card');if(!box||(!sh&&$('#sheet')&&!$('#sheet').hidden))return;
+  const bs=[...box.querySelectorAll('button.btn.pri')].filter(b=>!b.disabled&&b.offsetParent!==null&&b.dataset.act!=='bkRestoreGo');
+  if(bs.length!==1)return;
+  e.preventDefault();t.blur();bs[0].click()});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='hQ'){HF.q=e.target.value.trim();HIST=null;HOPEN={};render()}});
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-go]'); if(!b)return; const d=b.dataset;
