@@ -932,11 +932,13 @@ body:not(.lgx)::before{content:'';position:fixed;inset:0;z-index:-1;pointer-even
 /* Kompyuter: sichqoncha borganda bosiladigan narsa firuza rangga kiradi (telefon va planshetda o'zgarmaydi) */
 @media (hover:hover) and (pointer:fine){
  :where(button,[data-go],[data-act],[data-side],[data-tab]):not(:disabled){transition:box-shadow .12s,filter .12s,background-color .12s}
- :where(button,[data-go],[data-act],[data-side],[data-tab]):not(:disabled):hover{box-shadow:inset 0 0 0 999px rgba(18,181,181,.16)}
+ :where(button,[data-go],[data-act],[data-side],[data-tab]):not(:disabled):hover{box-shadow:inset 0 0 0 999px rgba(18,181,181,.16),0 0 0 4px rgba(18,181,181,.16)}
  .btn.sec:not(:disabled):hover,.ib:hover,.chip:hover,.npi:not(.on):not(.soon):hover,body.nui .npi:not(.on):not(.soon):hover{background:linear-gradient(180deg,#35d6d0,#0a9fa8)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 4px 12px rgba(15,35,80,.18)!important}
  .npi:not(.on):not(.soon):hover *,body.nui .npi:not(.on):not(.soon):hover *{color:#fff!important;stroke:#fff!important}
  .npsi:not(.on):hover,body.nui .npsi:not(.on):hover{background:#d3f6f5!important}
- button.row:hover,[data-go].row:hover,button.card:hover,.nk:hover,.tile:hover,.wrow:hover{background:#d3f6f5!important;box-shadow:inset 0 0 0 2px #12b5b5!important}
+ button.row:hover,[data-go].row:hover{background:#c9f3f1!important;box-shadow:none!important}
+ button.card:hover,.nk:hover,.tile:hover{background:#d3f6f5!important;box-shadow:inset 0 0 0 2px #12b5b5!important}
+ .wrow:hover,.lnk:hover{background:#c9f3f1!important;border-radius:10px;box-shadow:0 0 0 6px #c9f3f1!important}
  .nph-b:hover,.nph-bell:hover,.nph-q:hover,.nph-me:hover,body.nui .nph-b:hover,body.nui .nph-bell:hover,body.nui .nph-q:hover,body.nui .nph-me:hover{background:#c5f1ef!important;border-radius:12px;box-shadow:0 0 0 4px #c5f1ef!important}
  .btn.pri:not(:disabled):hover{filter:brightness(1.1)}
  .btn.dan:not(:disabled):hover{background:#f87171!important;color:#fff!important;box-shadow:none!important}
@@ -3881,11 +3883,11 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=84" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=85" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=16" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
-  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=16" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=17" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=17" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
