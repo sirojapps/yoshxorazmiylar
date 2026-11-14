@@ -437,9 +437,23 @@ A['school.save'] = (u, b) => {
     run('UPDATE schools SET name=?,director_name=? WHERE id=?', str(b.name), fixName(b.director_name), u.school_id);
     log(u.id, 'maktab.tahrir', { old, new: { name: str(b.name), director_name: fixName(b.director_name) } }); return { id: u.school_id };
   }
-  const num = parseInt(b.num, 10); if (!num) bad('Maktab raqamini yozing');
+  const num = parseInt(b.num, 10) || 0;
+  const old = b.id ? one('SELECT * FROM schools WHERE id=?', b.id) : null; if (b.id && !old) bad('Maktab topilmadi');
+  // Boshqa tumanlar maktabi (ichki kod 100001…): ichki kodga tegilmaydi, odam ko'radigan raqam — raqam ustunida
+  if (old && old.num >= 100000) {
+    if (num >= 100000) bad('Maktab raqami juda katta');
+    if (!num && !str(b.name)) bad('Maktab raqamini yoki nomini yozing');
+    if (num && one('SELECT 1 FROM schools WHERE viloyat=? AND tuman=? AND raqam=? AND id<>?', old.viloyat, old.tuman, num, old.id)) bad(`${old.tuman}da ${num}-maktab allaqachon bor`);
+    const g = [num || null, str(b.name), fixName(b.director_name), phone9(b.director_phone), b.test ? 1 : 0];
+    run('UPDATE schools SET raqam=?,name=?,director_name=?,director_phone=?,test=? WHERE id=?', ...g, old.id); log(u.id, 'maktab.tahrir', { old, new: g }); return { id: old.id };
+  }
+  if (!num) bad('Maktab raqamini yozing'); if (num >= 100000) bad('Maktab raqami juda katta');
   const f = [num, str(b.name), fixName(b.director_name), phone9(b.director_phone), b.test ? 1 : 0];
-  if (b.id) { const old = one('SELECT * FROM schools WHERE id=?', b.id); run('UPDATE schools SET num=?,name=?,director_name=?,director_phone=?,test=? WHERE id=?', ...f, b.id); log(u.id, 'maktab.tahrir', { old, new: f }); return { id: b.id }; }
+  if (old) {
+    if (one('SELECT 1 FROM schools WHERE num=? AND id<>?', num, old.id)) bad(num + '-maktab allaqachon bor');
+    run('UPDATE schools SET num=?,name=?,director_name=?,director_phone=?,test=?,raqam=NULL WHERE id=?', ...f, old.id); rxFixRaqam();
+    log(u.id, 'maktab.tahrir', { old, new: f }); return { id: old.id };
+  }
   if (one('SELECT 1 FROM schools WHERE num=?', num)) bad(num + '-maktab allaqachon bor');
   const r = run('INSERT INTO schools(num,name,director_name,director_phone,test,created_at) VALUES(?,?,?,?,?,?)', ...f, now());
   log(u.id, 'maktab.qoshish', { num, test: f[4] }); return { id: Number(r.lastInsertRowid) };
@@ -540,7 +554,8 @@ function offUsers(where, ...a) { const ids = all(`SELECT id FROM users WHERE act
 A['school.delete'] = (u, b) => {
   need(u.role === 'ceo', 'Maktabni faqat CEO o‘chiradi');
   const sc = one('SELECT * FROM schools WHERE id=?', +b.id); if (!sc) bad('Maktab topilmadi');
-  if (String(b.confirm || '').trim() !== String(sc.num)) bad(`Tasdiqlash uchun maktab raqamini (${sc.num}) yozing`);
+  const tasdiq = String(sc.num >= 100000 && sc.raqam ? sc.raqam : sc.num);
+  if (String(b.confirm || '').trim() !== tasdiq) bad(`Tasdiqlash uchun maktab raqamini (${tasdiq}) yozing`);
   return tx(() => {
     const cls = all('SELECT * FROM classes WHERE school_id=?', sc.id); const cids = cls.map(c => c.id);
     const sids = all(`SELECT id FROM students WHERE class_id IN (${inList(cids)})`, ...cids).map(r => r.id);
@@ -1758,7 +1773,7 @@ const rxFixRaqam = () => run("UPDATE schools SET raqam=num WHERE raqam IS NULL A
 rxFixRaqam();
 function mkNum(num) {
   const s = one('SELECT num,name,raqam,tuman FROM schools WHERE num=?', num); if (!s) return num + '-maktab';
-  if (s.num >= 100000) return (s.raqam ? s.raqam + '-maktab' : (s.name || s.num + '-maktab')) + ' (' + s.tuman + ')';
+  if (s.num >= 100000) return s.raqam ? s.raqam + '-maktab' : (s.name || s.num + '-maktab'); // tuman qavsda yozilmaydi
   return s.num >= 101 && s.name ? s.name : s.num + '-maktab';
 }
 // Kabinetlarda maktab nomi qisqa: '777-maktab' (tuman qavsda yozilmaydi)
