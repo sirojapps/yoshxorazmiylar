@@ -120,7 +120,8 @@ try { db.exec("ALTER TABLE tests ADD COLUMN scoring TEXT DEFAULT ''"); } catch (
 const now = () => new Date().toISOString();
 const one = (sql, ...a) => db.prepare(sql).get(...a);
 const all = (sql, ...a) => db.prepare(sql).all(...a);
-const run = (sql, ...a) => db.prepare(sql).run(...a);
+let WRITES = 0; // har yozuv sanaladi: amal bazani o'zgartirgan bo'lsa, o'sha odamning boshqa ochiq qurilmalariga "yangilan" deyiladi (liveSend)
+const run = (sql, ...a) => { WRITES++; return db.prepare(sql).run(...a); };
 const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
 // O'zgarishlar tarixi: faqat muhim ishlar yoziladi. Mayda ishlar (kirishda telefon biriktirish, rozilik, sozlama, yuklab olish,
 // telefon raqami, xabar tahriri, sertifikat sanasi) yozilmaydi — tarix o'qib bo'lmaydigan darajada to'lib ketmasin
@@ -596,7 +597,7 @@ A['school.wipe'] = (u, b) => {
     run(`DELETE FROM reads WHERE thread_id IN (${TL}) OR user_id IN (${UL})`, ...ths, ...uids); run(`DELETE FROM threads WHERE id IN (${TL})`, ...ths);
     const its = all(`SELECT id FROM itests WHERE school_id=? OR class_id IN (${C})`, sc.id, ...cids).map(r => r.id);
     run(`DELETE FROM iresults WHERE itest_id IN (${inList(its)})`, ...its); run(`DELETE FROM itests WHERE id IN (${inList(its)})`, ...its);
-    for (const t of ['rnotes', 'yol_prog', 'tg_requests']) run(`DELETE FROM ${t} WHERE student_id IN (${SL})`, ...sids);
+    for (const t of ['rnotes', 'yol_prog', 'kj_prog', 'tg_requests']) run(`DELETE FROM ${t} WHERE student_id IN (${SL})`, ...sids);
     run(`DELETE FROM tg_requests WHERE class_id IN (${C})`, ...cids); run(`DELETE FROM utests WHERE class_id IN (${C})`, ...cids);
     dropStudents(sids);
     for (const t of ['approvals', 'announcements', 'trash']) run(`DELETE FROM ${t} WHERE school_id=?`, sc.id);
@@ -2356,6 +2357,7 @@ function addMessage(u, t, txt, image, audio = '') {
   run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, at);
   if (t.status === 'hal' && (t.user_id === u.id || !(u.role === 'ceo' || perms(u).sardor))) run("UPDATE threads SET status='ochiq' WHERE id=?", t.id); // hal qilinganga yangi xabar kelsa — qayta ochiladi
   const who = u.role === 'ceo' ? 'CEO' : u.name;
+  if (!u._demo) for (const id of new Set(recipients(t, u.id))) if (id !== u.id) liveSend(id); // xabar olganlarning ochiq sahifasi darrov yangilanadi
   if (!u._demo) pushUsers(recipients(t, u.id), t.kind === 'chat' ? 'Jamoa chatida yangi xabar' : `${PUSH_FROM[u.role] || ''} yangi xabar`.trim(), '/#xabar', 'th' + t.id);
   if (!u._demo) notifyUsers(recipients(t, u.id), `Yangi xabar (${who}):\n${txt.slice(0, 300)}${image ? '\n[rasm]' : ''}${audio ? '\n[ovozli xabar]' : ''}\n\nJavob berish: ${siteUrl()}`);
 }
@@ -2535,6 +2537,20 @@ A['yol.yoz'] = (u, b) => {
   const p = b.prog; if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) bad('Noto‘g‘ri ma’lumot');
   const data = JSON.stringify(p); if (data.length > 150000) bad('Ma’lumot juda katta');
   run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
+  return { ok: true };
+};
+// Kelajak matematikasi natijasi (medallar): ilgari faqat qurilma xotirasida turardi, endi serverda — qaysi qurilmadan kirsa ham bir xil.
+db.exec("CREATE TABLE IF NOT EXISTS kj_prog(student_id INTEGER NOT NULL, grade INTEGER NOT NULL, data TEXT NOT NULL, at TEXT, PRIMARY KEY(student_id,grade))");
+const kjKey = (u, b) => { const sid = +b.student_id, g = +b.grade; need(yolKids(u).some(x => x.id === sid)); if (![2, 3, 4].includes(g)) bad('Noto‘g‘ri sinf'); return [sid, g]; };
+A['kj.get'] = (u, b) => { const [sid, g] = kjKey(u, b); let prog = null; try { prog = JSON.parse(one('SELECT data FROM kj_prog WHERE student_id=? AND grade=?', sid, g)?.data || 'null'); } catch { } return { prog }; };
+A['kj.yoz'] = (u, b) => {
+  const [sid, g] = kjKey(u, b); const p = b.prog; if (!p || typeof p !== 'object' || Array.isArray(p)) bad('Noto‘g‘ri ma’lumot');
+  const obj = x => (x && typeof x === 'object' && !Array.isArray(x)) ? x : {};
+  let old = {}; try { old = JSON.parse(one('SELECT data FROM kj_prog WHERE student_id=? AND grade=?', sid, g)?.data || '{}') || {}; } catch { }
+  // yig'ilgan medal ballari hech qachon kamaymaydi: ikki qurilma navbatma-navbat yozsa ham kattasi qoladi
+  const P = { ...obj(old.P) }; for (const [k, v] of Object.entries(obj(p.P))) { const n = Math.max(0, Math.min(100000, Math.floor(+v || 0))); if (n > (+P[k] || 0)) P[k] = n; }
+  const data = JSON.stringify({ P, O: { ...obj(old.O), ...obj(p.O) }, S: obj(p.S) }); if (data.length > 200000) bad('Ma’lumot juda katta');
+  run('INSERT INTO kj_prog(student_id,grade,data,at) VALUES(?,?,?,?) ON CONFLICT(student_id,grade) DO UPDATE SET data=excluded.data, at=excluded.at', sid, g, data, now());
   return { ok: true };
 };
 // ---------------- Yangi ota-ona kabineti (/a/k/ota.html): har farzandning o'quv yo'lidagi holati va sinf rahbari olgan testlardagi natijasi. Faqat o'qish.
@@ -2748,13 +2764,28 @@ function userOf(req) {
   // Har daqiqadagi fon yangilanishi (X-Yx-Bg) harakat hisoblanmaydi.
   const t0 = Date.now(), seen = s.seen ? Date.parse(s.seen) : 0;
   if (seen && t0 - seen > IDLE_MS) { run('DELETE FROM sessions WHERE token=?', t); return null; }
-  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && t0 - seen > 30e3)) run('UPDATE sessions SET seen=? WHERE token=?', now(), t);
+  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && !String(req.url || '').startsWith('/api/live') && t0 - seen > 30e3)) run('UPDATE sessions SET seen=? WHERE token=?', now(), t);
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   if (u && s.as_user && u.role === 'ceo' && isDemoUser(s.as_user)) { const d = one('SELECT * FROM users WHERE id=?', s.as_user); if (d) { d._demo = true; d._real = u.id; return d; } }
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
   if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
   return u;
 }
+// ---------------- jonli kanal (/api/live): bir qurilmada amal bajarilsa, o'sha odamning boshqa ochiq qurilmalari 1–2 soniyada o'zi yangilanadi.
+// Server faqat "yangilan" degan belgi yuboradi (ma'lumotning o'zi emas); sahifa keyin odatdagi so'rov bilan yangi holatni oladi.
+const LIVE = new Map(); // user_id → Set({res, tok})
+function liveOpen(req, res, u) {
+  const uid = u._real || u.id, tok = cookie(req, 'yx');
+  let set = LIVE.get(uid); if (!set) LIVE.set(uid, set = new Set());
+  if (set.size >= 12) { const old = set.values().next().value; set.delete(old); try { old.res.end(); } catch { } } // bir odamda juda ko'p ochiq sahifa — eng eskisi yopiladi
+  res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform', 'X-Accel-Buffering': 'no', ...SEC });
+  res.write('retry: 5000\n\n');
+  const c = { res, tok }; set.add(c);
+  const hb = setInterval(() => { try { if (!one('SELECT 1 FROM sessions WHERE token=?', tok)) return res.end(); res.write(': .\n\n'); } catch { } }, 25000); // aloqa uzilmasligi uchun; kirish yopilgan bo'lsa kanal ham yopiladi
+  const close = () => { clearInterval(hb); set.delete(c); if (!set.size && LIVE.get(uid) === set) LIVE.delete(uid); };
+  req.on('close', close); res.on('close', close);
+}
+function liveSend(uid, exceptTok) { const set = LIVE.get(uid); if (!set) return; for (const c of set) if (!exceptTok || c.tok !== exceptTok) try { c.res.write('data: 1\n\n'); } catch { } }
 // sayt versiyasi: index.html o'zgarsa, ochiq sahifalarga "Sayt yangilandi" chiqadi
 let VER = { m: 0, v: '' };
 function siteVersion() { try { const f = path.join(PUBLIC, 'index.html'); const m = fs.statSync(f).mtimeMs; if (m !== VER.m) VER = { m, v: crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex').slice(0, 12) }; } catch (e) { } return VER.v; }
@@ -2904,6 +2935,7 @@ const server = http.createServer(async (req, res) => {
         } finally { fs.rmSync(dir, { recursive: true, force: true }); }
       }
       if (url.pathname === '/api/media' && req.method === 'POST') return send(res, 200, await mediaPut(u, req));
+      if (url.pathname === '/api/live') return liveOpen(req, res, u);
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
       if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
         const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
@@ -2917,7 +2949,9 @@ const server = http.createServer(async (req, res) => {
       if (u._demo && (DEMO_BLOCK.has(act) || (isTeam(u) && !KUZ_READ.has(act)))) return send(res, 403, { error: 'Namuna kabinet: bu amal bu yerda bloklangan (faqat ko‘rish uchun)' });
       let b; try { b = JSON.parse(await readBody(req) || '{}'); } catch { bad('Noto‘g‘ri so‘rov'); }
       if (!b || typeof b !== 'object' || Array.isArray(b)) b = {};
-      return send(res, 200, (await fn(u, b, req)) || {});
+      const w0 = WRITES, out = (await fn(u, b, req)) || {};
+      if (WRITES !== w0 && !req.headers['x-yx-bg']) liveSend(u._real || u.id, cookie(req, 'yx')); // amal nimadir o'zgartirdi → shu odamning boshqa qurilmalari yangilanadi (fon so'rovlari hisobga kirmaydi)
+      return send(res, 200, out);
     }
     if (pwa(url, res)) return;
     if (FONTS[url.pathname]) { res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'public, max-age=2592000', ...SEC }); return res.end(FONTS[url.pathname]); }

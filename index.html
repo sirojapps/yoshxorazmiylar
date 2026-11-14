@@ -1086,6 +1086,7 @@ async function load(auto,bg){
       if(S)return;
     }
   }
+  if(S)liveStart();else liveStop();
   if(S){if(!S.tests.some(t=>t.id===testId))testId=S.tests[S.tests.length-1]?.id??null;} // yangi telefonda birinchi (eng eski) imtihon ochiladi, keyingilariga odam o'zi o'tadi
   render();
 }
@@ -2739,7 +2740,22 @@ document.addEventListener('click',async e=>{
    case 'setImg':pickImage(async u=>{try{await api('settings.save',{key:d.k,value:u});CA=null;toast('Rasm saqlandi');SET=null;await load()}catch(err){toast(err.message,true)}},900);break;
   }}catch(err){toast(err.message,true)}
 });
-setInterval(()=>{if(S&&!document.hidden&&$('#sheet').hidden&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}},60000);
+// Fon yangilanishi: (1) daqiqada bir; (2) ekranga qaytganda; (3) server "yangilan" deganda — shu odam boshqa qurilmada biror amal bajargan yoki unga xabar kelgan.
+// kab=true — yangi kabinet (ichki sahifa) ham o'z ma'lumotini qayta oladi. Odam biror narsa yozayotgan bo'lsa, hech narsa qayta chizilmaydi.
+const yozyapti=d=>{try{const a=d.activeElement;return!!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}catch(e){return false}};
+function bgRefresh(kab){if(!S||document.hidden)return;
+  const kf=['usf','otf','oqf'].map(i=>document.getElementById(i)).find(Boolean);
+  if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&!yozyapti(w.document))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
+  if(!$('#sheet').hidden||yozyapti(document))return;
+  if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}
+setInterval(()=>bgRefresh(false),60000);
+let LIVE=null,liveT=0,liveBk=5000;
+function liveStart(){if(LIVE||!S||!window.EventSource)return;try{LIVE=new EventSource('/api/live')}catch(e){LIVE=null;return}
+  LIVE.onopen=()=>{liveBk=5000};
+  LIVE.onmessage=()=>{clearTimeout(liveT);liveT=setTimeout(()=>bgRefresh(true),400)};
+  LIVE.onerror=()=>{if(LIVE&&LIVE.readyState===2){LIVE=null;setTimeout(liveStart,liveBk);liveBk=Math.min(60000,liveBk*2)}}}
+function liveStop(){if(LIVE){try{LIVE.close()}catch(e){}LIVE=null}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S){liveStart();bgRefresh(true)}});
 
 
 // ================================================================ test olish: test fayli, kitobcha, titul, skaner
@@ -3700,7 +3716,7 @@ function scrDemo(){
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
 window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>{if(S&&S.me&&S.me.demo)return demoExit();kimSet('')};
 // Yangi ota-ona kabineti (/a/k/ota.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, sertifikat yuklaydi va chiqadi
-window.OTA={st:()=>S,api:(n,b)=>api(n,b),cert:c=>certPng(c),chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
+window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
 const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
 window.ustozPdf=async()=>{await loadLib(JSPDF,()=>window.jspdf);await loadLib(QRGEN,()=>window.qrcode);return{jsPDF:jspdf.jsPDF,drawTitul,pdfTxt,TIW,TIH}};
 window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
@@ -3883,11 +3899,11 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=85" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=86" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=17" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
-  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=17" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=5" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
