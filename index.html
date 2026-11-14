@@ -942,7 +942,11 @@ body:not(.lgx)::before{content:'';position:fixed;inset:0;z-index:-1;pointer-even
 <div id="gl"></div></div>
 <div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
 <div class="app" id="app"><div class="gut skw" style="padding-top:28px"><i class="sk" style="height:120px;border-radius:18px"></i><i class="sk" style="width:60%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:80%"></i></div></div><script>const GRADES=()=>[...new Set(((typeof S!=='undefined'&&S&&S.classes)||[]).map(c=>+c.grade).filter(g=>g>0))].sort((a,b)=>a-b);
-const mkN=o=>{const n=o&&typeof o==='object'?o.num:o;const s=(typeof S!=='undefined'&&S&&S.schools||[]).find(x=>x.num===n);if(s&&n>=100000)return(s.raqam?s.raqam+'-maktab':s.name||n+'-maktab')+' ('+s.tuman+')';return s&&n>=101&&s.name?s.name:n+'-maktab'};
+const mkN=o=>{const n=o&&typeof o==='object'?o.num:o;const s=(typeof S!=='undefined'&&S&&S.schools||[]).find(x=>x.num===n);if(s&&n>=100000)return s.raqam?s.raqam+'-maktab':s.name||n+'-maktab';return s&&n>=101&&s.name?s.name:n+'-maktab'};
+// odam ko'radigan maktab raqami: boshqa tumanlar maktabida ichki kod (100001…) emas, haqiqiy raqam
+const mkR=s=>s&&s.num>=100000?(s.raqam||''):(s&&s.num)||'';
+// jamoa uchun: maktab qaysi tumandan (nom ostidagi kichik qatorda; nomning o'zida tuman yozilmaydi)
+const mkT=s=>{const t=s&&s.tuman;if(!t||!S||!(S.me.role==='ceo'||S.me.role==='jamoa'))return'';return(/ (shahri|tumani)$/.test(t)?t:t+' tumani')+' · '};
 if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
@@ -1192,7 +1196,7 @@ function searchRes(){
   const ppl=[];
   if(isTeam()||S.me.role==='direktor'){
     S.classes.forEach(c=>{if((c.teacher_name||c.teacher_phone)&&okC(c.name)){const sc=X.sc[c.school_id];if(hit(norm(`${c.teacher_name||''} ${c.name} ${sc?.num||''} maktab rahbar`).split(' ').filter(Boolean),c.teacher_phone))ppl.push({go:'class:'+c.id,n:c.teacher_name||'Ismi kiritilmagan',s:`Sinf rahbari · ${many?mkN(sc)+' · ':''}${c.name}`})}});
-    if(isTeam()&&!want)S.schools.forEach(sc=>{if(sc.director_name||sc.director_phone){if(hit(norm(`${sc.director_name||''} ${sc.num} maktab direktor`).split(' ').filter(Boolean),sc.director_phone))ppl.push({go:'school:'+sc.id,n:sc.director_name||'Ismi kiritilmagan',s:`Direktor · ${mkN(sc)}`})}});
+    if(isTeam()&&!want)S.schools.forEach(sc=>{if(sc.director_name||sc.director_phone){if(hit(norm(`${sc.director_name||''} ${mkR(sc)} maktab direktor`).split(' ').filter(Boolean),sc.director_phone))ppl.push({go:'school:'+sc.id,n:sc.director_name||'Ismi kiritilmagan',s:`Direktor · ${mkN(sc)}`})}});
   }
   if(!st.length&&!ppl.length)return `<div class="empty">Hech narsa topilmadi. Harflarni tekshiring.</div>`;
   const sub=s=>`${many?mkN(s)+' · ':''}${s.cls||''}`;
@@ -1274,7 +1278,7 @@ function scrSchools(){
   return ['Maktablar',`${S.schools.length} ta maktab`,`
   <div class="card list">${S.schools.map(sc=>{const l=X.st.filter(s=>s.school_id===sc.id);const v=avgPct(l);
    return `<button class="row" data-go="school:${sc.id}"><div class="m"><div class="n">${mkN(sc)}${sc.name&&sc.num<101?' · '+esc(sc.name):''}</div>
-   <div class="s">${S.classes.filter(c=>c.school_id===sc.id).length} sinf · ${l.length} o’quvchi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>
+   <div class="s">${mkT(sc)}${S.classes.filter(c=>c.school_id===sc.id).length} sinf · ${l.length} o’quvchi</div>${v!=null?`<div class="bar"><i style="width:${v}%"></i></div>`:''}</div>
    ${v!=null?`<div class="num">${pf(v)}%<small>o’rtacha</small></div>`:''}${I.chev}</button>`}).join('')||'<div class="empty">Hali maktab yo’q</div>'}</div>
   ${P('maktab')?`<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="import">Excel’dan ro’yxat yuklash</button>${S.me.role==='ceo'&&!S.me.demo?`<button class="btn sec" data-side="timport">🏫 Tuman ro’yxatini yuklash</button>`:''}<button class="btn sec" data-act="schoolEdit">+ Maktab</button></div>`:''}`]}
 // maktab o'quvchilari: sinf bosqichi va sinf bo'yicha saralanadigan, o'rinli ro'yxat (jamoa va direktor uchun bir xil)
@@ -1294,7 +1298,7 @@ function examBar(l){if(!isTeam()||!S.tests.length)return'';const t=curTest();con
 function scrSchool(id){
   const sc=X.sc[id]; if(!sc)return ['Topilmadi','',''];
   const cls=S.classes.filter(c=>c.school_id===id); const l=X.st.filter(s=>s.school_id===id);
-  return [`${mkN(sc)}`,`${cls.length} sinf · ${l.length} o’quvchi`,`
+  return [`${mkN(sc)}`,`${mkT(sc)}${cls.length} sinf · ${l.length} o’quvchi`,`
   <div class="card list"><div class="row"><div class="m"><div class="s">Direktor</div><div class="n">${esc(sc.director_name)||'—'}</div><div class="s">${ph(sc.director_phone)}</div></div>${ED()?`<button class="btn sec sm" data-act="schoolEdit" data-id="${id}">Tahrirlash</button>`:''}</div></div>
   ${examBar(l)}
   ${dupBox(l)}
@@ -1536,7 +1540,7 @@ const KIND_L={mcert:'Sertifikat',school:'Maktab',class:'Sinf',test:'Sinov',itest
 function openDel(kind,id){
   let title,what,need,hint;
   if(kind==='school'){const sc=X.sc[id];const cls=S.classes.filter(c=>c.school_id===id);const st=X.st.filter(s=>s.school_id===id);const res=st.filter(s=>S.tests.some(t=>R(s.id,t.id))).length;
-    title=`${mkN(sc)}ni o’chirish`;what=`${cls.length} ta sinf, ${st.length} ta o’quvchi, ${res} ta bolaning natijalari, sertifikatlari va ichki sinovlari. Direktor va sinf rahbarlari saytga kira olmay qoladi.`;need=String(sc.num);hint=`Tasdiqlash uchun maktab raqamini yozing: <b>${sc.num}</b>`}
+    title=`${mkN(sc)}ni o’chirish`;what=`${cls.length} ta sinf, ${st.length} ta o’quvchi, ${res} ta bolaning natijalari, sertifikatlari va ichki sinovlari. Direktor va sinf rahbarlari saytga kira olmay qoladi.`;need=String(mkR(sc)||sc.num);hint=`Tasdiqlash uchun maktab raqamini yozing: <b>${need}</b>`}
   if(kind==='class'){const c=X.cl[id];const st=X.st.filter(s=>s.class_id===id);
     title=`${mkN(X.sc[c.school_id])} · ${c.name} sinfini o’chirish`;what=`${st.length} ta o’quvchi va ularning natijalari. Sinf rahbari saytga kira olmay qoladi.`;need=c.name;hint=`Tasdiqlash uchun sinf nomini yozing: <b>${esc(c.name)}</b>`}
   if(kind==='test'){const t=S.tests.find(x=>x.id===id);const n=X.st.filter(s=>R(s.id,id)).length;
@@ -2876,7 +2880,7 @@ async function titulGo(kind,id,tid){const sp=Math.max(0,Math.min(10,parseInt(val
       drawTitul(pdf,it,half*TIH);
       if(half===0){pdf.setDrawColor(150);pdf.setLineWidth(.2);pdf.setLineDashPattern([2,2],0);pdf.line(5,TIH,TIW-5,TIH);pdf.setLineDashPattern([],0);pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(150);pdf.text(pdfTxt('qirqish chizig‘i'),TIW-6,TIH-1,{align:'right'})}
       half++})});
-  pdf.save(plain(`Titullar_${kind==='class'?X.sc[cls[0].school_id].num+'-maktab_'+cls[0].name:mkN(X.sc[id])+''}_${t.name}`).replace(/[^\w-]+/g,'_')+'.pdf');closeSheet()}
+  pdf.save(plain(`Titullar_${kind==='class'?mkN(X.sc[cls[0].school_id])+'_'+cls[0].name:mkN(X.sc[id])+''}_${t.name}`).replace(/[^\w-]+/g,'_')+'.pdf');closeSheet()}
 
 // ---------------- OMR: rasmdan titulni o'qish
 function omrGray(cv){const c=cv.getContext('2d',{willReadFrequently:true}),w=cv.width,h=cv.height,id=c.getImageData(0,0,w,h),d=id.data,g=new Uint8Array(w*h);
@@ -4099,7 +4103,7 @@ document.addEventListener('click',async e=>{
    case 'allOff':E.bits=E.bits.map(()=>'0');drawEntry();break;
    case 'entrySave':await entrySave(!!d.absent);break;
    case 'entryDel':await api('result.delete',{test_id:testId,student_id:E.s.id});closeSheet();toast('Natija o’chirildi');await load();break;
-   case 'schoolEdit':{const s=d.id?X.sc[d.id]:{};formSheet(d.id?'Maktabni tahrirlash':'Yangi maktab',isDir()?[{id:'fName',label:'Maktab nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name}]:[{id:'fNum',label:'Maktab raqami',value:s.num,mode:'numeric'},{id:'fName',label:'Qo’shimcha nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name},{id:'fDirP',label:'Direktor telefoni',value:s.director_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'schoolSave',isDir()?'<p class="note">Maktab raqami va direktor telefonini loyiha jamoasi o’zgartiradi.</p>':`<label class="check"><input type="checkbox" id="fTest" ${s.test?'checked':''}><span><b>Sinov uchun maktab</b> — saytni tekshirish uchun ochilgan. Bolalariga sertifikat berilmaydi.</span></label>`);$('#sheet').dataset.id=d.id||'';break}
+   case 'schoolEdit':{const s=d.id?X.sc[d.id]:{};formSheet(d.id?'Maktabni tahrirlash':'Yangi maktab',isDir()?[{id:'fName',label:'Maktab nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name}]:[{id:'fNum',label:'Maktab raqami',value:mkR(s),mode:'numeric'},{id:'fName',label:'Qo’shimcha nomi (ixtiyoriy)',value:s.name},{id:'fDir',label:'Direktor ism-familiyasi',value:s.director_name},{id:'fDirP',label:'Direktor telefoni',value:s.director_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'schoolSave',isDir()?'<p class="note">Maktab raqami va direktor telefonini loyiha jamoasi o’zgartiradi.</p>':`<label class="check"><input type="checkbox" id="fTest" ${s.test?'checked':''}><span><b>Sinov uchun maktab</b> — saytni tekshirish uchun ochilgan. Bolalariga sertifikat berilmaydi.</span></label>`);$('#sheet').dataset.id=d.id||'';break}
    case 'schoolSave':await api('school.save',{id:+$('#sheet').dataset.id||undefined,num:val('fNum'),name:val('fName'),director_name:val('fDir'),director_phone:val('fDirP'),test:!!$('#fTest')?.checked});closeSheet();toast('Saqlandi ✓');await load();break;
    case 'classEdit':{const c=d.id?X.cl[d.id]:{school_id:+d.school};formSheet(d.id?'Sinfni tahrirlash':'Yangi sinf',[{id:'fCls',label:'Sinf',value:c.name,ph:'3-A'},{id:'fT',label:'Sinf rahbari',value:c.teacher_name},{id:'fTP',label:'Sinf rahbari telefoni',value:c.teacher_phone,type:'tel',mode:'tel',ph:'90 123 45 67',hint:TG_HINT}],'classSave');Object.assign($('#sheet').dataset,{id:d.id||'',school:c.school_id});break}
    case 'classSave':await api('class.save',{id:+$('#sheet').dataset.id||undefined,school_id:+$('#sheet').dataset.school,name:val('fCls'),teacher_name:val('fT'),teacher_phone:val('fTP')});closeSheet();toast('Saqlandi ✓');await load();break;
