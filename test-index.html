@@ -2629,7 +2629,7 @@ document.addEventListener('click',async e=>{
 // kab=true — yangi kabinet (ichki sahifa) ham o'z ma'lumotini qayta oladi. Odam biror narsa yozayotgan bo'lsa, hech narsa qayta chizilmaydi.
 const yozyapti=d=>{try{const a=d.activeElement;return!!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}catch(e){return false}};
 function bgRefresh(kab){if(!S||document.hidden)return;
-  const kf=['usf','otf','oqf','drf'].map(i=>document.getElementById(i)).find(Boolean);
+  const kf=['usf','otf','oqf','drf','ceof'].map(i=>document.getElementById(i)).find(Boolean);
   if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&(kf.id==='drf'||kf.id==='usf'||kf.id==='otf'||!yozyapti(w.document)))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
   thLive();
   if(!$('#sheet').hidden||yozyapti(document))return;
@@ -3833,7 +3833,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();

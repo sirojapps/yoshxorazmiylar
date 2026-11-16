@@ -2989,6 +2989,23 @@ A['ceo.dash'] = (u, b) => {
   return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
 };
 
+// Yangi CEO kabineti — "Maktablar va sinflar": har bola bo'yicha platformadagi holat. Faqat o'qiydi.
+// Javob: s = { bola id: [o'zlashtirish foizi yoki null, kabinetga kirganmi 0/1, oxirgi 30 kunda faolmi 0/1] } — faqat platformadagi bolalar.
+A['ceo.mk'] = (u) => {
+  need(isTeam(u));
+  const dm = demoIds(), d0 = new Date(Date.parse(today()) - 30 * 864e5).toISOString().slice(0, 10);
+  const otaBy = new Map(); for (const o of all("SELECT id,phone,last_login FROM users WHERE role='ota' AND active=1 AND pin IS NOT NULL")) { const p = phone9(o.phone); if (p && !dm.set.has(o.id)) otaBy.set(p, o); }
+  const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
+  const faol = new Set(all('SELECT DISTINCT user_id FROM visits WHERE day>?', d0).map(r => r.user_id));
+  const prog = new Map(); for (const r of all('SELECT student_id,data FROM yol_prog')) { try { const sm = (JSON.parse(r.data) || {}).sum; if (sm && +sm.total > 0) prog.set(r.student_id, Math.round(Math.min(100, Math.max(0, (+sm.done || 0) * 100 / +sm.total)))); } catch { } }
+  const s = {};
+  for (const x of all('SELECT id,phone,ozi FROM students WHERE active=1')) {
+    let fam = null; for (const p of [phone9(x.phone), ...(extra.get(x.id) || [])]) if (p && otaBy.has(p)) { fam = otaBy.get(p); break; }
+    if (!fam && !(x.ozi > 0)) continue;
+    s[x.id] = [prog.has(x.id) ? prog.get(x.id) : null, fam && fam.last_login ? 1 : 0, fam && faol.has(fam.id) ? 1 : 0];
+  }
+  return { s };
+};
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
