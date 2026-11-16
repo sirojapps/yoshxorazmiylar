@@ -2716,6 +2716,27 @@ A['ustoz.holat'] = (u, b) => {
   run('INSERT INTO uholat(class_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(class_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at', c, JSON.stringify({ cur, hid, pl }), now());
   return { ok: true };
 };
+// Umumiy skaner (CEO va natija kiritish huquqi bor jamoa): o'qituvchi o'zi tuzgan test titulini ham taniydi.
+// Titul QR kodi: YX:<1000000+utests.id>:<bolaning test ro'yxatidagi o'rni>:<variant>:<savollar>:<javob soni>
+const utRead = id => { const r = one('SELECT id,class_id,data FROM utests WHERE id=?', +id); if (!r) bad('Bu titulning testi topilmadi'); let d = null; try { d = JSON.parse(r.data); } catch { } if (!d || !Array.isArray(d.kids) || !Array.isArray(d.qs)) bad('Test ma’lumoti buzilgan'); return { r, d }; };
+const utPos = (d, p) => { const i = +p - 1; if (!Number.isInteger(i) || i < 0 || i >= d.kids.length) bad('Bu bola test ro‘yxatida topilmadi'); return i; };
+const utScore = (d, i, a) => { const q = d.qs[i % (d.vars || 1)] || d.qs[0] || []; return a.filter((x, j) => q[j] && x === q[j].ci).length; };
+const utInfo = r => { const c = one('SELECT c.name cls,s.name sch FROM classes c LEFT JOIN schools s ON s.id=c.school_id WHERE c.id=?', r.class_id) || {}; return { cls: c.cls || '', sch: c.sch || '' }; };
+A['skaner.ut.get'] = (u, b) => {
+  need(can(u, 'kiritish')); const { r, d } = utRead(b.id), i = utPos(d, b.p), key = d.kids[i], s = d.sc && d.sc[key];
+  return { test: String(d.name || 'Test'), ...utInfo(r), name: String((d.names && d.names[key]) || 'O‘quvchi'), qn: +d.n || 0, yak: !!d.yak,
+    old: s && Array.isArray(s.a) ? { answers: s.a.map(x => x == null ? '-' : 'ABCDE'[x] || '-').join(''), variant: 'ABCD'[i % (d.vars || 1)], score: utScore(d, i, s.a), qn: +d.n || 0 } : null };
+};
+A['skaner.ut.save'] = (u, b) => {
+  need(can(u, 'kiritish')); const { r, d } = utRead(b.id), i = utPos(d, b.p), key = d.kids[i];
+  if (d.yak) bad('O‘qituvchi bu test natijalarini yakunlagan. Avval o‘qituvchi testni qayta ochishi kerak');
+  const ans = String(b.answers || ''); if (!/^[A-E\-]+$/.test(ans) || ans.length !== (+d.n || 0)) bad('Javoblar to‘liq o‘qilmadi');
+  const a = [...ans].map(c => { const k = 'ABCDE'.indexOf(c); return k < 0 ? null : k; });
+  d.sc = d.sc || {}; d.sc[key] = { a }; if (d.abs) delete d.abs[key]; d.unc = (d.unc || []).filter(q => q.k != key);
+  run('UPDATE utests SET data=?,updated_at=? WHERE id=?', JSON.stringify(d), now(), r.id);
+  const score = utScore(d, i, a); log(u.id, 'natija.kiritish', { utest_id: r.id, kid: key, score, skaner: 1 });
+  return { score, qn: +d.n || 0 };
+};
 A['ustoz.test.save'] = (u, b) => {
   const c = ustozCls(u); if (!b.data || typeof b.data !== 'object' || Array.isArray(b.data)) bad('Ma’lumot yo‘q');
   const data = JSON.stringify(b.data); if (data.length > 600000) bad('Ma’lumot juda katta');

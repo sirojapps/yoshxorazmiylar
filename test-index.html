@@ -2926,6 +2926,28 @@ function scanClose(){if(!SC)return;const _e=SC.ext;clearTimeout(SC.timer);SC.str
 window.ustozScan=cfg=>{SC={ext:cfg,cid:0,tid:cfg.tid,stream:null,busy:false,live:true,last:'',same:0,view:'live',res:null,msg:'Kamera ochilmoqda…',okMsg:null,timer:0};
   let el=$('#scan');if(!el){el=document.createElement('div');el.id='scan';el.className='scan';document.body.appendChild(el);el.addEventListener('click',scanClick)}
   el.style.zIndex=60;el.hidden=false;document.body.style.overflow='hidden';scanDraw();navSync();loadJsQR();scanStart()};
+// Umumiy skaner: istalgan titul (imtihon yoki o'qituvchi tuzgan test). QR kodidan test va bola o'zi topiladi, natija o'z joyiga saqlanadi
+function uniScan(){if(!P('kiritish')){toast('Natija kiritish huquqi kerak',true);return}if(document.body.classList.contains('np-open')){NP_OPEN=false;document.body.classList.remove('np-open')}
+  SC={uni:true,uc:{},log:[],cid:0,tid:0,stream:null,busy:false,live:true,last:'',same:0,view:'live',res:null,msg:'Kamera ochilmoqda…',okMsg:null,timer:0};
+  let el=$('#scan');if(!el){el=document.createElement('div');el.id='scan';el.className='scan';document.body.appendChild(el);el.addEventListener('click',scanClick)}
+  el.hidden=false;document.body.style.overflow='hidden';scanDraw();navSync();loadJsQR();scanStart()}
+async function uniHandle(r,q,still){
+  if(q.spare){scanMsg('Bu zaxira titul (ismi qo‘lda yozilgan). Uni imtihonning o‘zidan skaner qiling: Imtihon → Tekshirish → sinf');return}
+  const key=r.raw+'|'+r.ans;if(!still){if(key!==SC.last){SC.last=key;SC.same=1;scanMsg('O’qilmoqda… qimirlatmang');return}if(++SC.same<2)return}
+  let st,old,tname;
+  if(q.tid>=1e6){const ck=q.tid+':'+q.id;let inf=SC.uc[ck];
+    if(!inf){try{inf=await api('skaner.ut.get',{id:q.tid-1e6,p:q.id})}catch(e){scanMsg(e.message);return}if(!SC)return;SC.uc[ck]=inf}
+    if(inf.yak){scanMsg(`«${inf.test}» natijalari o‘qituvchi tomonidan yakunlangan`);return}
+    if(inf.qn!==q.qn){scanMsg('Bu titul testning eski nusxasidan chiqarilgan');return}
+    st={id:q.id,ut:q.tid-1e6,name:inf.name,cls:inf.cls,sch:inf.sch};old=inf.old;tname=inf.test}
+  else{const t=S.tests.find(x=>x.id===q.tid);if(!t){scanMsg('Bu titulning imtihoni topilmadi');return}
+    st=X.st.find(s=>s.id===q.id);if(!st){scanMsg('Bu bola ro’yxatda topilmadi (o’chirilgan bo’lishi mumkin)');return}old=R(st.id,t.id);tname=t.name}
+  if(old&&!old.absent&&(old.mode||'harf')==='harf'&&old.answers===r.ans.replace(/\*/g,'-')&&(old.variant||'A')===q.v){scanMsg(`✓ ${st.name} allaqachon saqlangan: ${old.score??'?'}/${old.qn} · ${tname}`);return}
+  const blanks=[...r.ans].filter(a=>a==='-').length,multi=[...r.ans].filter(a=>a==='*').length,uns=(r.unsure||[]).filter(Boolean).length;
+  Object.assign(r,{uns,st,old,multi,blanks,other:false,tname,ans:r.ans.split('')});
+  if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
+  if(!still&&!multi&&!uns&&blanks<=Math.floor(q.qn*.3)&&!(old&&!old.absent)){await scanSave(r,true);return}
+  SC.res=r;SC.view='check';scanDraw()}
 async function scanStart(){
   if(!navigator.mediaDevices?.getUserMedia){SC.msg='Bu brauzerda kamera ochilmadi. “Rasmdan” tugmasini bosing.';scanDraw();return}
   try{SC.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}
@@ -2943,7 +2965,7 @@ function scanOverlay(r){const ov=$('#scanOv'),v=$('#scanV');if(!ov||!v)return;co
 async function scanHandle(r,still){
   if(!still)scanOverlay(r);
   if(r.err){if(still){toast(SC_ERR[r.err]==null?'O’qib bo’lmadi':SC_ERR[r.err].replace('Titulni ramkaga','Rasmda titulni'),true)}SC.same=0;scanMsg(SC_ERR[r.err]);return}
-  const q=r.qr;if(SC.ext&&q.tid!==SC.tid){scanMsg('Bu titul boshqa test uchun chiqarilgan');return}if(q.tid!==SC.tid){const o=S.tests.find(x=>x.id===q.tid);scanMsg(o?`Bu titul «${o.name}» uchun chiqarilgan. Bu yerda «${S.tests.find(x=>x.id===SC.tid)?.name}» tekshirilyapti`:'Bu titul boshqa imtihon uchun chiqarilgan');return}
+  const q=r.qr;if(SC.uni)return uniHandle(r,q,still);if(SC.ext&&q.tid!==SC.tid){scanMsg('Bu titul boshqa test uchun chiqarilgan');return}if(q.tid!==SC.tid){const o=S.tests.find(x=>x.id===q.tid);scanMsg(o?`Bu titul «${o.name}» uchun chiqarilgan. Bu yerda «${S.tests.find(x=>x.id===SC.tid)?.name}» tekshirilyapti`:'Bu titul boshqa imtihon uchun chiqarilgan');return}
   const key=r.raw+'|'+r.ans;if(!still){if(key!==SC.last){SC.last=key;SC.same=1;scanMsg('O’qilmoqda… qimirlatmang');return}if(++SC.same<2)return}
   const st=SC.ext?SC.ext.kid(q.id):q.spare?null:X.st.find(s=>s.id===q.id);
   if(!q.spare&&!st){scanMsg('Bu bola ro’yxatda topilmadi (o’chirilgan bo’lishi mumkin)');return}
@@ -2976,9 +2998,11 @@ async function scanSave(r,auto){
     const same=X.st.find(s=>s.class_id===SC.cid&&nKey(s.name)===nKey(nm));
     if(same)st=same;else{try{const x=await api('student.save',{name:nm,class_id:SC.cid,phone:''});await load();st=X.st.find(s=>s.id===x.id)}catch(e){toast(e.message,true);return}}
     if(!st){toast('Bola qo’shilmadi',true);return}}
-  const body={test_id:SC.tid,student_id:st.id,absent:false,mode:'harf',answers:ans,bits:'',variant:r.qr.v,src:'skaner'};
+  const body={test_id:SC.uni?r.qr.tid:SC.tid,student_id:st.id,absent:false,mode:'harf',answers:ans,bits:'',variant:r.qr.v,src:'skaner'};
   SC.msg=SC_ERR.marker;
-  try{const x=SC.ext?await SC.ext.save(st.id,ans,r.qr.v):await api('result.save',body);SC.okMsg={name:st.name,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);if(!SC.ext)await load();scanDraw(true)}
+  try{const x=SC.ext?await SC.ext.save(st.id,ans,r.qr.v):SC.uni&&st.ut?await api('skaner.ut.save',{id:st.ut,p:st.id,answers:ans,variant:r.qr.v}):await api('result.save',body);const sub=SC.uni?[r.tname,st.cls?st.cls+' sinf':''].filter(Boolean).join(' · '):'';
+    if(SC.uni){if(st.ut){delete SC.uc[r.qr.tid+':'+st.id]}SC.log=SC.log.filter(y=>y.k!==r.qr.tid+':'+st.id);SC.log.unshift({k:r.qr.tid+':'+st.id,name:st.name,sub,score:x.score,qn:x.qn})}
+    SC.okMsg={name:st.name,sub,score:x.score,qn:x.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img);if(!SC.ext)await load();scanDraw(true)}
   catch(e){if(/Failed to fetch|NetworkError|Load failed/i.test(e.message)){const qd=queue().filter(y=>y.student_id!==body.student_id);qd.push(body);ls.set('queue',qd);SC.okMsg={name:st.name,score:null,qn:r.qr.qn,img,r:{...r,st}};scanBeep();SC.view='live';SC.res=null;scanDraw(true);scanFlash(img)}
     else{toast(e.message,true);if(auto){SC.res=r;SC.view='check';scanDraw()}}}}
 const fixNameC=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/([oOgG])[`'‘’ʻʼ´]/g,'$1‘').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
@@ -2990,7 +3014,9 @@ function scanPreview(r){const c=document.createElement('canvas'),s=r.cv,k=Math.m
   r.marks.forEach((row,i)=>row.forEach(o=>{if(!o.on&&!o.u)return;g.strokeStyle=o.u&&!o.on?'#e0a800':r.ans[i]==='*'?'#c2414b':'#1f8a4c';g.lineWidth=Math.max(2,o.r*.25);g.beginPath();g.arc(o.x,o.y,o.r*1.25,0,7);g.stroke()}));
   return c.toDataURL('image/jpeg',.8)}
 function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const E=SC.ext,c=E?null:X.cl[SC.cid],l=E?[]:scanSt(),done=E?E.done():l.filter(s=>R(s.id,SC.tid)).length;
-  const top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${E?esc(E.title):esc(c?.name||'')+' sinf · '+esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${E?E.total():l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
+  let top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${E?esc(E.title):esc(c?.name||'')+' sinf · '+esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${E?E.total():l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
+  if(SC.uni)top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>Skaner · hamma titullar</b><small>Bu safar ${SC.log.length} ta varaq o‘qildi</small></div><button class="btn sec sm" data-sa="left">O‘qilganlar</button></div>`;
+  if(SC.view==='left'&&SC.uni){el.innerHTML=`${top}<div class="scan-body"><p class="label">Bu safar o‘qilganlar: ${SC.log.length} ta</p><div class="card list">${SC.log.map((y,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(y.name)}</div><div class="s">${esc(y.sub)}</div></div><b>${y.score==null?'navbatda':y.qn===100?num(y.score)+' ball':y.score+' / '+y.qn}</b></div>`).join('')||'<div class="empty">Hali varaq o‘qilmadi</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   if(SC.view==='live'){
     if(keepVideo&&$('#scanV')){el.querySelector('.scan-top').outerHTML=top;const ok=$('#scanOk');if(ok)ok.outerHTML=scanOkHtml();$('#scanMsg').textContent=SC.msg;return}
     el.innerHTML=`${top}<div class="scan-cam"><video id="scanV" playsinline muted autoplay></video><canvas id="scanOv" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none"></canvas><div class="scan-guide"><i></i><i></i><i></i><i></i></div></div>
@@ -3003,7 +3029,7 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const E=SC.ext,c=
     ${left.length&&P('kiritish')?`<button class="btn sec" data-sa="absRest">Qolgan ${left.length} tasini “Kelmadi” deb belgilash</button>`:''}<button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   const r=SC.res,q=r.qr,keyLen=q.qn;
   el.innerHTML=`${top}<div class="scan-body">
-   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div>${E?'':`<div class="note">${mkN(r.st)} · ${esc(r.st.cls)}</div>`}`
+   <div class="card pad"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div class="m">${r.st?`<div class="n" style="font-size:18px;font-weight:700">${esc(r.st.name)}</div>${E?'':SC.uni&&r.st.ut?`<div class="note">${esc(r.st.sch)} · ${esc(r.st.cls)} sinf · ${esc(r.tname)}</div>`:`<div class="note">${mkN(r.st)} · ${esc(r.st.cls)}${SC.uni?' · '+esc(r.tname):''}</div>`}`
      :`<div class="n" style="font-weight:700">Zaxira titul</div><div class="note">Bola ismini titulga qo’lda yozgan</div>`}</div><span class="pill gold">${VL(q.v)}-variant</span></div>
     ${r.st?'':(()=>{const left=scanSt().filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));return `${left.length?`<p class="note" style="margin:0">Titulda yozilgan bola ro’yxatda bo’lsa, ismini bosing:</p><div class="spk">${left.map(s=>`<button data-sa="pick" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div><p class="note" style="margin:0">Ro’yxatda yo’q bo’lsa — familiya va ismini yozing, u shu sinfga yangi o’quvchi bo’lib qo’shiladi:</p>`:''}<label class="field"><input id="scName" type="text" autocomplete="off" placeholder="Familiya Ism"></label>`})()}
     ${r.other?`<div class="note" style="color:var(--wrong)">Bu bola ${esc(r.st.cls)} sinfdan. Natija o’z sinfiga yoziladi.</div>`:''}
@@ -3016,14 +3042,14 @@ function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const E=SC.ext,c=
    <div class="scan-ans">${r.ans.map((a,i)=>`<button data-sa="ch" data-i="${i}" class="${a==='*'?'x':a==='-'?'e':''}${r.unsure?.[i]?' u':''}"><small>${i+1}</small><b>${a==='*'?'2+':a==='-'?'—':a}</b></button>`).join('')}</div>
    <div class="actions"><button class="btn sec" data-sa="live">Bekor qilish</button><button class="btn pri" data-sa="save">Saqlash</button></div></div>`}
 function scanOkHtml(){const o=SC?.okMsg;if(!o)return '<div id="scanOk"></div>';
-  return `<div id="scanOk" class="scan-ok">${o.img?`<img src="${o.img}" alt="">`:''}<div class="m"><b>✓ ${esc(o.name)}</b><small>${o.score==null?'internet yo’q — telefonda saqlandi, keyin o’zi yuboriladi':`${o.qn===100?num(o.score)+' ball':o.score+' / '+o.qn+' to’g’ri'} · saqlandi`}</small></div><button class="btn sec sm" data-sa="fix">Tuzatish</button></div>`}
+  return `<div id="scanOk" class="scan-ok">${o.img?`<img src="${o.img}" alt="">`:''}<div class="m"><b>✓ ${esc(o.name)}</b>${o.sub?`<small style="display:block">${esc(o.sub)}</small>`:''}<small>${o.score==null?'internet yo’q — telefonda saqlandi, keyin o’zi yuboriladi':`${o.qn===100?num(o.score)+' ball':o.score+' / '+o.qn+' to’g’ri'} · saqlandi`}</small></div><button class="btn sec sm" data-sa="fix">Tuzatish</button></div>`}
 async function scanClick(e){const b=e.target.closest('[data-sa]');e.stopPropagation();if(!b||!SC)return;const a=b.dataset.sa;
   try{
   if(a==='close'){scanClose();return}
   if(a==='left'){SC.view='left';scanDraw();return}
   if(a==='live'){SC.view='live';SC.res=null;SC.last='';SC.same=0;scanDraw();return}
   if(a==='photo'){scanPhoto();return}
-  if(a==='fix'){const o=SC.okMsg;if(!o)return;const r=o.r;r.old=SC.ext?SC.ext.old(r.st.id):R(r.st.id,SC.tid);SC.res=r;SC.okMsg=null;SC.view='check';scanDraw();return}
+  if(a==='fix'){const o=SC.okMsg;if(!o)return;const r=o.r;r.old=SC.ext?SC.ext.old(r.st.id):SC.uni?(r.st.ut?{absent:false,score:o.score,qn:o.qn}:R(r.st.id,r.qr.tid)):R(r.st.id,SC.tid);SC.res=r;SC.okMsg=null;SC.view='check';scanDraw();return}
   if(a==='ch'){const r=SC.res,i=+b.dataset.i,seq=[...'ABCDE'.slice(0,r.qr.nopt),'-'],cur=r.ans[i]==='*'?'-':r.ans[i];r.ans[i]=seq[(seq.indexOf(cur)+1)%seq.length];
     r.multi=r.ans.filter(x=>x==='*').length;b.className=r.ans[i]==='-'?'e':'';b.querySelector('b').textContent=r.ans[i]==='-'?'—':r.ans[i];return}
   if(a==='save'){b.disabled=true;await scanSave(SC.res,false);b.disabled=false;return}
@@ -3639,6 +3665,7 @@ function npTree(){const ceo=S.me.role==='ceo',real=ceo&&!S.me.demo,s0=stack[0]||
  ['school','Maktablar','data-tab="maktab"',null,()=>!ov&&tab==='maktab'&&(!stack.length||/^(school|class|stu):/.test(s0))],
  ['book','Darslar va mavzular',null,[['Mavzu darslari','data-act="npDars"',()=>ov],...(canKey()?[['Misollar bazasi','data-tab="baza"',T('baza')]]:[]),['Mashg’ulotlar','data-side="mashq"',SD('mashq')]]],
  ['clip','Testlar va sinovlar',null,[['Imtihonlar (bosqichlar)','data-tab="imtihon"',()=>!ov&&tab==='imtihon'&&(!stack.length||/^exam:/.test(s0))],['Testlar bazasi','data-side="tests"',SD('tests')]]],
+ ...(P('kiritish')?[['scan','Skaner','data-act="uniScan"',null,()=>!!SC&&!!SC.uni]]:[]),
  ...(P('reyting')?[['cup','Reyting va iqtidorlilar',null,[['Reyting','data-side="reyting"',SD('reyting')],['Iqtidorli bolalar','data-side="yuqori"',SD('yuqori')]]]]:[]),
  ...(canCert()?[['award','Sertifikatlar','data-side="certs"',null,SD('certs')]]:[]),
  ['chat','Xabarlar va e’lonlar','data-tab="xabar"',null,T('xabar'),null,(S.unread||0)+(S.tgPending||0)],
@@ -4015,6 +4042,7 @@ document.addEventListener('click',async e=>{
    case 'unapprove':await api('unapprove',{test_id:testId,school_id:+d.s});toast('Tasdiq bekor qilindi');await load();break;
    case 'enter':openEntry(+d.id);break;
    case 'scan':if(d.t)scanOpen(+d.id,+d.t);else pickExam('scan',+d.id);break;
+   case 'uniScan':uniScan();break;
    case 'xTitul':openTitul(d.k,+d.id,+d.t);break;
    case 'xRank':rSel=[+d.id];go('reyting');break;
    case 'rankDl':testId=+d.id;dlOpen('district',0);break;
