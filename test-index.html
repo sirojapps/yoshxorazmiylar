@@ -3717,6 +3717,10 @@ function scrDemo(){
 window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>{if(S&&S.me&&S.me.demo)return demoExit();kimSet('')};
 // Yangi ota-ona kabineti (/a/k/ota.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, sertifikat yuklaydi va chiqadi
 window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
+// Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
+const dirEski=()=>{try{return sessionStorage.getItem('yx_dir_eski')==='1'}catch(e){return false}};
+window.DIR={st:()=>S,api:(n,b,bg)=>api(n,b,bg),eski:()=>{try{sessionStorage.setItem('yx_dir_eski','1')}catch(e){}location.reload()},chiq:()=>{if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
+function dirQayt(){if($('#dirYangi'))return;const b=document.createElement('button');b.id='dirYangi';b.type='button';b.textContent='← Yangi kabinetga qaytish';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:60;font:inherit;font-weight:800;font-size:14px;color:#fff;background:#0b4fa8;border:2px solid #fff;border-radius:999px;padding:10px 18px;box-shadow:0 6px 18px rgba(11,37,89,.35);cursor:pointer;white-space:nowrap';b.onclick=()=>{try{sessionStorage.removeItem('yx_dir_eski')}catch(e){}location.reload()};document.body.appendChild(b)}
 const ustozEski=()=>{try{return sessionStorage.getItem('yx_ustoz_eski')==='1'}catch(e){return false}};
 window.ustozPdf=async()=>{await loadLib(JSPDF,()=>window.jspdf);await loadLib(QRGEN,()=>window.qrcode);return{jsPDF:jspdf.jsPDF,drawTitul,pdfTxt,TIW,TIH}};
 window.ustozChiq=v=>{if(v==='eski'){try{sessionStorage.setItem('yx_ustoz_eski','1')}catch(e){}location.reload();return}if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())};
@@ -3899,6 +3903,8 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
+  if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=1" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
+  if(S.me.role==='direktor')dirQayt();
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=87" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}

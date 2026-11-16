@@ -2598,6 +2598,43 @@ A['ustoz.get'] = (u, b) => {
   let holat = null; try { holat = JSON.parse(one('SELECT data FROM uholat WHERE class_id=?', c.id)?.data || 'null'); } catch { }
   return { me: { name: u.name, demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, cls: { name: c.name, grade: c.grade }, school: { num: c.num, nom: mkNumQ(c.num) }, kids, holat };
 };
+// ---------------- Yangi direktor kabineti (/a/k/direktor.html): o'z maktabining sinflari, ustozlari, o'quvchilari va sinf rahbarlari olgan testlar natijasi. Faqat o'qish.
+A['dir.get'] = u => {
+  need(u.role === 'direktor' && u.school_id, 'Bu sahifa maktab direktori uchun');
+  const sc = one('SELECT id,num FROM schools WHERE id=?', u.school_id); if (!sc) bad('Maktab topilmadi');
+  const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
+  const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
+  const ago = at => { const t = Date.parse(at || ''); return Number.isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 86400e3)) : null; };
+  const classes = all('SELECT id,name,grade,teacher_name FROM classes WHERE school_id=?', sc.id).map(c => {
+    const t = one("SELECT name,jins,last_login,pin FROM users WHERE role='rahbar' AND class_id=? AND active=1 ORDER BY id LIMIT 1", c.id);
+    const studs = all('SELECT id,name,phone FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
+    const sco = {}; studs.forEach(s => { sco[s.id] = [0, 0, 0]; }); // [to'g'ri javoblar, savollar, testlar soni]
+    const tests = []; let ochiq = 0;
+    for (const r of all('SELECT id,data,updated_at FROM utests WHERE class_id=? ORDER BY id DESC LIMIT 200', c.id)) {
+      let d = null; try { d = JSON.parse(r.data); } catch { } if (!d || !Array.isArray(d.kids) || !Array.isArray(d.qs)) continue;
+      if (!d.yak) { ochiq++; continue; }
+      const ks = d.kids.map(String), vars = Math.max(1, +d.vars || 1), s2 = d.sc || {}; let sum = 0, n = 0, qn = 0;
+      ks.forEach((k, j) => { const a = s2[k] && s2[k].a, Q = d.qs[j % vars]; if (!Array.isArray(a) || !Array.isArray(Q) || !Q.length) return;
+        const ok = a.filter((x, i) => Q[i] && x === Q[i].ci).length; sum += ok / Q.length; n++; qn = Q.length; if (sco[k]) { sco[k][0] += ok; sco[k][1] += Q.length; sco[k][2]++; } });
+      if (n) tests.push({ name: String(d.name || 'Test').slice(0, 120), kind: d.kind === 'ch' ? 'ch' : 'm', date: String((typeof d.yak === 'string' && d.yak) || d.date || r.updated_at || '').slice(0, 20), kun: ago(r.updated_at), qn, n, avg: Math.round(sum / n * 100) });
+    }
+    const kids = studs.map(s => {
+      let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
+      const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
+      const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0, x = sco[s.id];
+      return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days), in: phones.some(p => inSet.has(p)),
+        tn: x[2], tp: x[1] ? Math.round(x[0] / x[1] * 100) : null, rep: sm && Array.isArray(sm.rep) ? sm.rep.map(r => String((r && r.name) || '').slice(0, 90)).filter(Boolean).slice(0, 5) : [] };
+    });
+    return { id: c.id, name: c.name, grade: c.grade, ustoz: { name: (t && t.name) || c.teacher_name || '', jins: t && (t.jins === 'a' || t.jins === 'e') ? t.jins : '', bor: !!t, pin: !!(t && t.pin), kun: t ? ago(t.last_login) : null }, kids, tests: tests.slice(0, 30), ochiq };
+  });
+  return { me: { name: u.name || '', demo: !!u._demo, jins: u.jins === 'a' || u.jins === 'e' ? u.jins : '' }, school: { nom: mkNumQ(sc.num) }, classes };
+};
+// Direktor ayol yoki erkak ekani (kabinetdagi banner va rasm uchun)
+A['dir.jins'] = (u, b) => {
+  need(u.role === 'direktor' && u.school_id, 'Bu sahifa maktab direktori uchun');
+  const v = b.v === 'a' || b.v === 'e' ? b.v : ''; if (!v) bad('Ayol yoki erkak ekaningizni tanlang');
+  if (!u._demo) run('UPDATE users SET jins=? WHERE id=?', v, u.id); return { jins: v };
+};
 // Botda o'zi yozilgan bolani sinf rahbari tasdiqlaydi yoki sinfdan chiqaradi (kabineti yopilmaydi, kim rad etgani aytiladi)
 A['ustoz.kid.tasdiq'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
