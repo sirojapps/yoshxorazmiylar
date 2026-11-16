@@ -361,7 +361,7 @@ body{background:var(--bg)}
 .np-dim{border:0;padding:0;margin:0;-webkit-appearance:none;appearance:none;cursor:default;-webkit-tap-highlight-color:transparent}
 body.nui .tabs{display:none!important}
 body.nui .np{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;width:286px;background:linear-gradient(180deg,#eff6ff,#dbeafe);border-right:1px solid #cfe0f7;color:#1e293b;font-size:14.5px}
-.np-h{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid #d6e4f7}.np-h img{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 12px rgba(15,35,80,.18)}
+.np-h{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid #d6e4f7}.np-h img,.np-h>div,.nph img,.nph-t,img.logo{cursor:pointer}.np-h img{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 12px rgba(15,35,80,.18)}
 .np-h b{display:block;color:#0f2350;font-size:16px}.np-h small{color:#64748b;font-size:11.5px}.np-x{margin-left:auto;display:none;width:34px;height:34px;border:0;border-radius:10px;background:#fff;color:#1e293b;font-size:15px}
 .np-me{display:flex;align-items:center;gap:10px;margin:12px 12px 4px;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid #bfdbfe;text-align:left;font:inherit;cursor:pointer}
 .np-me b{display:block;color:#0f2350;font-size:14px}.np-me small{color:#2563eb;font-size:11.5px}
@@ -3636,6 +3636,17 @@ window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cl
 // Yangi ota-ona kabineti (/a/k/ota.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, sertifikat yuklaydi va chiqadi
 window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
+// Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
+window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
+  ochish:v=>{const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
+    if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
+    if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
+  qayt:()=>{window.__ceoEski=false;$('#ceoYangi')?.remove();try{if(!$('#sheet').hidden)closeSheet()}catch(e){}document.getElementById('darsOv')?.remove();tab=null;stack=[];render()},
+  chiq:()=>{fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
+window.ceoYangi=(cmd,v)=>{if(cmd==='out')CEO.chiq();else if(cmd==='ochish')CEO.ochish(v)};
+function ceoQayt(){if($('#ceoYangi'))return;const b=document.createElement('button');b.id='ceoYangi';b.type='button';b.textContent='← Yangi kabinetga qaytish';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:60;font:600 14px "Golos Text",system-ui,sans-serif;color:#fff;border:0;border-radius:999px;padding:11px 18px;background:linear-gradient(180deg,#2f7bff,#1d4ed8);box-shadow:0 6px 18px rgba(15,35,80,.3);cursor:pointer';b.onclick=()=>CEO.qayt();document.body.appendChild(b)}
+// Logo bosilsa — qaysi sahifada bo'lsa ham bosh sahifaga qaytadi (CEO — yangi kabinetga)
+document.addEventListener('click',e=>{if(!e.target.closest('.np-h img,.np-h>div,.nph img,.nph-t,img.logo'))return;if(!S||!S.me)return;if(S.me.role==='ceo'&&!S.me.demo){CEO.qayt();return}document.getElementById('darsOv')?.remove();try{if(!$('#sheet').hidden)closeSheet()}catch(x){}NP_OPEN=false;document.body.classList.remove('np-open');tab=null;stack=[];render();scrollTo(0,0)});
 const dirEski=()=>{try{return sessionStorage.getItem('yx_dir_eski')==='1'}catch(e){return false}};
 window.DIR={st:()=>S,api:(n,b,bg)=>api(n,b,bg),eski:()=>{try{sessionStorage.setItem('yx_dir_eski','1')}catch(e){}location.reload()},chiq:()=>{if(S&&S.me&&S.me.demo){demoExit();return}fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
 function dirQayt(){if($('#dirYangi'))return;const b=document.createElement('button');b.id='dirYangi';b.type='button';b.textContent='← Yangi kabinetga qaytish';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:60;font:inherit;font-weight:800;font-size:14px;color:#fff;background:#0b4fa8;border:2px solid #fff;border-radius:999px;padding:10px 18px;box-shadow:0 6px 18px rgba(11,37,89,.35);cursor:pointer;white-space:nowrap';b.onclick=()=>{try{sessionStorage.removeItem('yx_dir_eski')}catch(e){}location.reload()};document.body.appendChild(b)}
@@ -3822,6 +3833,8 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
   if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=93" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
