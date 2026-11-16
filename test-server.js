@@ -2393,7 +2393,11 @@ function threadCat0(t, u, who, sch, cls) {
 A['threads'] = u => ({ rows: visibleThreads(u).map(t => ({ ...t, ...threadCat(t, u), title: threadTitle(t, u), last: t.last ? { ...t.last, image: !!t.last.image } : null })) });
 A['thread.get'] = (u, b) => { const t = one('SELECT * FROM threads WHERE id=?', b.id); if (!t) bad('Topilmadi'); const hid = new Set(all('SELECT msg_id FROM msg_hidden WHERE user_id=?', u.id).map(x => x.msg_id));
   const acc = threadAccess(u, t); need(acc.see);
-  run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, now());
+  { // yangi xabarni birinchi marta o'qidi → yozgan odamning ochiq sahifasida «o'qildi» belgisi darrov chiqadi
+    const pr = one('SELECT at FROM reads WHERE thread_id=? AND user_id=?', t.id, u.id), lm = one('SELECT max(at) a FROM messages WHERE thread_id=? AND user_id!=?', t.id, u.id);
+    run('INSERT INTO reads(thread_id,user_id,at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET at=excluded.at', t.id, u.id, now());
+    if (lm && lm.a && (!pr || pr.at < lm.a) && !u._demo) for (const id of new Set(recipients(t, u.id))) if (id !== u.id) liveSend(id);
+  }
   const all0 = all('SELECT * FROM messages WHERE thread_id=? ORDER BY id', t.id); const byId = {}; all0.forEach(m => byId[m.id] = m);
   const msgs = all0.filter(m => !hid.has(m.id)).map(m => ({ ...m, audio: m.audio ? 1 : 0, image: m.image, reply: m.reply_to && byId[m.reply_to] ? { id: m.reply_to, user_id: byId[m.reply_to].user_id, text: (byId[m.reply_to].text || '').slice(0, 120), image: !!byId[m.reply_to].image, audio: !!byId[m.reply_to].audio } : (m.reply_to ? { id: m.reply_to, gone: 1 } : null) }));
   const names = {}, avs = {}; for (const m of [...msgs, ...msgs.filter(x => x.reply && x.reply.user_id).map(x => ({ user_id: x.reply.user_id }))]) if (!(m.user_id in names)) { const x = one('SELECT name,role,avatar FROM users WHERE id=?', m.user_id); names[m.user_id] = x ? (x.role === 'ceo' ? 'CEO' : x.role === 'ota' ? 'Ota-ona' : x.name) : '—'; avs[m.user_id] = x?.avatar || ''; }

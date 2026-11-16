@@ -2707,8 +2707,8 @@ document.addEventListener('click',async e=>{
 // kab=true — yangi kabinet (ichki sahifa) ham o'z ma'lumotini qayta oladi. Odam biror narsa yozayotgan bo'lsa, hech narsa qayta chizilmaydi.
 const yozyapti=d=>{try{const a=d.activeElement;return!!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}catch(e){return false}};
 function bgRefresh(kab){if(!S||document.hidden)return;
-  const kf=['usf','otf','oqf'].map(i=>document.getElementById(i)).find(Boolean);
-  if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&!yozyapti(w.document))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
+  const kf=['usf','otf','oqf','drf'].map(i=>document.getElementById(i)).find(Boolean);
+  if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&(kf.id==='drf'||!yozyapti(w.document)))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
   if(!$('#sheet').hidden||yozyapti(document))return;
   if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}
 setInterval(()=>bgRefresh(false),60000);
@@ -3866,7 +3866,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=1" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
+  if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=2" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=89" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
