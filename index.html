@@ -1881,25 +1881,6 @@ function openPhone(id){const s=X.st.find(x=>x.id===id);if(!s)return;
   ${(s.extra||[]).length?`<div class="note">Bot orqali tasdiqlangan: ${s.extra.map(ph).join(', ')}</div>`:''}
   <label class="field"><span class="label">Telefon raqami</span><input id="inP" type="tel" inputmode="tel" value="${esc(s.phone||'')}" placeholder="90 123 45 67"><span class="note" style="margin-top:4px;font-size:12.5px">${TG_HINT}</span></label>
   <button class="btn pri" data-act="phoneSave" data-id="${id}">Saqlash</button>`);$('#inP')?.focus()}
-function scrParent(){
-  const kids=X.st; if(!kids.length)return ['Farzandim','',`<div class="card empty">Telefon raqamingizga bog’langan o’quvchi topilmadi. Sinf rahbariga murojaat qiling.</div>`];
-  if(!kids.some(k=>k.id===child))child=kids[0].id; const s=kids.find(k=>k.id===child);
-  const t=S.tests[0];
-  let body='';
-  if(!t)body=`<div class="card hero"><p class="label">Natija</p><p style="margin:0">Sinov natijalari hali e’lon qilinmagan. E’lon qilinishi bilan shu yerda ko’rinadi.</p></div>`;
-  else{testId=t.id;const r=R(s.id);const cAvg=S.classAvg?.[t.id+':'+s.class_id];const rank=S.district?.[t.id+':rank:'+s.id];
-    if(!r)body=`<div class="card empty">Bu sinovda farzandingiz natijasi yo’q.</div>`;
-    else if(r.absent)body=`<div class="card hero"><p class="label">${esc(t.name)}</p><p style="margin:0">Farzandingiz bu sinovda qatnashmagan.</p></div>`;
-    else{const p=pct(r);const msg=p>=70?'Ajoyib natija! Farzandingizning matematikaga qiziqishini qo’llab-quvvatlang.':p>=45?'Yaxshi natija. Kundalik mashg’ulotlar bilan yanada o’sadi.':'Har bir bola o’z sur’atida o’sadi. Kundalik mashg’ulotlar yordam beradi.';
-      const g=(S.gifted||[]).includes(t.id+':'+s.id);
-      body=`${parentTabrik(s,t,r)}<div class="card hero"><p class="label">${esc(t.name)}</p><div class="big">${blBig(r)}</div>${g?`<span class="pill gold" style="align-self:flex-start">★ iqtidorli</span>`:''}<p class="note">${msg}</p></div>
-      ${cAvg!=null?`<section class="sec"><p class="label">Sinf bilan solishtirma</p><div class="card cmp"><div class="r"><span>Farzandingiz</span><div class="track"><i style="width:${p}%;background:var(--accent)"></i></div><b class="num">${pf(p)}%</b></div><div class="r"><span>Sinf o’rtachasi</span><div class="track"><i style="width:${cAvg}%;background:var(--low)"></i></div><b class="num">${pf(cAvg)}%</b></div></div>
-      <p class="note">${rank?(rank[0]<=Math.ceil(rank[1]/2)?`Tumandagi ${s.grade}-sinflar orasida ${rank[0]}-o’rin (${rank[1]} ta bola).`:''):'Tumandagi o’rni sinov yakunlangach chiqadi.'} Boshqa bolalarning ismi va bali ko’rinmaydi.</p></section>`:''}
-      <section class="sec"><p class="label">Savollar bo’yicha</p>${qGrid(r)}</section>`}}
-  return [s.name,`${mkN(s)} · ${s.cls}`,`<div class="card pad" style="flex-direction:row;align-items:center;gap:14px">${avHtml(s.avatar,64,s.name,s.id)}<div class="m" style="flex:1"><div class="n" style="font-weight:700">${esc(s.name)}${s.patronymic?` <span style="font-weight:500">${esc(s.patronymic)}</span>`:''}</div><div class="note">${mkN(s)} · ${esc(s.cls)}</div></div></div>${s.flag&&isTeam()?`<div class="card pad" style="border-color:#f59e0b;background:#fffbeb"><b>⚠ Tekshirish kerak</b><p class="note" style="margin:4px 0 0">${esc(s.flag)}</p></div>`:''}${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-child="${k.id}" aria-pressed="${k.id===child}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}${body}${parentItests(s)}`]}
-// ota-ona: farzandining maktab ichki sinov natijalari
-function parentItests(s){const its=(S.itests||[]).filter(t=>IR(t.id,s.id));if(!its.length)return'';
-  return `<section class="sec"><p class="label">Maktab ichki sinovlari</p><div class="card list">${its.map(t=>{const r=IR(t.id,s.id);const p=itPct(t,r);return `<div class="row"><div class="m"><div class="n">${esc(t.name)}</div><div class="s">${itDate(t.day)}${t.subject?' · '+esc(t.subject):''}</div></div>${r.absent?'<span class="pill gray">kelmadi</span>':`<div class="num">${r.score}/${t.qn}<small>${pf(p)}%</small></div>`}</div>`}).join('')}</div><p class="note">Bu sinovlarni maktabingiz o’tkazgan. “Yosh Xorazmiylar” natijalariga qo’shilmaydi.</p></section>`}
 
 // ================================================================ v2: messages, bot requests, certificates, exercises, settings
 const TOPIC_L={xato:'Natijada xato',pin:'PIN',savol:'Savol',taklif:'Taklif'};
@@ -2564,14 +2545,9 @@ function tabrikCard(role){
   const g=(S.gifted||[]).filter(k=>+k.split(':')[0]===t.id).length; if(!g)return'';
   return `<div class="card hero" style="background:var(--gold-soft);border-color:transparent"><p class="label" style="color:var(--gold)">Tabrik</p><p style="margin:0">${esc(fill(S.texts?.['tabrik_'+role],{soni:g}))}</p>
    ${(S.certs||[]).length?`<button class="btn sec" data-go="certs">Sertifikatlar (${(S.certs||[]).length})</button>`:''}</div>`}
-function parentTabrik(s,t,r){
-  if(!(S.gifted||[]).includes(t.id+':'+s.id))return'';
-  const c=(S.certs||[]).find(x=>x.student_id===s.id&&x.test_id===t.id);
-  return `<div class="card hero" style="background:var(--gold-soft);border-color:transparent"><p class="label" style="color:var(--gold)">Tabriklaymiz!</p><p style="margin:0">${esc(fill(S.texts?.tabrik_ota,{ism:s.name,ball:r.score,foiz:pct(r)}))}</p>
-   ${c&&!c.status?`<button class="btn pri" data-act="certPng" data-c="${c.code}">Sertifikatni yuklab olish</button>`:''}</div>`}
 
 // ---------------- exercises
-let EXL=null, exKid=null;
+let EXL=null;
 async function loadEx(){try{EXL=await api('ex.list')}catch(e){EXL={rows:[]};toast(e.message,true)}render()}
 function scrExTeam(){
   if(!EXL){loadEx();return ['Mashg’ulotlar','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
@@ -2590,17 +2566,6 @@ function openExEdit(id){
    <label class="field"><span class="label">To’g’ri javob</span><select id="exA">${'ABCDE'.split('').map(L=>`<option ${L===e.answer?'selected':''}>${L}</option>`).join('')}</select></label>
    <label class="field"><span class="label">Tushuntirish (javobdan keyin ko’rinadi)</span><textarea id="exE">${esc(e.explain||'')}</textarea></label>
    <button class="btn pri" data-act="exSave">Saqlash</button>${id?`<button class="btn dan" data-act="exDel" data-id="${id}">O’chirish</button>`:''}`)}
-function scrExParent(){
-  if(!EXL){loadEx();return ['Mashq','',`<div class="skw"><i class="sk" style="width:55%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:75%"></i></div>`]}
-  const kids=X.st; if(!kids.some(k=>k.id===exKid))exKid=kids[0]?.id; const kid=kids.find(k=>k.id===exKid);
-  const rows=kid?EXL.rows.filter(e=>e.grade===kid.grade):[];
-  return ['Mashq',kid?esc(kid.name):'',`${kids.length>1&&!S.me.demo?`<div class="seg">${kids.map(k=>`<button data-exkid="${k.id}" aria-pressed="${k.id===exKid}">${esc(k.name.split(' ')[1]||k.name)}</button>`).join('')}</div>`:''}
-  <p class="note">Har kuni yangi mashq. Farzandingiz bilan birga yeching, javobni u o’zi tanlasin.</p>
-  ${rows.map(e=>{const a=e.answers?.[kid.id];return `<div class="card pad"><div class="sec-h"><span class="label">${e.day===EXL.today?'Bugungi mashq':e.day.split('-').reverse().join('.')}</span>${a?`<span class="pill ${a.correct?'ok':'warn'}">${a.correct?'to’g’ri':'xato'}</span>`:''}</div>
-   <div style="font-size:17px;white-space:pre-wrap">${esc(e.text)}</div>${e.image?`<img src="${esc(e.image)}" alt="Mashq rasmi" style="border-radius:10px;cursor:zoom-in" data-zoom>`:''}
-   <div style="display:flex;flex-direction:column;gap:8px">${e.options.map((o,i)=>{const L='ABCDE'[i];const cls=a?(L===e.answer?'pri':L===a.choice?'dan':'sec'):'sec';
-     return `<button class="btn ${cls}" style="justify-content:flex-start" ${a?'disabled':''} data-exa="${e.id}" data-l="${L}">${L}) ${esc(o)}</button>`}).join('')}</div>
-   ${a&&e.explain?`<p class="note">${esc(e.explain)}</p>`:''}</div>`}).join('')||'<div class="card empty">Hozircha mashq yo’q. Tez orada qo’shiladi.</div>'}`]}
 
 // ---------------- settings (CEO)
 let SET=null;
@@ -2654,8 +2619,6 @@ document.addEventListener('click',async e=>{
   try{
   if(d.th){openThread(+d.th);return}
   if(d.thf){thf=d.thf;render();return}
-  if(d.exkid){exKid=+d.exkid;render();return}
-  if(d.exa){const r=await api('ex.answer',{exercise_id:+d.exa,student_id:exKid,choice:d.l});toast(r.correct?'To’g’ri! Barakalla!':'Afsus, xato. To’g’ri javob: '+r.answer,!r.correct);EXL=null;render();return}
   switch(d.act){
    case 'openChat':{const c=TH?.find(t=>t.kind==='chat');if(c)openThread(c.id);else{CMP={kind:'chat',img:''};openSheet(`<div class="sh-top"><div class="m"><h2>Jamoa chati</h2></div><button class="ib" data-act="close">${I.x}</button></div><label class="field"><textarea id="cmText" placeholder="Birinchi xabarni yozing"></textarea></label><div id="cmImg"></div><button class="btn pri" data-act="cmSend">Yuborish</button>`)}break}
    case 'compose':openCompose(d.kind);break;
@@ -3596,7 +3559,7 @@ const TABS={
   team:()=>[['bosh','Bosh',I.home],['maktab','Maktablar',I.school],['imtihon','Imtihon',I.pen],...(canKey()?[['baza','Misollar',I.book]]:[]),['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)],['more','Ko’proq',I.more]],
   direktor:()=>[['bosh','Bosh',I.home],['ichki','Ichki sinov',I.pen],['tahlil','Tahlil',I.chart],['xabar','Xabarlar',I.chat,S.unread]],
   rahbar:()=>[['sinf','Sinfim',I.home],['oquv','O’quvchilar',I.users],['mashq','Mashg’ulot',I.book],['xabar','Xabarlar',I.chat,(S.unread||0)+(S.tgPending||0)]],
-  ota:()=>[['farzand','Farzandim',I.home],['mashq','Mashq',I.pen,S.exNew],['xabar','Ustoz',I.chat,S.unread]],
+  ota:()=>[['farzand','Farzandim',I.home]], // ota-ona kabineti alohida sahifada: /a/k/ota.html
 };
 function screen(){
   const top=stack[stack.length-1];
@@ -3614,7 +3577,7 @@ function screen(){
   if(isTeam())return tab==='baza'?scrPB():tab==='maktab'?scrSchools():tab==='imtihon'?scrExams():tab==='more'?scrMore():scrTeamHome();
   if(r==='direktor')return tab==='tahlil'?scrDirAnalysis():tab==='ichki'?scrItests():scrDirHome();
   if(r==='rahbar')return tab==='oquv'?scrRahStudents():tab==='mashq'?scrRahMashq():scrRahHome();
-  return tab==='mashq'?scrExParent():scrParent();
+  return ['','',''];
 }
 
 // ---- atmosfera
@@ -3908,7 +3871,7 @@ function render(){
   if(S.me.role==='rahbar'&&!ustozEski()){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=87" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
-  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=5" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
+  if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=6" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
   if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
