@@ -358,6 +358,7 @@ body{background:var(--bg)}
 .spk{display:flex;flex-wrap:wrap;gap:6px}.spk button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:500}
 /* ===== yangi panel (sinov) — och moviy */
 .np,.np-dim,.np-burg{display:none}
+.np-dim{border:0;padding:0;margin:0;-webkit-appearance:none;appearance:none;cursor:default;-webkit-tap-highlight-color:transparent}
 body.nui .tabs{display:none!important}
 body.nui .np{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;width:286px;background:linear-gradient(180deg,#eff6ff,#dbeafe);border-right:1px solid #cfe0f7;color:#1e293b;font-size:14.5px}
 .np-h{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid #d6e4f7}.np-h img{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 12px rgba(15,35,80,.18)}
@@ -3690,7 +3691,7 @@ function npPanel(){darsLoad();
     const right=badge?`<em>${badge}</em>`:`<b class="chv${open?' o':''}">›</b>`;
     const lbl=l.replace(' (Viloyat/Tuman)','<small> (Viloyat/Tuman)</small>');
     return `<button class="npi${on?' on':''}${hit>=0?' par':''}" title="${l}" ${attr}>${npIc(ic)}<span>${lbl}</span>${right}</button>${open?`<div class="npsub">${sub.map(([t,aa],j)=>`<button class="npsi${j===hit?' on':''}" ${aa}>${t}</button>`).join('')}</div>`:''}`}).join('');
-  return `<div class="np-dim" data-act="npClose"></div><aside class="np" aria-label="Menyu">
+  return `<button type="button" class="np-dim" data-act="npClose" aria-label="Menyuni yopish" tabindex="-1"></button><aside class="np" aria-label="Menyu">
    <div class="np-h"><img src="/icon-192.png?v=2" alt=""><div><b>Yosh <br>Xorazmiylar</b><small>Matematika ta’lim platformasi</small></div><button class="np-x" data-act="npClose" aria-label="Yopish">✕</button></div>
    <div class="np-sc">${rows}</div><div class="np-regw"><svg class="wv" viewBox="0 0 300 200" preserveAspectRatio="none"><path d="M0 55 C80 5 180 105 300 25 L300 200 L0 200Z" fill="#dbeafe" opacity=".85"/><path d="M0 40 C90 -5 190 90 300 15" fill="none" stroke="#fff" stroke-width="4" opacity=".95"/><path d="M0 120 C90 70 190 170 300 100 L300 200 L0 200Z" fill="#bfdbfe" opacity=".75"/><path d="M0 160 C100 120 200 200 300 150 L300 200 L0 200Z" fill="#7fb3f5" opacity=".7"/><path d="M0 95 C90 45 190 145 300 70" fill="none" stroke="#fff" stroke-width="3" opacity=".9"/><path d="M0 140 C100 95 200 185 300 125" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/></svg><img class="np-reg" src="${NP_REG}" alt=""></div></aside>`}
 function npHead(){const n=(S.unread||0)+(S.tgPending||0);const d=new Date();
