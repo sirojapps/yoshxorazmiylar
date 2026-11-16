@@ -2550,7 +2550,7 @@ document.addEventListener('click',async e=>{
    case 'rpImgDel':{const t=val('rpText');draftImg='';drawThread();$('#rpText').value=t;break}
    case 'rpSend':{if(REC.on){toast('Avval yozishni to’xtating',true);break}const t=val('rpText');
      if(editMsg){if(!t)break;await api('msg.edit',{id:editMsg,text:t});editMsg=0;$('#rpText').value='';toast('Tahrirlandi');openThread(THV.thread.id);break}
-     const au=REC.to==='rp'?REC.data:'';if(!t&&!draftImg&&!au)break;const rt=RPQ?.id||0;await api('thread.reply',{id:THV.thread.id,text:t,image:draftImg,audio:au,reply_to:rt});RPQ=null;const e0=$('#rpText');if(e0)e0.value='';recClear();openThread(THV.thread.id);break}
+     const au=REC.to==='rp'?REC.data:'';if(!t&&!draftImg&&!au)break;const rt=RPQ?.id||0;await api('thread.reply',{id:THV.thread.id,text:t,image:draftImg,audio:au,reply_to:rt});RPQ=null;const e0=$('#rpText');if(e0)e0.value='';recClear();await openThread(THV.thread.id);$('#rpText')?.focus({preventScroll:true});break}
    case 'tgNew':tgNewMenu();break;
    case 'tgIn':THP[thf].push(d.v);render();break;
    case 'tgUp':THP[thf].pop();render();break;
@@ -2630,9 +2630,16 @@ const yozyapti=d=>{try{const a=d.activeElement;return!!(a&&/INPUT|TEXTAREA|SELEC
 function bgRefresh(kab){if(!S||document.hidden)return;
   const kf=['usf','otf','oqf','drf'].map(i=>document.getElementById(i)).find(Boolean);
   if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&(kf.id==='drf'||kf.id==='usf'||!yozyapti(w.document)))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
+  thLive();
   if(!$('#sheet').hidden||yozyapti(document))return;
   if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}
 setInterval(()=>bgRefresh(false),60000);
+// Ochiq yozishma o'zi yangilanadi: yangi xabar va «o'qildi» (✓✓) belgisi darrov chiqadi; yozilayotgan matn va kursor saqlanadi
+function thLive(){const e=$('#rpText');if(!THV||!e||editMsg||SEL||REC.on)return;const id=THV.thread.id;
+  api('thread.get',{id},true).then(d=>{if(!THV||THV.thread.id!==id||!$('#rpText'))return;
+    const k=x=>JSON.stringify([(x.msgs||[]).map(m=>m.id+':'+(m.edited||'')),(x.readBy||[]).map(r=>r.user_id+':'+r.at)]);if(k(d)===k(THV))return;
+    const i=$('#rpText'),f=document.activeElement===i,ss=i.selectionStart,se=i.selectionEnd;THV=d;tgKeep(drawThread);
+    const j=$('#rpText');if(j&&f){j.focus({preventScroll:true});try{j.setSelectionRange(ss,se)}catch(e){}}}).catch(()=>{})}
 let LIVE=null,liveT=0,liveBk=5000;
 function liveStart(){if(LIVE||!S||!window.EventSource)return;try{LIVE=new EventSource('/api/live')}catch(e){LIVE=null;return}
   LIVE.onopen=()=>{liveBk=5000};
@@ -3791,9 +3798,9 @@ function render(){
   if(S.me.role==='direktor')dirQayt();
   if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=91" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=19" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=8" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=19" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
