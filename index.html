@@ -2629,7 +2629,7 @@ document.addEventListener('click',async e=>{
 const yozyapti=d=>{try{const a=d.activeElement;return!!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}catch(e){return false}};
 function bgRefresh(kab){if(!S||document.hidden)return;
   const kf=['usf','otf','oqf','drf'].map(i=>document.getElementById(i)).find(Boolean);
-  if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&(kf.id==='drf'||!yozyapti(w.document)))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
+  if(kf){load(true,true);if(kab){try{const w=kf.contentWindow;if(w&&w.yxYangila&&(kf.id==='drf'||kf.id==='usf'||!yozyapti(w.document)))Promise.resolve(w.yxYangila(true)).catch(()=>{})}catch(e){}}return}
   if(!$('#sheet').hidden||yozyapti(document))return;
   if(tab==='xabar'&&!stack.length){TH=null;load(false,true)}else load(true,true)}
 setInterval(()=>bgRefresh(false),60000);
@@ -3789,7 +3789,7 @@ function render(){
   document.body.dataset.theme=THEME[tab]||'sky';
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
-  if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=90" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=91" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=8" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
