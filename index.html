@@ -1909,7 +1909,8 @@ function openMeInfo(){const m=S.me,P=m.perms||{};const sc=Object.fromEntries((S.
   ${pushRow()}
   ${instBtn()}
   <button class="btn dan" data-act="logoutAsk">Saytdan chiqish</button>`)}
-function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<label style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:4px 6px 4px 14px;background:var(--card,#fff)"><input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="flex:1;min-width:0;border:0;outline:0;padding:8px 0;font:inherit;font-size:16px;background:transparent"><button type="button" class="btn sec sm" data-act="pwEyeF" data-f="${id}" style="white-space:nowrap">👁 Ko’rsatish</button></label>`;
+const PWE={on:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',off:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M4 3l16 18"/></svg>'};const pweS=k=>PWE[k].replace('width="24" height="24"','width="18" height="18"');
+function openParol(){const has=!!S.me.has_pass;const inp=(id,ph,ac)=>`<label style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px solid var(--line,#ccd);border-radius:12px;padding:4px 6px 4px 14px;background:var(--card,#fff)"><input id="${id}" type="password" autocomplete="${ac}" maxlength="128" placeholder="${ph}" style="flex:1;min-width:0;border:0;outline:0;padding:8px 0;font:inherit;font-size:16px;background:transparent"><button type="button" class="btn sec sm" data-act="pwEyeF" data-f="${id}" style="white-space:nowrap;display:inline-flex;flex-direction:row;align-items:center;gap:5px">${pweS('off')}<span>Ko’rsatish</span></button></label>`;
   openSheet(`<div class="sh-top"><div class="m"><h2>${has?'Parolni o’zgartirish':'Kirish paroli o’rnatish'}</h2></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <div class="card pad" style="gap:10px">${has?inp('pwOld','Hozirgi parol','current-password'):''}${inp('pwNew','Yangi parol','new-password')}${inp('pwNew2','Yangi parolni qayta yozing','new-password')}
   <p class="err" id="pwErr" role="alert" style="margin:0"></p>
@@ -3909,7 +3910,7 @@ function renderLogin(){
     $('#app').innerHTML=`<div class="login gut">${LOGO}<div><h2>YOSH XORAZMIYLAR</h2><p class="note" style="margin-top:6px">${lpShow(lp)} · <button class="lnk" data-act="lpChange">o’zgartirish</button></p><p class="note" style="margin-top:4px">Parolingizni kiriting</p></div>
     <label style="display:flex;align-items:center;gap:8px;width:100%;max-width:320px;border:1px solid var(--line,#ccd);border-radius:14px;padding:12px 14px;background:var(--card,#fff)">🔒
      <input id="pwIn" type="password" autocomplete="current-password" maxlength="128" placeholder="Parol" style="flex:1;border:0;outline:0;font:inherit;font-size:18px;background:transparent;min-width:0">
-     <button type="button" class="lnk" data-act="pwEye" aria-label="Parolni ko’rsatish">👁</button></label>
+     <button type="button" class="lnk" data-act="pwEye" aria-label="Parolni ko’rsatish" style="display:flex;align-items:center;padding:4px">${PWE.off}</button></label>
     <p class="err" role="alert">${esc(pinErr)}</p>
     <button class="btn pri" data-act="pwGo" style="width:100%;max-width:320px">Kirish</button>
     <p class="note" style="max-width:320px">Bu akkaunt parol bilan himoyalangan.</p></div>`;
@@ -4045,11 +4046,11 @@ document.addEventListener('click',async e=>{
    case 'lpGo':{const v=String($('#lpIn')?.value||'').replace(/\D/g,'').replace(/^998(?=\d{9}$)/,'');if(v.length!==9){pinErr='Raqamni to’liq yozing: 9 ta raqam, masalan 90 123 45 67';render();break}
      ls.set('lphone',v);lpEdit=false;pinErr='';pin='';lpKindFor='';render();break}
    case 'lpChange':lpEdit=true;pin='';pinErr='';render();break;
-   case 'pwEye':{const i=$('#pwIn');if(i)i.type=i.type==='password'?'text':'password';break}
+   case 'pwEye':{const i=$('#pwIn');if(i){const sh=i.type==='password';i.type=sh?'text':'password';b.innerHTML=sh?PWE.on:PWE.off;b.setAttribute('aria-label',sh?'Parolni yashirish':'Parolni ko’rsatish');i.focus()}break}
    case 'pwGo':{const i=$('#pwIn');const v=i?i.value:'';if(!v){pinErr='Parolni yozing';render();break}
      try{await api('login',{phone:lpGet(),password:v});kimSet2();pinErr='';await load();tab=null;stack=[]}catch(err){pinErr=err.message;render()}break}
    case 'parolSet':openParol();break;
-   case 'pwEyeF':{const i=$('#'+d.f);if(i){const sh=i.type==='password';i.type=sh?'text':'password';b.textContent=sh?'🙈 Yashirish':'👁 Ko’rsatish';i.focus()}break}
+   case 'pwEyeF':{const i=$('#'+d.f);if(i){const sh=i.type==='password';i.type=sh?'text':'password';b.innerHTML=pweS(sh?'on':'off')+'<span>'+(sh?'Yashirish':'Ko’rsatish')+'</span>';i.focus()}break}
    case 'parolSave':{const o=$('#pwOld')?.value||'',n=$('#pwNew')?.value||'',n2=$('#pwNew2')?.value||'';const er=$('#pwErr');
      const w=n.length<12?'Parol kamida 12 belgidan iborat bo’lsin':!(/\p{L}/u.test(n)&&/\d/.test(n))?'Parolda harflar ham, raqamlar ham bo’lsin':n!==n2?'Ikkinchi marta yozilgan parol mos emas':'';
      if(w){er.textContent=w;break}
