@@ -2792,7 +2792,7 @@ function openTitul(kind,id,tid){const t=S.tests.find(x=>x.id===tid);if(!t){toast
   <p class="note" style="margin:0">Har bir bolaga ismi, sinfi va QR kodi yozilgan titul chiqadi: <b>${n} ta</b>. Bitta A4 varaqqa ikkitadan joylashadi — chop etib, o’rtasidan qirqing. Chop etishda “Asl o’lcham” (100%) ni tanlang.</p>
   <label class="field"><span class="label">Har sinfga zaxira titul (ro’yxatda yo’q bola uchun)</span><input id="tSp" type="number" inputmode="numeric" min="0" max="10" value="${ls.get('tsp',3)}"></label>
   <button class="btn pri" data-act="titulGo" data-k="${kind}" data-id="${id}" data-t="${t.id}">🖨 PDF yuklab olish</button>`)}
-async function titulGo(kind,id,tid){const sp=Math.max(0,Math.min(10,parseInt(val('tSp'),10)||0));ls.set('tsp',sp);const t=S.tests.find(x=>x.id===tid);if(!t)return;
+async function titulGo(kind,id,tid,spIn){const sp=Math.max(0,Math.min(10,parseInt(spIn!=null?spIn:val('tSp'),10)||0));ls.set('tsp',sp);const t=S.tests.find(x=>x.id===tid);if(!t)return;
   const cls=kind==='class'?[X.cl[id]]:S.classes.filter(c=>c.school_id===id&&covers(t,c)).sort((a,b)=>a.grade-b.grade||a.name.localeCompare(b.name,'uz',{numeric:true}));
   const per=cls.map(c=>titulItems(c.id,sp,t)).filter(x=>x.length);const n=per.reduce((a,x)=>a+x.length,0);if(!n){toast('Ro’yxatda bola yo’q',true);return}
   toast(`${n} ta titul tayyorlanmoqda…`);
@@ -3638,6 +3638,7 @@ window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimS
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
+  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,
   ochish:v=>{const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
     if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
     if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
@@ -3833,7 +3834,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=8" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=9" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
