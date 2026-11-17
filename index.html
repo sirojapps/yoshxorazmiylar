@@ -1074,6 +1074,8 @@ let netTry=0,netTimer=null,SJ='';
 // ---------------- yangilash: ↻ tugmasi va "Sayt yangilandi" eslatmasi
 let SITE_VER='';
 async function verCheck(){try{const r=await fetch('/api/ver',{cache:'no-store'});const v=(await r.json()).v;if(!v)return;if(!SITE_VER){SITE_VER=v;return}
+  // CEO kabineti: sayt yangilansa sahifa o'zi yangilanadi (eski nusxa ochiq qolib, eski sahifalar ko'rinmasin) — faqat odam yozmayotgan va oyna ochiq bo'lmagan paytda
+  if(v!==SITE_VER&&document.getElementById('ceof')){try{const w=document.getElementById('ceof').contentWindow,m=w.document.getElementById('mo');if(!yozyapti(w.document)&&!(m&&!m.hidden)&&!SC){location.reload();return}}catch(e){}}
   if(v!==SITE_VER&&!document.getElementById('verBar')){const d=document.createElement('div');d.id='verBar';d.setAttribute('role','status');
     d.style.cssText='position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--navy,#1f3564);color:#fff;padding:10px 12px 10px 16px;border-radius:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:600;max-width:calc(100% - 32px);white-space:nowrap';
     d.innerHTML='<span>Sayt yangilandi</span><button data-act="pageReload" style="background:#fff;color:var(--navy,#1f3564);border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">Yangilash</button>';document.body.appendChild(d)}}catch(e){}}
@@ -3644,7 +3646,7 @@ window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimS
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
   titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),actL:()=>ACT_L,kindL:()=>KIND_L,caReset:()=>{CA=null},pickImg:(cb,max)=>pickImage(cb,max),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,uni:()=>{uniScan();const e=$('#scan');if(e)e.style.zIndex=60},
-  ochish:v=>{const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
+  ochish:v=>{return; /* 17.11.2026: CEO uchun eski sahifa butunlay yopildi — hamma ish yangi kabinetda */ const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
     if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
     if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
   qayt:()=>{window.__ceoEski=false;$('#ceoYangi')?.remove();try{if(!$('#sheet').hidden)closeSheet()}catch(e){}document.getElementById('darsOv')?.remove();tab=null;stack=[];render()},
@@ -3839,7 +3841,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=17" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=18" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
