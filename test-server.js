@@ -1382,6 +1382,25 @@ setInterval(() => { try { run(`DELETE FROM audit WHERE at<? AND action IN (${MIN
 const today = () => new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10); // Toshkent vaqti
 const getSet = k => one('SELECT value FROM settings WHERE key=?', k)?.value ?? '';
 const setSet = (k, v) => run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', k, String(v ?? ''));
+// 17.11.2026: asosiy misollar bazasi bo'shatildi (misollar boshqatdan yoziladi). Eski misollar probs_arxiv jadvalida turadi:
+// avval tuzilgan testlarda yechim va rasm ko'rinishi shundan olinadi. Bir marta bajariladi.
+try {
+  if (!getSet('probs_arxiv_2026_11_17')) {
+    db.exec('BEGIN');
+    try {
+      db.exec('CREATE TABLE IF NOT EXISTS probs_arxiv AS SELECT * FROM probs WHERE 0');
+      db.exec('INSERT INTO probs_arxiv SELECT * FROM probs');
+      const n = one('SELECT count(*) n FROM probs').n, m = one('SELECT count(*) n FROM probs_arxiv').n;
+      if (m < n) throw new Error('arxiv to\'liq emas');
+      db.exec("DELETE FROM probs; DELETE FROM trash WHERE kind='probs'");
+      setSet('probs_arxiv_2026_11_17', JSON.stringify({ n, at: now() }));
+      db.exec('COMMIT'); console.log('Asosiy misollar bazasi arxivga olindi va bo\'shatildi:', n);
+    } catch (e) { db.exec('ROLLBACK'); throw e; }
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS probs_arxiv_id ON probs_arxiv(id)');
+} catch (e) { console.error('probs arxiv xatosi:', e.message); }
+const arxSol = id => { try { return one('SELECT sol FROM probs_arxiv WHERE id=?', id)?.sol || ''; } catch (e) { return ''; } };
+const arxImg = h => { try { return !!one("SELECT 1 FROM probs_arxiv WHERE (img=? OR o LIKE ?) LIMIT 1", h, '%"' + h + '"%'); } catch (e) { return false; } };
 const siteUrl = () => getSet('site_url') || 'https://yoshxorazmiylar.uz';
 const DEFAULT_TEXTS = {
   tabrik_ota: 'Hurmatli ota-ona! Farzandingiz {ism} "Yosh Xorazmiylar" sinovida {ball} ball ({foiz}%) to‘plab, iqtidorli o‘quvchilar qatoridan joy oldi. Tabriklaymiz! Hurmat bilan, KARAKUL INTERNATIONAL SCHOOL jamoasi',
@@ -2780,7 +2799,7 @@ A['oq.imtihon'] = (u, b) => {
       const v = data[r.variant || 'A'] || data.A || {}; const qs = Array.isArray(v.qs) ? v.qs : [];
       o.variant = r.variant || 'A';
       o.qs = qs.map((q, i) => {
-        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || '') : '';
+        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || arxSol(q.pid)) : '';
         const x = { q: q.q || '', img: q.img || '', o: q.o || [], oi: q.oi || [], a: q.a || '', sol };
         if (ann) { const my = (r.answers || '')[i]; if (my && my !== '-') x.my = my; const bt = (r.bits || '')[i]; if (bt === '0' || bt === '1') x.ok = bt === '1'; }
         return x;
@@ -3103,7 +3122,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/live') return liveOpen(req, res, u);
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
       if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
-        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
+        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%') || arxImg(mm[1]); // misol rasmlarini sinf rahbari ham ko'radi
         const m = okm && one('SELECT type,data FROM media WHERE id=?', mm[1]);
         if (!m) { res.writeHead(404, SEC); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
