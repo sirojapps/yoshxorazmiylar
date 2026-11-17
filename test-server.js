@@ -2697,14 +2697,14 @@ A['ota.get'] = u => {
 A['ustoz.get'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
   const c = one('SELECT c.id,c.name,c.grade,sc.num FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE c.id=?', u.class_id); if (!c) bad('Sinf topilmadi');
-  const studs = all('SELECT id,name,phone,patronymic,ozi FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
+  const studs = all('SELECT id,name,phone,patronymic,ozi,jins FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
   const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
   const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
   const kids = studs.map(s => {
     let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
     const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
     const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
-    return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
+    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
       cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0, ...(s.ozi === 1 ? { yangi: 1, pat: s.patronymic || '' } : {}) };
   });
   let holat = null; try { holat = JSON.parse(one('SELECT data FROM uholat WHERE class_id=?', c.id)?.data || 'null'); } catch { }
@@ -2712,8 +2712,9 @@ A['ustoz.get'] = (u, b) => {
 };
 // ---------------- Yangi direktor kabineti (/a/k/direktor.html): o'z maktabining sinflari, ustozlari, o'quvchilari va sinf rahbarlari olgan testlar natijasi. Faqat o'qish.
 A['dir.get'] = u => {
-  need(u.role === 'direktor' && u.school_id, 'Bu sahifa maktab direktori uchun');
-  const sc = one('SELECT id,num FROM schools WHERE id=?', u.school_id); if (!sc) bad('Maktab topilmadi');
+  need(u.role === 'direktor', 'Bu sahifa maktab direktori uchun');
+  if (!u.school_id) bad('Sizga hali maktab biriktirilmagan. Loyiha jamoasiga xabar yozing.');
+  const sc = one('SELECT id,num FROM schools WHERE id=?', u.school_id); if (!sc) bad('Sizga biriktirilgan maktab ro‘yxatda topilmadi (o‘chirilgan bo‘lishi mumkin). Loyiha jamoasiga xabar yozing.');
   const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
   const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
   const ago = at => { const t = Date.parse(at || ''); return Number.isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 86400e3)) : null; };
@@ -2792,11 +2793,19 @@ A['ustoz.kid.add'] = (u, b) => {
   if (all('SELECT id FROM students WHERE active=1 AND class_id=?', u.class_id).length >= 60) bad('Bitta sinfda 60 tadan ko‘p o‘quvchi bo‘lmaydi');
   const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1', u.class_id).find(x => nameKey(x.name) === nameKey(name));
   if (twin) bad(`Bu sinfda «${twin.name}» allaqachon bor`);
-  const r = run('INSERT INTO students(class_id,name,patronymic,phone,created_at) VALUES(?,?,?,?,?)', u.class_id, name, pat, p, now());
+  const jins = b.jins === 'a' || b.jins === 'e' ? b.jins : '';
+  const r = run('INSERT INTO students(class_id,name,patronymic,phone,jins,created_at) VALUES(?,?,?,?,?,?)', u.class_id, name, pat, p, jins, now());
   log(u.id, 'oquvchi.qoshish', { id: Number(r.lastInsertRowid), name, class_id: u.class_id, ustoz: true });
   return { id: Number(r.lastInsertRowid), name, ...ustozOtaPin(u, p) };
 };
 // Oldin qo'shilgan o'quvchiga ota-ona raqamini yozish (PIN shundan keyin beriladi)
+// O'g'il / qiz: sinf rahbari o'quvchi sahifasida o'zgartiradi (banner va avatar shunga qarab chiqadi)
+A['ustoz.kid.jins'] = (u, b) => {
+  need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
+  const s = one('SELECT id,name FROM students WHERE id=? AND class_id=? AND active=1', +b.id, u.class_id); if (!s) bad('O‘quvchi topilmadi');
+  if (b.jins !== 'a' && b.jins !== 'e') bad('O‘g‘il yoki qiz ekanini tanlang');
+  if (!u._demo) run('UPDATE students SET jins=? WHERE id=?', b.jins, s.id); return { jins: b.jins };
+};
 A['ustoz.kid.phone'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
   const s = one('SELECT * FROM students WHERE id=? AND active=1 AND class_id=?', +b.id, u.class_id); if (!s) bad('O‘quvchi topilmadi');
