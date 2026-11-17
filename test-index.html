@@ -959,11 +959,13 @@ body:not(.lgx)::before{content:'';position:fixed;inset:0;z-index:-1;pointer-even
 <div id="gl"></div></div>
 <div class="yx-cap" aria-hidden="true"><b>al-Xorazmiy</b>Algebra va algoritm so’zlari uning nomi va kitobidan kelib chiqqan. Bugungi raqamlarni dunyoga tanitganlardan biri ham u.</div>
 <div class="app" id="app"><div class="gut skw" style="padding-top:28px"><i class="sk" style="height:120px;border-radius:18px"></i><i class="sk" style="width:60%"></i><i class="sk"></i><i class="sk"></i><i class="sk" style="width:80%"></i></div></div><script>const GRADES=()=>[...new Set(((typeof S!=='undefined'&&S&&S.classes)||[]).map(c=>+c.grade).filter(g=>g>0))].sort((a,b)=>a-b);
-const mkN=o=>{const n=o&&typeof o==='object'?o.num:o;const s=(typeof S!=='undefined'&&S&&S.schools||[]).find(x=>x.num===n);if(s&&n>=100000)return s.raqam?s.raqam+'-maktab':s.name||n+'-maktab';return s&&n>=101&&s.name?s.name:n+'-maktab'};
+// maktab nomi: < > belgilarisiz qaytadi (sahifaga esc()siz qo'yilgan joyda ham HTML bo'lib ishlamasin)
+const mkN0=o=>{const n=o&&typeof o==='object'?o.num:o;const s=(typeof S!=='undefined'&&S&&S.schools||[]).find(x=>x.num===n);if(s&&n>=100000)return s.raqam?s.raqam+'-maktab':s.name||n+'-maktab';return s&&n>=101&&s.name?s.name:n+'-maktab'};
+const mkN=o=>String(mkN0(o)).replace(/[<>]/g,'');
 // odam ko'radigan maktab raqami: boshqa tumanlar maktabida ichki kod (100001…) emas, haqiqiy raqam
 const mkR=s=>s&&s.num>=100000?(s.raqam||''):(s&&s.num)||'';
 // jamoa uchun: maktab qaysi tumandan (nom ostidagi kichik qatorda; nomning o'zida tuman yozilmaydi)
-const mkT=s=>{const t=s&&s.tuman;if(!t||!S||!(S.me.role==='ceo'||S.me.role==='jamoa'))return'';return(/ (shahri|tumani)$/.test(t)?t:t+' tumani')+' · '};
+const mkT=s=>{const t=s&&s.tuman;if(!t||!S||!(S.me.role==='ceo'||S.me.role==='jamoa'))return'';return(/ (shahri|tumani)$/.test(t)?t:t+' tumani').replace(/[<>]/g,'')+' · '};
 if(/^test\./.test(location.hostname))document.write('<div style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#dc2626;color:#fff;font:700 12px sans-serif;padding:3px 12px;border-radius:0 0 8px 8px">SINOV SAYTI — haqiqiy emas</div>')</script>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
@@ -1636,7 +1638,7 @@ function histLine(h){const d=h.detail;
   if(h.action==='natija.ochirish')return `${esc(h.stu||'')}: ${d.old?.absent?'kelmadi':esc(d.old?.score)} — o’chirildi`;
   if(h.action.startsWith('sertifikat.'))return `${esc(d.name||'')}${d.code?' · № '+esc(d.code):''}${d.new_code?' → № '+esc(d.new_code):''}${d.soni?esc(d.soni)+' ta bola':''}${d.reason?' · '+esc(d.reason):''}`;
   return esc(h.stu||d.name||d.child||'')}
-function histSub(h){const d=h.detail,p=[];if(h.num)p.push(mkN(h)+'');if(h.cls)p.push(esc(h.cls));
+function histSub(h){const d=h.detail,p=[];if(h.num)p.push(esc(mkN(h)));if(h.cls)p.push(esc(h.cls));
   if(h.action.startsWith('kalit'))p.push(`${esc(d.grade)}-sinf${d.qayta_hisoblandi?` · ${d.qayta_hisoblandi} ta natija qayta hisoblandi`:''}`);
   if(h.action==='oquvchi.kochirish')p.push(`${esc(d.name||'')}: ${esc(d.from||'')} → ${esc(d.to||'')}`);
   if(h.action==='natija.kelmadi_hammasi')p.push(`${esc(d.soni)} ta`);
@@ -3836,9 +3838,9 @@ function render(){
   document.body.dataset.theme=THEME[tab]||'sky';
   if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=10" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
-  if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=3" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
+  if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
-  if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=94" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
+  if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=95" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
   if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=20" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=9" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
