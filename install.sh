@@ -68,15 +68,21 @@ else
 # sahifa: server uni har so'rovda diskdan o'qiydi — qayta ishga tushirish kerak emas
 if cmp -s "$APP/public/index.html.new" "$APP/public/index.html" 2>/dev/null; then rm -f "$APP/public/index.html.new"
 else mv "$APP/public/index.html.new" "$APP/public/index.html"; echo "Sahifa yangilandi (asosiy)"; fi
-if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && ! cmp -s /tmp/yx-darslar.tgz "$APP/.darslar.tgz" && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt && grep -qx 'index.html' /tmp/yx-darslar.txt; then
-rm -rf "$APP/public/darslar.new"; mkdir -p "$APP/public/darslar.new"
-tar -xzf /tmp/yx-darslar.tgz -C "$APP/public/darslar.new" --no-same-owner
-rm -rf "$APP/public/darslar.old"; [ -d "$APP/public/darslar" ] && mv "$APP/public/darslar" "$APP/public/darslar.old"
-mv "$APP/public/darslar.new" "$APP/public/darslar"; rm -rf "$APP/public/darslar.old"
-cp /tmp/yx-darslar.tgz "$APP/.darslar.tgz"
-echo "Mavzu darslari o'rnatildi: $(ls "$APP/public/darslar/m" | wc -l) ta mavzu"
-fi
-rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
+# darslar.tar.gz → public/darslar. Har sayt (asosiy va sinov) O'Z nusxasini oladi: sinov sayti asosiy sayt papkasiga bog'lanmaydi.
+DARS_OK=0
+if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt 2>/dev/null && grep -qx 'index.html' /tmp/yx-darslar.txt; then DARS_OK=1; fi
+put_darslar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi
+  [ "$DARS_OK" = 1 ] || return 0
+  if [ -d "$1/darslar" ] && [ ! -L "$1/darslar" ] && cmp -s /tmp/yx-darslar.tgz "$3"; then return 0; fi # o'zgarmagan
+  rm -rf "$1/darslar.new"; mkdir -p "$1/darslar.new"
+  tar -xzf /tmp/yx-darslar.tgz -C "$1/darslar.new" --no-same-owner
+  rm -rf "$1/darslar.old"
+  # eski tartibda sinov saytida bu papka asosiy saytga havola (symlink) edi: faqat havolaning o'zi olib tashlanadi, asosiy papkaga tegilmaydi
+  if [ -L "$1/darslar" ]; then rm -f "$1/darslar"; elif [ -d "$1/darslar" ]; then mv "$1/darslar" "$1/darslar.old"; fi
+  mv "$1/darslar.new" "$1/darslar"; rm -rf "$1/darslar.old"
+  cp /tmp/yx-darslar.tgz "$3"
+  echo "Mavzu darslari o'rnatildi ($2): $(ls "$1/darslar/m" 2>/dev/null | wc -l) ta mavzu"; }
+put_darslar "$APP/public" asosiy "$APP/.darslar.tgz"
 rasm_olish; put_rasmlar "$APP/public" asosiy "$APP/.rasmlar.tgz"
 # yangi o'quvchi kabineti hozircha saytda yo'q (kelishilgandan keyin qo'yiladi): eski sinov fayllari o'chiriladi
 rm -rf "$APP/public/oq" "$APP/public/oq.new" "$APP/public/oq.old" "$APP/.oq.tgz"
@@ -159,10 +165,94 @@ echo "https allaqachon sozlangan."
 fi
 fi
 
+# Sinov bazasidagi shaxsiy ma'lumotlarni niqoblash (17.11.2026).
+# Sinov sayti haqiqiy bazaning nusxasi bilan ishlaydi, lekin nusxada haqiqiy odamlar ma'lumoti QOLMAYDI:
+# o'quvchi, ota-ona, o'qituvchi va direktorlarning ismi, telefon raqami va PIN kodi soxtasiga almashtiriladi; yozishmalar matni,
+# rasmlar, kirish tokenlari, tarix, savat va Telegram bog'lanishlari olib tashlanadi. Jamoa (CEO va loyiha jamoasi) hisoblari o'zgarmaydi.
+# Sinflar, natijalar, testlar va raqamlar joyida qoladi — sayt xuddi haqiqiydek sinaladi.
+# Tartib o'zgarsa NIQOB_V oshiriladi: mavjud sinov bazasi keyingi yangilanishda qayta niqoblanadi.
+NIQOB_V=1
+niqobla(){ # $1 = sinov bazasi fayli (faqat $APPT ichida)
+  case "$1" in "$APPT"/*) ;; *) echo "niqobla: faqat sinov bazasi uchun"; return 1;; esac
+  cat > /tmp/yx-niqob.js <<'JS'
+// Sinov bazasidagi haqiqiy odamlar ma'lumotini soxta ma'lumot bilan almashtiradi. FAQAT sinov bazasida ishlaydi.
+// node niqob.js <baza fayli> <sinov papkasi> <versiya>
+const { DatabaseSync } = require('node:sqlite'); const path = require('node:path'); const crypto = require('node:crypto');
+const [file, root, V] = process.argv.slice(2);
+if (!file || !root || !path.resolve(file).startsWith(path.resolve(root) + path.sep) || !/test|sinov/i.test(path.resolve(root))) { console.error('niqob: bu faqat sinov bazasi uchun'); process.exit(2); }
+const db = new DatabaseSync(file); db.exec('PRAGMA busy_timeout=10000');
+const has = t => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t);
+const cols = t => new Set(db.prepare(`PRAGMA table_info(${t})`).all().map(r => r.name));
+const all = (q, ...a) => db.prepare(q).all(...a), run = (q, ...a) => db.prepare(q).run(...a);
+if (!has('settings') || !has('users') || !has('students')) { console.error('niqob: baza tuzilishi kutilgandek emas'); process.exit(3); }
+if (String(db.prepare("SELECT value FROM settings WHERE key='niqob'").get()?.value || '') === String(V)) process.exit(0);
+const p9 = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; };
+const FAM = ['Karimov', 'Rahimov', 'Tursunov', 'Salimov', 'Rustamov', 'Yusupov', 'Qodirov', 'Nazarov', 'Ergashev', 'Sobirov', 'Hamidov', 'Normatov', 'Ismoilov', 'Olimov', 'Sharipov', 'Murodov', 'Jo‘rayev', 'Hasanov', 'Aliyev', 'Boboyev', 'Xolmatov', 'Mahmudov', 'Zokirov', 'Toshev', 'Safarov', 'Ne’matov', 'Azimov', 'Latipov', 'Umarov', 'G‘aniyev'];
+const BOY = ['Abdulloh', 'Asadbek', 'Bekzod', 'Bobur', 'Diyorbek', 'Elyor', 'Farrux', 'Javohir', 'Kamron', 'Mirzo', 'Nodir', 'Otabek', 'Sardor', 'Temur', 'Ulug‘bek', 'Shahzod', 'Islom', 'Jasur', 'Azizbek', 'Sanjar'];
+const GIRL = ['Aziza', 'Dilnoza', 'Gulnoza', 'Madina', 'Nigora', 'Sevara', 'Zarina', 'Malika', 'Mohira', 'Shahzoda', 'Kamola', 'Feruza', 'Nilufar', 'Sabina', 'Umida', 'Laylo', 'Munisa', 'Iroda', 'Charos', 'Durdona'];
+const fem = f => f.endsWith('yev') || f.endsWith('ov') || f.endsWith('ev') ? f + 'a' : f;
+let nN = 0, qiz = 0; // qiz: oxirgi tuzilgan ism qiz bolanikimi (otasining ismi shunga mos bo'ladi)
+const ism = jins => { const i = nN++, f = FAM[(i * 7 + 3) % FAM.length]; qiz = jins === 'a' ? 1 : jins === 'e' ? 0 : i % 2; return qiz ? fem(f) + ' ' + GIRL[(i * 11 + 5) % GIRL.length] : f + ' ' + BOY[(i * 13 + 1) % BOY.length]; };
+const pat = () => BOY[(nN * 3) % BOY.length] + (qiz ? ' qizi' : ' o‘g‘li');
+db.exec('BEGIN');
+try {
+  // jamoa (CEO va loyiha jamoasi) va namuna kabinet hisoblari o'zgarmaydi: ular sinov saytiga o'z raqami bilan kiradi
+  const keep = new Set(); let demo = new Set();
+  try { demo = new Set(Object.values(JSON.parse(db.prepare("SELECT value FROM settings WHERE key='demo_users'").get()?.value || '{}')).map(Number)); } catch (e) { }
+  const demoSchool = +(db.prepare("SELECT value FROM settings WHERE key='demo_school'").get()?.value || 0);
+  for (const u of all("SELECT id,role,phone FROM users")) if (u.role === 'ceo' || u.role === 'jamoa' || demo.has(u.id)) { const p = p9(u.phone); if (p) keep.add(p); }
+  { const p = p9(db.prepare("SELECT value FROM settings WHERE key='ceo_phone'").get()?.value); if (p) keep.add(p); }
+  // telefon raqamlari: bitta haqiqiy raqam hamma joyda bitta soxta raqamga aylanadi (ota-ona va bola bog'lanishi saqlanadi)
+  const tel = new Map(); let nT = 0; const names = new Map();
+  const ph = p => { const k = p9(p); if (!k) return ''; if (keep.has(k) || k.startsWith('00')) return k; if (!tel.has(k)) tel.set(k, '00' + String(2000001 + nT++)); return tel.get(k); };
+  const nameOf = (phone, jins) => { const k = p9(phone); if (!k) return ism(jins); if (!names.has(k)) names.set(k, ism(jins)); return names.get(k); }; // bitta odam (raqam) — bitta ism
+  const st = { odam: 0, bola: 0 };
+  const uc = cols('users');
+  for (const u of all('SELECT * FROM users')) {
+    if (u.role === 'ceo' || u.role === 'jamoa' || demo.has(u.id)) continue;
+    let pin = u.pin; if (pin != null && /^\d{6}$/.test(String(pin))) { do { pin = String(crypto.randomInt(100000, 1000000)); } while (db.prepare('SELECT 1 FROM users WHERE pin=?').get(pin)); }
+    run('UPDATE users SET name=?,phone=?,pin=? WHERE id=?', nameOf(u.phone, u.jins), ph(u.phone), pin, u.id);
+    if (uc.has('avatar')) run("UPDATE users SET avatar='' WHERE id=?", u.id); if (uc.has('pass')) run("UPDATE users SET pass='' WHERE id=?", u.id); st.odam++;
+  }
+  const demoCls = new Set(demoSchool ? all('SELECT id FROM classes WHERE school_id=?', demoSchool).map(r => r.id) : []);
+  for (const s of all('SELECT id,director_name,director_phone FROM schools')) if (s.id !== demoSchool) run('UPDATE schools SET director_name=?,director_phone=? WHERE id=?', s.director_name || p9(s.director_phone) ? nameOf(s.director_phone) : '', ph(s.director_phone), s.id);
+  for (const c of all('SELECT id,teacher_name,teacher_phone FROM classes')) if (!demoCls.has(c.id)) run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', c.teacher_name || p9(c.teacher_phone) ? nameOf(c.teacher_phone, 'a') : '', ph(c.teacher_phone), c.id);
+  const sc = cols('students');
+  for (const s of all('SELECT * FROM students')) {
+    if (demoCls.has(s.class_id)) continue;
+    run('UPDATE students SET name=?,phone=? WHERE id=?', ism(s.jins), ph(s.phone), s.id);
+    if (sc.has('patronymic')) run('UPDATE students SET patronymic=? WHERE id=?', s.patronymic ? pat() : '', s.id);
+    if (sc.has('avatar')) run("UPDATE students SET avatar='' WHERE id=?", s.id);
+    run("UPDATE students SET birth_year=NULL,address='' WHERE id=?", s.id); st.bola++;
+  }
+  for (const t of ['student_phones', 'phone_hints']) if (has(t)) { const rows = all(`SELECT rowid r,phone FROM ${t}`); for (const r of rows) run(`UPDATE OR REPLACE ${t} SET phone=? WHERE rowid=?`, ph(r.phone) || '000000000', r.r); }
+  if (has('royxat')) for (const r of all('SELECT id,phone,jins FROM royxat')) { const n = ism(r.jins).split(' '); run("UPDATE royxat SET chat_id=?,phone=?,fam=?,ism=?,pat=? WHERE id=?", 'sinov-' + r.id, ph(r.phone), n[0], n[1], pat(), r.id); }
+  // yozishmalar va izohlar: matni almashtiriladi, rasm va ovoz olib tashlanadi
+  if (has('messages')) { run("UPDATE messages SET text='Sinov xabari', image=''"); if (cols('messages').has('audio')) run("UPDATE messages SET audio=''"); }
+  if (has('notes')) run("UPDATE notes SET text='Sinov izohi'");
+  if (has('rnotes')) run("UPDATE rnotes SET text='Sinov izohi'");
+  if (has('mcerts')) for (const r of all('SELECT id FROM mcerts')) run('UPDATE mcerts SET name=? WHERE id=?', ism(), r.id);
+  if (has('cert_log')) run("UPDATE cert_log SET name='Sinov O‘quvchi' WHERE name<>''");
+  if (has('kj_xato')) run("UPDATE kj_xato SET who=''");
+  // haqiqiy odamlarga xabar yuborish vositalari, kirish tokenlari, tarix va savat — butunlay olib tashlanadi
+  for (const t of ['sessions', 'tg_users', 'push_subs', 'tg_requests', 'audit', 'trash']) if (has(t)) run(`DELETE FROM ${t}`);
+  run("DELETE FROM settings WHERE key IN ('bot_token','bot_username','bot_error')");
+  run("INSERT INTO settings(key,value) VALUES('niqob',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", String(V));
+  db.exec('COMMIT');
+  console.log(`Sinov bazasi niqoblandi: ${st.bola} o'quvchi, ${st.odam} kattalar, ${tel.size} telefon raqami almashtirildi.`);
+} catch (e) { db.exec('ROLLBACK'); console.error('niqob xatosi:', e.message); process.exit(1); }
+// o'chirilgan ma'lumot fayl ichida ham qolmasin
+try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); db.exec('VACUUM'); db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (e) { console.error('niqob: VACUUM bajarilmadi:', e.message); process.exit(1); }
+db.close();
+JS
+  local r=0; node --no-warnings /tmp/yx-niqob.js "$1" "$APPT" "$NIQOB_V" || r=$?
+  rm -f /tmp/yx-niqob.js; return $r; }
+
 say "6/8 Sinov sayti (test.$DOMAIN)"
 sinov_sayti(){
 # GitHub'da test-server.js va test-index.html bo'lsa — alohida sinov sayti ishga tushadi.
-# U haqiqiy bazaning NUSXASI bilan ishlaydi: u yerdagi o'zgarishlar asosiy saytga hech qachon tegmaydi.
+# U haqiqiy bazaning NIQOBLANGAN nusxasi bilan ishlaydi (shaxsiy ma'lumotlar soxtasiga almashtirilgan — yuqoridagi niqobla):
+# u yerdagi o'zgarishlar asosiy saytga hech qachon tegmaydi, asosiy baza faqat o'qiladi.
 # Bu qism FAQAT sinov saytiga tegadi: asosiy xizmat (yx) bu yerda hech qachon qayta ishga tushirilmaydi.
 if olish test-server.js /tmp/yx-ts.js 2>/dev/null && olish test-index.html /tmp/yx-ti.html 2>/dev/null \
    && grep -q "Yosh Xorazmiylar" /tmp/yx-ts.js && node --check /tmp/yx-ts.js; then
@@ -170,16 +260,27 @@ if olish test-server.js /tmp/yx-ts.js 2>/dev/null && olish test-index.html /tmp/
   TST_CH=0
   if cmp -s /tmp/yx-ts.js "$APPT/server.js" 2>/dev/null; then rm -f /tmp/yx-ts.js; else mv /tmp/yx-ts.js "$APPT/server.js"; TST_CH=1; fi
   if cmp -s /tmp/yx-ti.html "$APPT/public/index.html" 2>/dev/null; then rm -f /tmp/yx-ti.html; else mv /tmp/yx-ti.html "$APPT/public/index.html"; echo "Sahifa yangilandi (sinov)"; fi
-  ln -sfn "$APP/public/darslar" "$APPT/public/darslar"
+  put_darslar "$APPT/public" sinov "$APPT/.darslar.tgz"
   put_rasmlar "$APPT/public" sinov "$APPT/.rasmlar.tgz"
   if [ ! -f "$APPT/data/yx.db" ] || [ -f "$APPT/.yangila" ]; then
     systemctl stop yx-test 2>/dev/null || true
     rm -f "$APPT/data/yx.db" "$APPT/data/yx.db-wal" "$APPT/data/yx.db-shm" "$APPT/.yangila"
-    sqlite3 "$APP/data/yx.db" ".backup '$APPT/data/yx.db'" && echo "Sinov saytiga haqiqiy bazaning nusxasi qo'yildi."
-    # nusxadan haqiqiy odamlarga xabar yuborish vositalari olib tashlanadi (bot kaliti, Telegram bog'lanishlari, bildirishnoma obunalari).
-    # Bu faqat SINOV nusxasiga tegadi; asosiy baza faqat o'qiladi.
-    sqlite3 "$APPT/data/yx.db" "DELETE FROM settings WHERE key='bot_token'; DELETE FROM tg_users; DELETE FROM push_subs;" 2>/dev/null || true
+    sqlite3 "$APP/data/yx.db" ".backup '$APPT/data/yx.db'" && echo "Sinov sayti uchun bazaning nusxasi olindi."
     TST_CH=1
+  fi
+  # Nusxa (yangisi ham, avvaldan turgani ham) niqoblanmagan bo'lsa — sinov sayti ishga tushishidan OLDIN niqoblanadi.
+  # Niqoblab bo'lmasa, nusxa o'chiriladi va sinov sayti ishga tushirilmaydi: haqiqiy ma'lumot sinov saytida ochiq qolmaydi.
+  if [ -f "$APPT/data/yx.db" ] && [ "$(sqlite3 "$APPT/data/yx.db" "SELECT value FROM settings WHERE key='niqob'" 2>/dev/null || true)" != "$NIQOB_V" ]; then
+    systemctl stop yx-test 2>/dev/null || true
+    if niqobla "$APPT/data/yx.db"; then
+      # niqoblanmagan eski nusxalar (sinov saytining o'z zaxiralari) ham olib tashlanadi; asosiy sayt zaxiralariga tegilmaydi
+      rm -f "$APPT/backups/"*.db "$APPT/data/restore.db" "$APPT/data/restore.tmp"
+      TST_CH=1
+    else
+      rm -f "$APPT/data/yx.db" "$APPT/data/yx.db-wal" "$APPT/data/yx.db-shm"
+      echo "DIQQAT: sinov bazasi niqoblanmadi — nusxa o'chirildi, sinov sayti to'xtatildi."
+      return 1
+    fi
   fi
   chown -R yx:yx "$APPT"; chmod 700 "$APPT/data"
   if [ "$MODE" = full ] || [ ! -f /etc/systemd/system/yx-test.service ]; then
@@ -234,6 +335,7 @@ fi
 
 }
 sinov_sayti || echo "DIQQAT: sinov sayti sozlanmadi — asosiy sayt ishlayveradi."
+rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
 
 say "7/8 Kunlik zaxira nusxa sozlanmoqda"
 cat > /etc/cron.d/yx-backup <<EOF
@@ -264,6 +366,7 @@ cmp -s "$T/install.sh" /opt/yx/.install.sh || ch=1
 [ -s "$T/rasmlar.tar.gz" ] && ! cmp -s "$T/rasmlar.tar.gz" /opt/yx/.rasmlar.tgz && ch=1
 [ -s "$T/test-server.js" ] && ! cmp -s "$T/test-server.js" /opt/yx-test/server.js && ch=1
 [ -s "$T/test-index.html" ] && ! cmp -s "$T/test-index.html" /opt/yx-test/public/index.html && ch=1
+[ -s "$T/darslar.tar.gz" ] && [ -f /opt/yx-test/server.js ] && ! cmp -s "$T/darslar.tar.gz" /opt/yx-test/.darslar.tgz && ch=1
 [ -f /opt/yx-test/.yangila ] && ch=1
 [ $ch = 0 ] && exit 0
 H=$(cat "$T"/* | sha256sum | cut -c1-16)
