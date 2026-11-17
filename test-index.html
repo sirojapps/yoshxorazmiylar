@@ -2239,9 +2239,7 @@ function dlBuild(scope){
     grades(X.st).forEach(g=>out.sections.push({h:`${g}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===g),true)}))}
   out.sections=out.sections.filter(x=>x.rows.length);out.file=plain(out.file).replace(/[^\w.-]+/g,'_')+'_natijalar';
   return out}
-function dlOpen(kind,id){
-  if(S.me.role==='jamoa'&&P('kuzatuvchi')&&!P('yuklash'))return toast('Yuklab olish huquqi berilmagan',true);
-  const opts=[];
+function dlOpts(kind,id){const opts=[];
   if(kind==='class'){opts.push(['C:'+id,'Shu sinf'])}
   else if(kind==='top'){opts.push([`T:${topMin}:${topGrade}:${topSchool}`,`${topMin}% va undan yuqori`,'Har bir sinf bosqichi alohida varaqda'])}
   else if(kind==='school'){const l=X.st.filter(s=>s.school_id===id);
@@ -2251,7 +2249,10 @@ function dlOpen(kind,id){
       S.classes.filter(c=>c.school_id===id&&c.grade===g).sort((a,b)=>a.name.localeCompare(b.name,'uz',{numeric:true})).forEach(c=>opts.push(['C:'+c.id,`${c.name} sinf`]))})}
   else{opts.push(['D','Butun tuman','Har bir sinf bosqichi alohida varaqda']);
     [...new Set(X.st.map(s=>s.grade))].filter(Boolean).sort((a,b)=>a-b).forEach(g=>opts.push(['DG:'+g,`${g}-sinflar (barcha maktablar)`]))}
-  const ok=opts.filter(o=>dlBuild(o[0]).sections.length);
+  return opts.filter(o=>dlBuild(o[0]).sections.length)}
+function dlOpen(kind,id){
+  if(S.me.role==='jamoa'&&P('kuzatuvchi')&&!P('yuklash'))return toast('Yuklab olish huquqi berilmagan',true);
+  const ok=dlOpts(kind,id);
   if(!ok.length){toast('Hali yuklab olinadigan natija yo’q',true);return}
   DL={scope:ok[0][0]};
   openSheet(`<div class="sh-top"><div class="m"><h2>Natijalarni yuklab olish</h2><div class="s">${esc(curTest()?.name||'')}</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
@@ -2288,11 +2289,11 @@ function dlCountShow(){const el=$('#dlCount');if(!el)return;
 document.addEventListener('input',e=>{if(e.target.closest?.('#dlMarkBox'))dlCountShow()});
 document.addEventListener('change',e=>{if(e.target.name==='dlScope')dlCountShow()});
 function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-async function dlGo(f){
-  const scope=document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
+async function dlGo(f,o){
+  const scope=o?o.scope:document.querySelector('input[name=dlScope]:checked')?.value||DL?.scope;if(!scope)return;
   const d=dlBuild(scope);if(!d.sections.length){toast('Natija yo’q',true);return}
-  const ttl=$('#dlTitle');if(ttl)d.test=ttl.value.trim();
-  if(isTeam()){const {mode,top,star}=dlReadMark();dlSaveMark();
+  const ttl=$('#dlTitle');if(o)d.test=o.title;else if(ttl)d.test=ttl.value.trim();
+  if(isTeam()){const {mode,top,star}=o?o.mark:dlReadMark();if(o){const p=dlPref();if(mode==='p'){p.ptop=top;p.pstar=star}else{p.top=top;p.star=star}p.mode=mode;ls.set('dlpref',p)}else dlSaveMark();
     d.sections.forEach(s=>s.rows.forEach(r=>{r.g=dlHit(r,mode,star);r.hl=dlHit(r,mode,top)?2:0}))}
   else d.sections.forEach(s=>s.rows.forEach(r=>{r.g=false;r.hl=r.o<=3?2:r.o<=5?1:0})); // direktor/sinf rahbari: 1–3 yorqin, 4–5 och rang
   toast('Tayyorlanmoqda…');
@@ -3640,7 +3641,7 @@ window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimS
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
-  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,
+  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,
   ochish:v=>{const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
     if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
     if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
@@ -3836,7 +3837,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=10" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=11" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
