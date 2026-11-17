@@ -3010,6 +3010,20 @@ A['ceo.mk'] = (u) => {
   }
   return { s };
 };
+// Xabarlarda yozgan odam bosilsa — u haqida qisqa ma'lumot (faqat CEO va jamoa ko'radi)
+A['user.card'] = (u, b) => {
+  need(isTeam(u), 'Faqat jamoa ko‘radi');
+  const x = one('SELECT id,role,name,phone,school_id,class_id,avatar,last_login,created_at,active FROM users WHERE id=?', +b.id); if (!x) bad('Topilmadi');
+  const RL = { ceo: 'CEO', jamoa: 'Loyiha jamoasi', direktor: 'Maktab direktori', rahbar: 'Sinf rahbari', ota: 'Ota-ona' };
+  const sc = id => { const s = id ? one('SELECT id,num,viloyat,tuman FROM schools WHERE id=?', id) : null; return s ? { id: s.id, nom: mkNumQ(s.num), viloyat: s.viloyat || '', tuman: s.tuman || '' } : null; };
+  let school = sc(x.school_id), cls = null, kids = [];
+  if (x.class_id) { const c = one('SELECT id,name,school_id FROM classes WHERE id=?', x.class_id); if (c) { cls = { id: c.id, name: c.name, n: one('SELECT count(*) n FROM students WHERE class_id=? AND active=1', c.id).n }; school = school || sc(c.school_id); } }
+  if (x.role === 'ota') kids = kidsOfPhone(phone9(x.phone)).map(studentInfo).filter(Boolean).map(s => ({ id: s.id, name: s.name, cls: s.cls, maktab: mkNumQ(s.num) }));
+  if (!school && kids.length) { const s = one('SELECT school_id FROM classes WHERE id=?', studentInfo(kids[0].id).class_id); school = sc(s && s.school_id); }
+  const th = visibleThreads(u).filter(t => t.user_id === x.id && t.kind !== 'chat').map(t => t.id);
+  return { id: x.id, role: x.role, rol: RL[x.role] || '', name: x.role === 'ceo' ? (x.name || 'CEO') : x.name, phone: phone9(x.phone), avatar: String(x.avatar || '').startsWith('data:') ? x.avatar : '', last: x.last_login || '', since: x.created_at || '', active: x.active, school, cls, kids, th };
+};
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
