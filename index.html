@@ -3641,7 +3641,7 @@ window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimS
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
-  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,
+  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),actL:()=>ACT_L,kindL:()=>KIND_L,caReset:()=>{CA=null},pickImg:(cb,max)=>pickImage(cb,max),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,
   ochish:v=>{const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
     if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
     if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
@@ -3837,7 +3837,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=11" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=12" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
