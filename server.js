@@ -1382,25 +1382,51 @@ setInterval(() => { try { run(`DELETE FROM audit WHERE at<? AND action IN (${MIN
 const today = () => new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10); // Toshkent vaqti
 const getSet = k => one('SELECT value FROM settings WHERE key=?', k)?.value ?? '';
 const setSet = (k, v) => run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', k, String(v ?? ''));
-// 17.11.2026: asosiy misollar bazasi bo'shatildi (misollar boshqatdan yoziladi). Eski misollar probs_arxiv jadvalida turadi:
-// avval tuzilgan testlarda yechim va rasm ko'rinishi shundan olinadi. Bir marta bajariladi.
-try {
-  if (!getSet('probs_arxiv_2026_11_17')) {
+// 17.11.2026 (Siroj): bazada BIRORTA misol qolmaydi, misollar boshqatdan yoziladi; rasmlar (media) qoladi.
+// Bir marta bajariladi: avval hamma misol-savollar serverdagi zaxira papkasiga alohida faylga yoziladi
+// (BACKUPS/misollar-zaxira-2026-11-17.json.gz, faqat serverda), keyin bazadan o'chiriladi.
+// Natijalar, ballar, kalitlar va sertifikatlar QOLADI: imtihonga berilgan testlarning faqat savol matni o'chadi, kaliti qoladi.
+function misolTozalash() { try {
+  if (!getSet('misollar_tozalandi_2026_11_17')) {
+    const has = t => !!one("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", t);
+    const linked = new Set(all('SELECT DISTINCT bank_id FROM tlinks').map(r => r.bank_id));
+    const tb = all('SELECT * FROM tbank'), pdfIds = [];
+    for (const r of tb) if (r.kind === 'pdf') { try { for (const v of Object.values(JSON.parse(r.data) || {})) if (v && v.pdf) pdfIds.push(String(v.pdf)); } catch (e) { } }
+    const z = {
+      at: now(), probs: all('SELECT * FROM probs'), probs_arxiv: has('probs_arxiv') ? all('SELECT * FROM probs_arxiv') : [],
+      tbank: tb, utests: all('SELECT * FROM utests'), exercises: all('SELECT * FROM exercises'), kj_xato: all('SELECT * FROM kj_xato'),
+      trash: all("SELECT * FROM trash WHERE kind IN ('probs','bank')"),
+      pdf: pdfIds.length ? all(`SELECT id,type,size,by,at,data FROM media WHERE id IN (${inList(pdfIds)})`, ...pdfIds).map(m => ({ ...m, data: Buffer.from(m.data).toString('base64') })) : []
+    };
+    fs.mkdirSync(BACKUPS, { recursive: true });
+    const zf = path.join(BACKUPS, 'misollar-zaxira-2026-11-17.json.gz');
+    fs.writeFileSync(zf, require('node:zlib').gzipSync(JSON.stringify(z)), { mode: 0o600 });
+    if (!fs.statSync(zf).size) throw new Error('zaxira fayli bo\'sh');
+    // utests: har savolning matni va variant yozuvlari o'chadi; to'g'ri javob (ci), mavzu, daraja va xato turi qoladi — ball hisobi o'zgarmaydi
+    const cut = q => q && typeof q === 'object' ? { ...q, t: 'Misol o‘chirilgan', o: Array.isArray(q.o) ? q.o.map(o => ({ e: o && o.e || '' , v: '' })) : [], img: '', sol: '' } : q;
     db.exec('BEGIN');
     try {
-      db.exec('CREATE TABLE IF NOT EXISTS probs_arxiv AS SELECT * FROM probs WHERE 0');
-      db.exec('INSERT INTO probs_arxiv SELECT * FROM probs');
-      const n = one('SELECT count(*) n FROM probs').n, m = one('SELECT count(*) n FROM probs_arxiv').n;
-      if (m < n) throw new Error('arxiv to\'liq emas');
-      db.exec("DELETE FROM probs; DELETE FROM trash WHERE kind='probs'");
-      setSet('probs_arxiv_2026_11_17', JSON.stringify({ n, at: now() }));
-      db.exec('COMMIT'); console.log('Asosiy misollar bazasi arxivga olindi va bo\'shatildi:', n);
+      for (const r of z.utests) {
+        let d = null; try { d = JSON.parse(r.data); } catch (e) { } if (!d || !Array.isArray(d.qs)) continue;
+        d.qs = d.qs.map(v => Array.isArray(v) ? v.map(cut) : v);
+        run('UPDATE utests SET data=? WHERE id=?', JSON.stringify(d), r.id);
+      }
+      for (const r of tb) {
+        if (!linked.has(r.id)) { run('DELETE FROM tbank WHERE id=?', r.id); continue; }
+        let d = {}; try { d = JSON.parse(r.data) || {}; } catch (e) { }
+        const nd = Object.fromEntries(Object.keys(d).map(v => [v, r.kind === 'pdf' ? { pdf: '' } : { qs: [] }]));
+        run('UPDATE tbank SET data=? WHERE id=?', JSON.stringify(Object.keys(nd).length ? nd : { A: { qs: [] } }), r.id);
+      }
+      if (pdfIds.length) run(`DELETE FROM media WHERE id IN (${inList(pdfIds)})`, ...pdfIds);
+      db.exec("DELETE FROM probs; DELETE FROM exercises; DELETE FROM kj_xato; DELETE FROM trash WHERE kind IN ('probs','bank')");
+      if (has('probs_arxiv')) db.exec('DROP TABLE probs_arxiv');
+      setSet('misollar_tozalandi_2026_11_17', JSON.stringify({ at: now(), probs: z.probs.length + z.probs_arxiv.length, tbank: tb.length, utests: z.utests.length, exercises: z.exercises.length, file: path.basename(zf) }));
+      db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
+    try { db.exec('VACUUM'); } catch (e) { }
+    console.log('Bazadagi hamma misollar o\'chirildi, zaxira:', zf);
   }
-  db.exec('CREATE INDEX IF NOT EXISTS probs_arxiv_id ON probs_arxiv(id)');
-} catch (e) { console.error('probs arxiv xatosi:', e.message); }
-const arxSol = id => { try { return one('SELECT sol FROM probs_arxiv WHERE id=?', id)?.sol || ''; } catch (e) { return ''; } };
-const arxImg = h => { try { return !!one("SELECT 1 FROM probs_arxiv WHERE (img=? OR o LIKE ?) LIMIT 1", h, '%"' + h + '"%'); } catch (e) { return false; } };
+} catch (e) { console.error('Misollarni tozalash xatosi:', e.message); } }
 const siteUrl = () => getSet('site_url') || 'https://yoshxorazmiylar.uz';
 const DEFAULT_TEXTS = {
   tabrik_ota: 'Hurmatli ota-ona! Farzandingiz {ism} "Yosh Xorazmiylar" sinovida {ball} ball ({foiz}%) to‘plab, iqtidorli o‘quvchilar qatoridan joy oldi. Tabriklaymiz! Hurmat bilan, KARAKUL INTERNATIONAL SCHOOL jamoasi',
@@ -2799,7 +2825,7 @@ A['oq.imtihon'] = (u, b) => {
       const v = data[r.variant || 'A'] || data.A || {}; const qs = Array.isArray(v.qs) ? v.qs : [];
       o.variant = r.variant || 'A';
       o.qs = qs.map((q, i) => {
-        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || arxSol(q.pid)) : '';
+        const sol = q.pid ? (one('SELECT sol FROM probs WHERE id=?', q.pid)?.sol || '') : '';
         const x = { q: q.q || '', img: q.img || '', o: q.o || [], oi: q.oi || [], a: q.a || '', sol };
         if (ann) { const my = (r.answers || '')[i]; if (my && my !== '-') x.my = my; const bt = (r.bits || '')[i]; if (bt === '0' || bt === '1') x.ok = bt === '1'; }
         return x;
@@ -3136,7 +3162,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/live') return liveOpen(req, res, u);
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
       if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
-        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%') || arxImg(mm[1]); // misol rasmlarini sinf rahbari ham ko'radi
+        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
         const m = okm && one('SELECT type,data FROM media WHERE id=?', mm[1]);
         if (!m) { res.writeHead(404, SEC); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
@@ -3203,6 +3229,7 @@ if (getSet('scoring_v2') !== '1') {
     setSet('scoring_v2', '1'); log(null, 'ball_tizimi.eski_imtihonlar', { qaytarilgan_natijalar: n });
   });
 }
+misolTozalash(); // hamma jadvallar yaratilgandan keyin (17.11.2026 tozalash)
 // zaxiradan tiklangan bo'lsa — tarixga yozib qo'yish (tiklangan bazaning o'ziga)
 try {
   const mf = path.join(DATA, 'restored.json');
