@@ -3065,20 +3065,23 @@ function ceoDash(u, b) {
   const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
   const d0 = dayAgo(per), vis = new Map(); for (const r of all('SELECT day,user_id FROM visits WHERE day>=?', dayAgo(Math.max(per + Math.ceil(per / 6), 31)))) (vis.get(r.user_id) || vis.set(r.user_id, []).get(r.user_id)).push(r.day);
   const d7 = dayAgo(7), d14 = dayAgo(14), d30 = dayAgo(30);
-  const plat = [];
+  // platAll — kabineti ochilgan hamma bola; plat — faqat Platforma bo'limiga tegishlilar (o'zi yoki sinf rahbari orqali kelgan).
+  // Imtihon orqali kelganlar faqat Imtihonlar bo'limida sanaladi (Siroj, 17.11.2026: ikki bo'lim aralashmasin).
+  const platAll = [];
   for (const s of studs) {
     let fam = null; for (const p of [phone9(s.phone), ...(extra.get(s.id) || [])]) if (p && otaBy.has(p)) { fam = otaBy.get(p); break; }
     if (!fam && !(s.ozi > 0)) continue;
     const days = fam ? (vis.get(fam.id) || []) : [];
-    plat.push({ ...s, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0), f7: days.some(d => d > d7), f14: days.some(d => d > d14 && d <= d7), f30: days.some(d => d > d30) });
+    platAll.push({ ...s, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0), f7: days.some(d => d > d7), f14: days.some(d => d > d14 && d <= d7), f30: days.some(d => d > d30) });
   }
-  const platIds = new Set(plat.map(s => s.id));
+  const plat = platAll.filter(s => s.mb !== 'i'), platIds = new Set(platAll.map(s => s.id)), pIds = new Set(plat.map(s => s.id));
+  const royxatSc = new Set(studs.filter(s => s.mb === 'i').map(s => s.sid)); // ro'yxati kiritilgan (imtihon) maktablari
   const mast = new Map(); let bugunMisol = 0, darsOtilgan = 0;
   for (const s of plat) { try { const sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum; if (!sm) continue; if (+sm.total > 0) mast.set(s.id, Math.min(100, Math.max(0, (+sm.done || 0) * 100 / +sm.total)));
     const dn = sm.days && typeof sm.days === 'object' ? sm.days[td] : 0; if (typeof dn === 'number' && dn > 0) bugunMisol += Math.round(dn); else if (sm.today && sm.today.day === td) bugunMisol += Math.max(0, +sm.today.done || 0);
     if (Array.isArray(sm.tl)) darsOtilgan += sm.tl.filter(r => Array.isArray(r) && r[3]).length; else if (sm.topics && typeof sm.topics === 'object') darsOtilgan += Object.values(sm.topics).filter(r => Array.isArray(r) && r[0]).length; } catch { } }
   // kunlik mashqlarga bugun berilgan javoblar ham yechilgan misol
-  try { const t0 = new Date(Date.parse(td) - 5 * 3600e3).toISOString(); for (const r of all('SELECT student_id FROM ex_answers WHERE at>=?', t0)) if (platIds.has(r.student_id)) bugunMisol++; } catch { }
+  try { const t0 = new Date(Date.parse(td) - 5 * 3600e3).toISOString(); for (const r of all('SELECT student_id FROM ex_answers WHERE at>=?', t0)) if (pIds.has(r.student_id)) bugunMisol++; } catch { }
   const mbS = a => ({ i: a.filter(s => s.mb === 'i').length, o: a.filter(s => s.mb === 'o').length, r: a.filter(s => s.mb === 'r').length });
   const dirIn = new Set(all("SELECT school_id FROM users WHERE role='direktor' AND active=1 AND last_login IS NOT NULL").filter(x => scMap.has(x.school_id)).map(x => x.school_id));
   const clsAll = all('SELECT id,school_id FROM classes').filter(c => scMap.has(c.school_id)), clsSet = new Set(clsAll.map(c => c.id));
@@ -3096,7 +3099,7 @@ function ceoDash(u, b) {
     jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length,
     // bosh sahifa (rasm bo'yicha): oxirgi 7 kunda faol, kam faol (30 kunda kirgan, lekin 7 kunda emas), o'sishlar
     faol7: plat.filter(s => s.f7).length, kam: plat.filter(s => !s.f7 && s.f30).length, faolOld: plat.filter(s => s.f14).length, kirganYangi: plat.filter(s => s.kirgan && s.since > d0).length, fo: plat.filter(s => s.f7 && !s.obuna).length,
-    bugun: plat.filter(s => s.days.includes(td)).length, bugunMisol, dars: darsOtilgan, ul: { mk: [dirIn.size, schools.length], ust: [ustIn.size, clsAll.length] },
+    bugun: plat.filter(s => s.days.includes(td)).length, bugunMisol, dars: darsOtilgan, ul: { mk: [[...dirIn].filter(id => !royxatSc.has(id)).length, schools.filter(x => !royxatSc.has(x.id)).length], ust: [clsAll.filter(c => ustIn.has(c.id) && !royxatSc.has(c.school_id)).length, clsAll.filter(c => !royxatSc.has(c.school_id)).length] },
     mb: { jami: mbS(plat), kirgan: mbS(plat.filter(s => s.kirgan)), faol7: mbS(plat.filter(s => s.f7)), obuna: mbS(plat.filter(s => s.obuna)) },
     din: pts.map((d, i) => ({ d, jami: plat.filter(s => s.since <= d).length, faol: plat.filter(s => s.days.some(x => x <= d && x > (i ? pts[i - 1] : dayAgo(7 * stepD)))).length })),
     ozl: { n: mv.length, avg: avg(mv), b: [mv.filter(x => x >= 90).length, mv.filter(x => x >= 70 && x < 90).length, mv.filter(x => x >= 50 && x < 70).length, mv.filter(x => x < 50).length],
@@ -3128,7 +3131,7 @@ function ceoDash(u, b) {
   const hududF = !!(f.v || f.t || f.m);
   const sertA = hududF ? all('SELECT c.student_id,l.status FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => !c.status && stMap.has(c.student_id)).length : cnt("SELECT count(*) n FROM cert_log WHERE manual=0 AND status=''"), sertQ = cnt("SELECT count(*) n FROM cert_log WHERE manual=1 AND status=''");
   const i = {
-    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id) && stMap.get(id).mb === 'i').length, topsh: topsh.size,
+    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id) && stMap.get(id).mb === 'i').length, obuna: [...topsh].filter(id => platIds.has(id) && stMap.get(id).mb === 'i' && stMap.get(id).obuna).length, topsh: topsh.size,
     nat: [bv.filter(x => x >= 90).length, bv.filter(x => x >= 70 && x < 90).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x < 50).length],
     avg: bv.length ? Math.round(bv.reduce((a, c) => a + c, 0) / bv.length) : 0, max: bv.length ? Math.round(Math.max(...bv)) : 0, tn: tests.filter(t => perTest.get(t.id)).length,
     din: mons.map(m => ({ m, b1: (perMon.get(m) || [0, 0])[0], b2: (perMon.get(m) || [0, 0])[1] })),
