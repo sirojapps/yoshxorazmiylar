@@ -3083,10 +3083,17 @@ function ceoDash(u, b) {
   try { const t0 = new Date(Date.parse(td) - 5 * 3600e3).toISOString(); for (const r of all('SELECT student_id FROM ex_answers WHERE at>=?', t0)) if (pIds.has(r.student_id)) bugunMisol++; } catch { }
   const mbS = a => ({ i: a.filter(s => s.mb === 'i').length, o: a.filter(s => s.mb === 'o').length, r: a.filter(s => s.mb === 'r').length });
   // Platformadagi "Ulangan maktablar / sinf rahbarlari": botda O'ZI ro'yxatdan o'tib kabineti ochilgan direktor va sinf rahbarlari; nechtasi kabinetga kirgani
-  const rxTel = rol => new Set(all("SELECT phone FROM royxat WHERE rol=? AND status='ochildi'", rol).map(x => phone9(x.phone)).filter(Boolean));
-  const rxD = rxTel('d'), rxU = rxTel('u');
-  const dirOz = all("SELECT id,phone,school_id,last_login FROM users WHERE role='direktor' AND active=1").filter(x => scMap.has(x.school_id) && !dm.set.has(x.id) && rxD.has(phone9(x.phone)));
-  const ustOz = all("SELECT id,phone,school_id,last_login FROM users WHERE role='rahbar' AND active=1").filter(x => scMap.has(x.school_id) && !dm.set.has(x.id) && rxU.has(phone9(x.phone)));
+  const rxUl = rol => { // [kabinetiga kirganlar, botda ro'yxatdan o'tib kabineti ochilganlar] — "Botda ro'yxatdan o'tganlar" ro'yxatidagi qatorlarning o'zi sanaladi
+    let jami = 0, kirgan = 0;
+    for (const r of all("SELECT * FROM royxat WHERE rol=? AND status='ochildi'", rol)) {
+      let sc = null, us = null; try { sc = rxSchool(r, false); } catch { }
+      if (!sc || !scMap.has(sc.id)) continue;
+      if (rol === 'd') us = one("SELECT last_login FROM users WHERE role='direktor' AND active=1 AND school_id=?", sc.id);
+      else { const cl = rxClass(sc, r.sinf, false); if (cl) us = one("SELECT last_login FROM users WHERE role='rahbar' AND active=1 AND class_id=?", cl.id); }
+      jami++; if (us && us.last_login) kirgan++;
+    }
+    return [kirgan, jami];
+  };
   const mv = [...mast.values()], avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0;
   const stepD = Math.max(1, Math.round(per / 6)), pts = [6, 5, 4, 3, 2, 1, 0].map(i => dayAgo(i * stepD));
   // hudud bo'yicha: hech narsa tanlanmagan — viloyatlar; viloyat — tumanlar; tuman yoki maktab — maktablar
@@ -3100,7 +3107,7 @@ function ceoDash(u, b) {
     jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length,
     // bosh sahifa (rasm bo'yicha): oxirgi 7 kunda faol, kam faol (30 kunda kirgan, lekin 7 kunda emas), o'sishlar
     faol7: plat.filter(s => s.f7).length, kam: plat.filter(s => !s.f7 && s.f30).length, faolOld: plat.filter(s => s.f14).length, kirganYangi: plat.filter(s => s.kirgan && s.since > d0).length, fo: plat.filter(s => s.f7 && !s.obuna).length,
-    bugun: plat.filter(s => s.days.includes(td)).length, bugunMisol, dars: darsOtilgan, ul: { mk: [new Set(dirOz.filter(x => x.last_login).map(x => x.school_id)).size, new Set(dirOz.map(x => x.school_id)).size], ust: [new Set(ustOz.filter(x => x.last_login).map(x => phone9(x.phone))).size, new Set(ustOz.map(x => phone9(x.phone))).size] }, // bir odam (telefon) bir marta sanaladi
+    bugun: plat.filter(s => s.days.includes(td)).length, bugunMisol, dars: darsOtilgan, ul: { mk: rxUl('d'), ust: rxUl('u') },
     mb: { jami: mbS(plat), kirgan: mbS(plat.filter(s => s.kirgan)), faol7: mbS(plat.filter(s => s.f7)), obuna: mbS(plat.filter(s => s.obuna)) },
     din: pts.map((d, i) => ({ d, jami: plat.filter(s => s.since <= d).length, faol: plat.filter(s => s.days.some(x => x <= d && x > (i ? pts[i - 1] : dayAgo(7 * stepD)))).length })),
     ozl: { n: mv.length, avg: avg(mv), b: [mv.filter(x => x >= 90).length, mv.filter(x => x >= 70 && x < 90).length, mv.filter(x => x >= 50 && x < 70).length, mv.filter(x => x < 50).length],
