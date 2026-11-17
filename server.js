@@ -2987,8 +2987,13 @@ A['ceo.stats'] = u => {
 // Yangi CEO kabineti (/a/k/ceo.html): ikki yo'nalish bo'yicha umumiy raqamlar. Faqat o'qiydi, hech narsani o'zgartirmaydi.
 // Platforma = oilasi PIN olgan yoki botda o'zi yozilgan bolalar. Imtihonlar = jamoa kiritgan hamma maktab va bolalar.
 // b: {kun: 7|30|365, v: viloyat, t: tuman, m: maktab id} — tanlangan davr va hudud.
+const DASH_C = new Map();
 A['ceo.dash'] = (u, b) => {
   need(isTeam(u));
+  const ck = JSON.stringify([u.id, b.kun, b.v, b.t, b.m]), ch = DASH_C.get(ck); if (ch && Date.now() - ch.at < 8000) return ch.v;
+  const v = ceoDash(u, b); if (DASH_C.size > 50) DASH_C.clear(); DASH_C.set(ck, { at: Date.now(), v }); return v;
+};
+function ceoDash(u, b) {
   const dm = demoIds(), td = today(), dayAgo = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
   const per = [7, 30, 365].includes(+b.kun) ? +b.kun : 30, pct = (a, c) => c ? Math.round(a * 100 / c) : 0;
   const allSc = all('SELECT id,num,viloyat,tuman FROM schools WHERE COALESCE(test,0)=0 AND id<>? ORDER BY num', dm.school).map(s => ({ ...s, nom: mkNum(s.num) }));
@@ -3033,7 +3038,7 @@ A['ceo.dash'] = (u, b) => {
       sinf: [1, 2, 3, 4].map(g => { const a = plat.filter(s => s.grade === g); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { g, n: a.length, avg: avg(m) }; }) },
     hudud: [...grp(plat, key)].map(([nom, a]) => ({ nom, n: a.length, faol: a.filter(s => s.faol).length })).sort((a, c) => c.n - a.n).slice(0, 6),
     top: [...bySc].map(([sid, a]) => { const sc = scMap.get(sid); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, faol: pct(a.filter(s => s.faol).length, a.length), ozl: avg(m) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
-    son: all("SELECT fam,ism,rol,sinf,viloyat,tuman,maktab_num,maktab_nom,status,at FROM royxat WHERE rol='o' ORDER BY id DESC LIMIT 5").map(r => ({ ism: (r.fam + ' ' + r.ism).trim(), rol: ROL[r.rol] || '', sinf: r.sinf || '', maktab: r.maktab_nom || (r.maktab_num ? r.maktab_num + '-maktab' : ''), joy: (r.maktab_nom || (r.maktab_num ? r.maktab_num + '-maktab' : '')) + (r.tuman ? ', ' + r.tuman : ''), holat: r.status, at: r.at })),
+    son: all("SELECT fam,ism,rol,sinf,viloyat,tuman,maktab_num,maktab_nom,status,at FROM royxat WHERE at>=? ORDER BY id DESC LIMIT 5", d0 + 'T00:00:00.000Z').map(r => ({ ism: (r.fam + ' ' + r.ism).trim(), rol: ROL[r.rol] || '', sinf: r.sinf || '', maktab: r.maktab_nom || (r.maktab_num ? r.maktab_num + '-maktab' : ''), joy: (r.maktab_nom || (r.maktab_num ? r.maktab_num + '-maktab' : '')) + (r.tuman ? ', ' + r.tuman : ''), holat: r.status, at: r.at })),
   };
   const hal = { yangi: cnt('SELECT count(*) n FROM royxat WHERE at>=?', d0 + 'T00:00:00.000Z'), dir: cnt("SELECT count(*) n FROM royxat WHERE status='kutilmoqda'"), pin: cnt("SELECT count(*) n FROM tg_requests WHERE status='kutilmoqda'"), yozilgan: studs.filter(s => s.ozi === 1).length,
     bugun: cnt('SELECT count(*) n FROM royxat WHERE at>=?', new Date(Date.parse(td) - 5 * 3600e3).toISOString()) };
@@ -3054,8 +3059,9 @@ A['ceo.dash'] = (u, b) => {
   const mons = []; for (let i = 5; i >= 0; i--) mons.push(new Date(Date.parse(td.slice(0, 7) + '-15') - i * 30.4 * 864e5).toISOString().slice(0, 7));
   const stBySc = grp(studs, s => s.sid), otgan = new Set([...topsh].map(id => stMap.get(id).sid));
   const kut = schools.filter(s => !otgan.has(s.id));
+  const sertA = all('SELECT c.student_id,l.status FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => !c.status && stMap.has(c.student_id)).length, sertQ = all('SELECT l.status FROM mcerts m LEFT JOIN cert_log l ON l.code=m.code').filter(c => !c.status).length;
   const i = {
-    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: cnt('SELECT count(*) n FROM certificates') + cnt('SELECT count(*) n FROM mcerts'), plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
+    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
     nat: [bv.filter(x => x >= 90).length, bv.filter(x => x >= 70 && x < 90).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x < 50).length],
     avg: bv.length ? Math.round(bv.reduce((a, c) => a + c, 0) / bv.length) : 0, max: bv.length ? Math.round(Math.max(...bv)) : 0, tn: tests.filter(t => perTest.get(t.id)).length,
     din: mons.map(m => ({ m, b1: (perMon.get(m) || [0, 0])[0], b2: (perMon.get(m) || [0, 0])[1] })),
@@ -3063,12 +3069,12 @@ A['ceo.dash'] = (u, b) => {
     sinf: [1, 2, 3, 4].map(g => { const a = studs.filter(s => s.grade === g); return { g, n: a.length, t: a.filter(s => topsh.has(s.id)).length }; }),
     jadval: tests.slice(0, 5).map(t => ({ nom: t.name, bosqich: t.bosqich, sana: t.date || '', holat: t.status === 'yakunlandi' ? 'Yakunlangan' : perTest.get(t.id) ? 'Tekshirilmoqda' : 'Rejalashtirilgan', n: perTest.get(t.id) || 0 })),
     top: [...otgan].map(sid => { const sc = scMap.get(sid); const a = (stBySc.get(sid) || []).filter(s => topsh.has(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, p70: pct(a.filter(s => g70.has(s.id)).length, a.length) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
-    tek: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).length,
+    tek: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).length, tekl: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).map(t => ({ id: t.id, n: perTest.get(t.id) })),
     xato: (() => { const t = tests.find(t => perTest.get(t.id)); if (!t) return { nom: '', list: [] }; return { nom: t.name, list: [...xq].filter(([k, o]) => k.startsWith(t.id + '|') && o[1] >= 5).map(([k, o]) => ({ g: +k.split('|')[1], q: +k.split('|')[2], p: pct(o[0], o[1]) })).sort((a, c) => c.p - a.p).slice(0, 5) }; })(),
-    kut: { n: kut.length, top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
+    kut: { n: kut.length, all: kut.map(s => ({ id: s.id, nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n), top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
   };
   return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
-};
+}
 
 // Yangi CEO kabineti — "Maktablar va sinflar": har bola bo'yicha platformadagi holat. Faqat o'qiydi.
 // Javob: s = { bola id: [o'zlashtirish foizi yoki null, kabinetga kirganmi 0/1, oxirgi 30 kunda faolmi 0/1] } — faqat platformadagi bolalar.
@@ -3241,6 +3247,27 @@ setInterval(() => { try { run('DELETE FROM sessions WHERE expires<?', now()); } 
 // e'lon qilingan maktablar uchun sertifikatlar (eski holatda faqat yakunlanganda berilardi)
 try { for (const a of all('SELECT test_id,school_id FROM announcements WHERE school_id>0')) assignCerts(a.test_id, a.school_id); } catch (e) { console.error('Sertifikat berishda xato:', e.message); }
 // bazadagi eski ismlarni ham bir xil yozuvga keltirish (bir marta; fixName qoidasi o'zgarsa — yangi nom bilan yana bir marta)
+// Siroj qoidasi (17.11.2026): bazani o'zgartirishdan oldin zaxira nusxa olinadi — "Zaxira nusxa" sahifasida ko'rinadi
+let zaxiraOk = true;
+try {
+  if (!db.prepare('SELECT 1 FROM migrations WHERE id=?').get('2026-11-17-04-jamoa-sardor')) {
+    fs.mkdirSync(BACKUPS, { recursive: true });
+    const safe = path.join(BACKUPS, `oldin-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.db`); db.exec(`VACUUM INTO '${safe.replace(/'/g, "''")}'`);
+  }
+} catch (e) { zaxiraOk = false; console.error('Migratsiyadan oldingi zaxira olinmadi, o‘zgarish keyingi ishga tushishga qoldirildi:', e.message); }
+if (zaxiraOk) migrate('2026-11-17-04-jamoa-sardor', () => {
+  // Siroj 17.11.2026: Abdurashidov G‘ulomjon — jamoa sardori; «Claude tekshiruv» hisobi jamoadan chiqariladi
+  const o = { sardor: 0, chiqarildi: 0 };
+  for (const x of all("SELECT id,name,perms FROM users WHERE role='jamoa' AND active=1")) {
+    const n = String(x.name || '').toLowerCase().replace(/[`‘’'ʻʼ]/g, '');
+    if (n.includes('abdurashidov') && n.includes('gulomjon')) {
+      const p = {}; for (const k of PERMS) p[k] = true;
+      p.sardor = true; p.kuzatuvchi = false; run('UPDATE users SET perms=? WHERE id=?', JSON.stringify(p), x.id); o.sardor++;
+    }
+    if (n.replace(/\s+/g, ' ').trim() === 'claude tekshiruv') { run('UPDATE users SET active=0,pin=NULL WHERE id=?', x.id); run('DELETE FROM sessions WHERE user_id=?', x.id); o.chiqarildi++; }
+  }
+  return o;
+});
 migrate('2026-11-17-03-ismlar-yozuvi', () => {
   let fixed = 0;
   {

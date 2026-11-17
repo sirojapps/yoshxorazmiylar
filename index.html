@@ -1423,7 +1423,7 @@ function scrRanking(){
   <p class="note">Viloyat reytingi boshqa tumanlar qo’shilganda shu yerda chiqadi.</p>`]}
 // ---------------- yuqori natijalar: chegaradan yuqori olgan barcha bolalar (hamma maktablar)
 function topStu(min=topMin,g=topGrade,sc=topSchool){
-  return present(X.st).filter(s=>{const r=R(s.id);return r.score!=null&&pct(r)>=min&&(!g||s.grade===g)&&(!sc||s.school_id===sc)})
+  return present(X.st).filter(s=>{const r=R(s.id);return r.score!=null&&pct(r)>=min&&(!g||s.grade===g)&&(sc?s.school_id===sc:!(X.sc[s.school_id]||{}).test)})
    .sort((a,b)=>pct(R(b.id))-pct(R(a.id))||a.name.localeCompare(b.name,'uz'))}
 function topList(){const l=topStu();const many=S.schools.length>1;
   return `<div class="sec-h"><p class="label">${topMin}% va undan yuqori</p><span class="pill gold">${l.length} ta bola</span></div>
@@ -2234,9 +2234,9 @@ function dlBuild(scope){
     out.title=`${sc?mkN(X.sc[sc])+'':many?'Barcha maktablar':(S.schools[0]?mkN(S.schools[0]):'')} · ${min}% va yuqori`;out.file=`Yuqori_${min}foiz${g?'_'+g+'-sinflar':''}${sc?'_'+mkN(X.sc[sc])+'':''}`;out.school=many&&!sc;out.cnt='Soni';
     const l=topStu(min,g,sc);grades(l).forEach(gr=>out.sections.push({h:`${gr}-sinflar`,rows:dlRows(l.filter(s=>s.grade===gr),out.school)}))}
   else if(k==='DG'){out.title=`Tuman · ${a}-sinflar`;out.file=`Tuman_${a}-sinflar`;out.school=1;
-    out.sections.push({h:`${a}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===+a),true)})}
+    out.sections.push({h:`${a}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===+a&&!(X.sc[s.school_id]||{}).test),true)})}
   else{out.title='Butun tuman';out.file='Tuman';out.school=1;
-    grades(X.st).forEach(g=>out.sections.push({h:`${g}-sinflar (barcha maktablar)`,rows:dlRows(X.st.filter(s=>s.grade===g),true)}))}
+    const hq=X.st.filter(s=>!(X.sc[s.school_id]||{}).test);grades(hq).forEach(g=>out.sections.push({h:`${g}-sinflar (barcha maktablar)`,rows:dlRows(hq.filter(s=>s.grade===g),true)}))}
   out.sections=out.sections.filter(x=>x.rows.length);out.file=plain(out.file).replace(/[^\w.-]+/g,'_')+'_natijalar';
   return out}
 function dlOpts(kind,id){const opts=[];
@@ -3837,7 +3837,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=13" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=14" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=4" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
