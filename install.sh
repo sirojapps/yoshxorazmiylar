@@ -169,6 +169,7 @@ fi
 # Sinov sayti haqiqiy bazaning nusxasi bilan ishlaydi, lekin nusxada haqiqiy odamlar ma'lumoti QOLMAYDI:
 # o'quvchi, ota-ona, o'qituvchi va direktorlarning ismi, telefon raqami va PIN kodi soxtasiga almashtiriladi; yozishmalar matni,
 # rasmlar, kirish tokenlari, tarix, savat va Telegram bog'lanishlari olib tashlanadi. Jamoa (CEO va loyiha jamoasi) hisoblari o'zgarmaydi.
+# «Sinov uchun maktab» deb belgilangan maktablar ham o'zgarmaydi: CEO o'sha kabinetlarga o'z raqami va PIN'i bilan kirib tekshiradi.
 # Sinflar, natijalar, testlar va raqamlar joyida qoladi — sayt xuddi haqiqiydek sinaladi.
 # Tartib o'zgarsa NIQOB_V oshiriladi: mavjud sinov bazasi keyingi yangilanishda qayta niqoblanadi.
 NIQOB_V=1
@@ -202,6 +203,14 @@ try {
   const demoSchool = +(db.prepare("SELECT value FROM settings WHERE key='demo_school'").get()?.value || 0);
   for (const u of all("SELECT id,role,phone FROM users")) if (u.role === 'ceo' || u.role === 'jamoa' || demo.has(u.id)) { const p = p9(u.phone); if (p) keep.add(p); }
   { const p = p9(db.prepare("SELECT value FROM settings WHERE key='ceo_phone'").get()?.value); if (p) keep.add(p); }
+  // «Sinov uchun maktab» deb belgilangan maktablar (CEO o'zi tekshirish uchun ochgan): ularning sinflari, o'quvchilari, sinf rahbari,
+  // direktori va ota-onalari ham o'zgarmaydi — CEO sinov saytida o'sha kabinetlarga o'z raqami va PIN'i bilan kira oladi
+  const sinovSch = new Set(cols('schools').has('test') ? all('SELECT id FROM schools WHERE test=1').map(r => r.id) : []); if (demoSchool) sinovSch.add(demoSchool);
+  const sinovCls = new Set(all('SELECT id,school_id FROM classes').filter(c => sinovSch.has(c.school_id)).map(c => c.id));
+  for (const s of all('SELECT id,director_phone FROM schools')) if (sinovSch.has(s.id)) { const p = p9(s.director_phone); if (p) keep.add(p); }
+  for (const c of all('SELECT id,teacher_phone FROM classes')) if (sinovCls.has(c.id)) { const p = p9(c.teacher_phone); if (p) keep.add(p); }
+  for (const s of all('SELECT id,class_id,phone FROM students')) if (sinovCls.has(s.class_id)) { const p = p9(s.phone); if (p) keep.add(p); if (has('student_phones')) for (const x of all('SELECT phone FROM student_phones WHERE student_id=?', s.id)) { const q = p9(x.phone); if (q) keep.add(q); } }
+  const ozi = u => u.role === 'ceo' || u.role === 'jamoa' || demo.has(u.id) || sinovSch.has(u.school_id) || sinovCls.has(u.class_id) || (u.role === 'ota' && keep.has(p9(u.phone)));
   // telefon raqamlari: bitta haqiqiy raqam hamma joyda bitta soxta raqamga aylanadi (ota-ona va bola bog'lanishi saqlanadi)
   const tel = new Map(); let nT = 0; const names = new Map();
   const ph = p => { const k = p9(p); if (!k) return ''; if (keep.has(k) || k.startsWith('00')) return k; if (!tel.has(k)) tel.set(k, '00' + String(2000001 + nT++)); return tel.get(k); };
@@ -209,13 +218,13 @@ try {
   const st = { odam: 0, bola: 0 };
   const uc = cols('users');
   for (const u of all('SELECT * FROM users')) {
-    if (u.role === 'ceo' || u.role === 'jamoa' || demo.has(u.id)) continue;
+    if (ozi(u)) continue;
     let pin = u.pin; if (pin != null && /^\d{6}$/.test(String(pin))) { do { pin = String(crypto.randomInt(100000, 1000000)); } while (db.prepare('SELECT 1 FROM users WHERE pin=?').get(pin)); }
     run('UPDATE users SET name=?,phone=?,pin=? WHERE id=?', nameOf(u.phone, u.jins), ph(u.phone), pin, u.id);
     if (uc.has('avatar')) run("UPDATE users SET avatar='' WHERE id=?", u.id); if (uc.has('pass')) run("UPDATE users SET pass='' WHERE id=?", u.id); st.odam++;
   }
-  const demoCls = new Set(demoSchool ? all('SELECT id FROM classes WHERE school_id=?', demoSchool).map(r => r.id) : []);
-  for (const s of all('SELECT id,director_name,director_phone FROM schools')) if (s.id !== demoSchool) run('UPDATE schools SET director_name=?,director_phone=? WHERE id=?', s.director_name || p9(s.director_phone) ? nameOf(s.director_phone) : '', ph(s.director_phone), s.id);
+  const demoCls = sinovCls;
+  for (const s of all('SELECT id,director_name,director_phone FROM schools')) if (!sinovSch.has(s.id)) run('UPDATE schools SET director_name=?,director_phone=? WHERE id=?', s.director_name || p9(s.director_phone) ? nameOf(s.director_phone) : '', ph(s.director_phone), s.id);
   for (const c of all('SELECT id,teacher_name,teacher_phone FROM classes')) if (!demoCls.has(c.id)) run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', c.teacher_name || p9(c.teacher_phone) ? nameOf(c.teacher_phone, 'a') : '', ph(c.teacher_phone), c.id);
   const sc = cols('students');
   for (const s of all('SELECT * FROM students')) {
