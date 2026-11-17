@@ -328,7 +328,7 @@ function state(u) {
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
-    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x) }));
+    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar,pin FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x), pin: u.role === 'ceo' && !u._demo && x.role === 'jamoa' && x.active ? x.pin : undefined }));
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
     out.hints = hintsMap();
     Object.assign(out, extras(u, out));
@@ -404,7 +404,7 @@ function state(u) {
 function giftedIds(t, schoolId) {
   const rows = all(`SELECT r.student_id,r.score,r.qn,r.bits,c.grade,c.school_id FROM results r JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id
     WHERE r.test_id=? AND r.absent=0 AND r.score IS NOT NULL AND s.active=1`, t.id).filter(r => !schoolId || r.school_id === schoolId);
-  const DSg = demoIds().school; return rows.filter(r => (DSg && schoolId === DSg && r.school_id === DSg) || !one('SELECT 1 FROM schools WHERE id=? AND test=1', r.school_id)).filter(r => r.qn > 0 && r.score / r.qn * 100 >= t.gifted_min - 1e-9).map(r => r.student_id);
+  const DSg = demoIds().school; return rows.filter(r => (DSg && schoolId === DSg) || r.school_id !== DSg).filter(r => r.qn > 0 && r.score / r.qn * 100 >= t.gifted_min - 1e-9).map(r => r.student_id);
 }
 
 // ---------------------------------------------------------------- actions
@@ -557,14 +557,14 @@ const inList = a => a.length ? a.map(() => '?').join(',') : 'NULL';
 function snapStudents(ids, d) {
   const L = inList(ids);
   d.students = all(`SELECT * FROM students WHERE id IN (${L})`, ...ids);
-  for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults']) d[t] = (d[t] || []).concat(all(`SELECT * FROM ${t} WHERE student_id IN (${L})`, ...ids));
+  for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults', 'rnotes', 'yol_prog', 'kj_prog']) d[t] = (d[t] || []).concat(all(`SELECT * FROM ${t} WHERE student_id IN (${L})`, ...ids));
 }
 function dropStudents(ids) {
   const L = inList(ids);
-  for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults']) run(`DELETE FROM ${t} WHERE student_id IN (${L})`, ...ids);
+  for (const t of ['results', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'iresults', 'rnotes', 'yol_prog', 'kj_prog']) run(`DELETE FROM ${t} WHERE student_id IN (${L})`, ...ids);
   run(`DELETE FROM students WHERE id IN (${L})`, ...ids);
 }
-const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'wts', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults', 'mcerts'];
+const ORDER = ['schools', 'tbank', 'tests', 'tlinks', 'wts', 'classes', 'students', 'keys', 'vkeys', 'results', 'approvals', 'announcements', 'student_phones', 'phone_hints', 'certificates', 'ex_answers', 'notes', 'itests', 'iresults', 'mcerts', 'rnotes', 'yol_prog', 'kj_prog', 'utests', 'threads', 'messages', 'reads', 'msg_hidden'];
 function putBack(d) {
   for (const t of ORDER) for (const r of d[t] || []) { const k = Object.keys(r); run(`INSERT INTO ${t}(${k.join(',')}) VALUES(${k.map(() => '?').join(',')})`, ...k.map(x => r[x])); }
   if ((d.users || []).length) run(`UPDATE users SET active=1 WHERE id IN (${inList(d.users)})`, ...d.users);
@@ -583,7 +583,19 @@ A['school.delete'] = (u, b) => {
     d.itests = all('SELECT * FROM itests WHERE school_id=?', sc.id); const its = d.itests.map(t => t.id);
     d.iresults = (d.iresults || []).filter(r => !its.includes(r.itest_id)).concat(all(`SELECT * FROM iresults WHERE itest_id IN (${inList(its)})`, ...its));
     d.approvals = all('SELECT * FROM approvals WHERE school_id=?', sc.id); d.announcements = all('SELECT * FROM announcements WHERE school_id=?', sc.id);
-    d.users = offUsers(`(role='direktor' AND school_id=?) OR (role='rahbar' AND class_id IN (${inList(cids)}))`, sc.id, ...cids);
+    // Siroj qoidasi (17.11.2026): maktab o'chsa unga tegishli hammasi o'chadi — kirishlar (direktor, sinf rahbarlari, boshqa farzandi qolmaydigan ota-onalar),
+    // yozishmalar, o'qituvchi testlari, bolalar kabinetidagi natijalar. Hammasi savatda 30 kun turadi va qaytarilsa tiklanadi. Sertifikatlar daftari (cert_log) o'chmaydi.
+    const sidSet = new Set(sids), phones = new Set(all(`SELECT phone FROM students WHERE id IN (${inList(sids)})`, ...sids).concat(all(`SELECT phone FROM student_phones WHERE student_id IN (${inList(sids)})`, ...sids)).map(r => phone9(r.phone)).filter(Boolean));
+    const otaIds = all("SELECT id,phone FROM users WHERE role='ota' AND active=1").filter(o => { const p = phone9(o.phone); return p && phones.has(p) && !kidsOfPhone(p).some(id => !sidSet.has(id)); }).map(o => o.id);
+    d.users = offUsers(`(role='direktor' AND school_id=?) OR (role='rahbar' AND class_id IN (${inList(cids)})) OR id IN (${inList(otaIds)})`, sc.id, ...cids, ...otaIds);
+    const thCols = all('PRAGMA table_info(threads)').map(c => c.name), UL = inList(d.users);
+    d.threads = all(`SELECT * FROM threads WHERE class_id IN (${inList(cids)}) OR student_id IN (${inList(sids)}) OR user_id IN (${UL})${thCols.includes('school_id') ? ' OR school_id=' + sc.id : ''}`, ...cids, ...sids, ...d.users);
+    const ths = d.threads.map(t => t.id), TL = inList(ths);
+    d.messages = all(`SELECT * FROM messages WHERE thread_id IN (${TL})`, ...ths); const mids = d.messages.map(m => m.id), ML = inList(mids);
+    d.reads = all(`SELECT * FROM reads WHERE thread_id IN (${TL})`, ...ths); d.msg_hidden = all(`SELECT * FROM msg_hidden WHERE msg_id IN (${ML})`, ...mids);
+    d.utests = all(`SELECT * FROM utests WHERE class_id IN (${inList(cids)})`, ...cids);
+    run(`DELETE FROM msg_hidden WHERE msg_id IN (${ML})`, ...mids); run(`DELETE FROM messages WHERE thread_id IN (${TL})`, ...ths); run(`DELETE FROM reads WHERE thread_id IN (${TL})`, ...ths); run(`DELETE FROM threads WHERE id IN (${TL})`, ...ths);
+    run(`DELETE FROM utests WHERE class_id IN (${inList(cids)})`, ...cids);
     run(`DELETE FROM iresults WHERE itest_id IN (${inList(its)})`, ...its); run('DELETE FROM itests WHERE school_id=?', sc.id);
     dropStudents(sids); run('DELETE FROM approvals WHERE school_id=?', sc.id); run('DELETE FROM announcements WHERE school_id=?', sc.id);
     run('DELETE FROM classes WHERE school_id=?', sc.id); run('DELETE FROM schools WHERE id=?', sc.id);
@@ -1350,7 +1362,7 @@ A['note.summary'] = (u, b) => { need(u.role === 'ceo' || perms(u).sardor); const
 // ---- O'zgarishlar tarixi: saralash (tur, kim, maktab, qidiruv) va sahifalab yuklash; mayda yozuvlarni tozalash
 const AUDIT_KIND = {
   n: a => /^(natija\.|kalit\.|elon\.|yakunlash\.|sinov\.|imtihon\.|test\.|royxat\.)/.test(a),
-  d: a => /(ochirish|chiqarish|tuzatish|bekor|tozalash|qaytarish|tiklash|almashtirildi)$/.test(a) || a === 'natija.kelmadi_hammasi',
+  d: a => /(ochirish|ochirildi|chiqarish|tuzatish|bekor|tozalash|qaytarish|tiklash|almashtirildi)$/.test(a) || a === 'natija.kelmadi_hammasi',
   c: a => a.startsWith('sertifikat.'),
   p: a => /^(pin\.|jamoa\.|bot\.)/.test(a),
 };
@@ -1379,7 +1391,7 @@ A['audit'] = (u, b) => {
     const rows = all('SELECT * FROM audit WHERE id<? ORDER BY id DESC LIMIT 400', before); if (!rows.length) { more = false; break; }
     for (const r of rows) {
       before = r.id; scanned++;
-      if (MINOR_ACTS.includes(r.action) || SYS_ACTS.includes(r.action) || (!r.user_id && !r.action.startsWith('sertifikat.'))) continue;
+      if (MINOR_ACTS.includes(r.action) || SYS_ACTS.includes(r.action) || (!r.user_id && !/^(sertifikat|baza|jamoa|zaxira)\./.test(r.action))) continue;
       if (DEMO_SET.has(r.user_id)) continue; // namuna kabinetdagi harakatlar tarixga chiqmaydi
       if (kind && !kind(r.action)) continue;
       if (uid != null && r.user_id !== uid) continue;
@@ -2000,7 +2012,8 @@ function bkCheck(f) {
 const bkFind = f => bkFiles().find(x => x.f === f) || bad('Nusxa topilmadi');
 A['backup.list'] = u => {
   need(u.role === 'ceo', 'Zaxira nusxalarni faqat CEO ko‘radi');
-  const l = bkFiles(), last = l.find(x => !x.safety);
+  const tk = new Set(all("SELECT detail FROM audit WHERE action IN ('zaxira.tiklash','zaxira.tiklandi')").map(r => { try { return JSON.parse(r.detail).safety; } catch { return ''; } }));
+  const l = bkFiles().map(x => x.safety ? { ...x, tiklash: tk.has(x.f) } : x), last = l.find(x => !x.safety);
   return { list: l, last: last ? { ...last, ...bkCheck(last.f) } : null, live: countsOf(db), restored: getSet('restored') };
 };
 A['backup.check'] = (u, b) => { need(u.role === 'ceo'); return { ...bkFind(b.f), ...bkCheck(b.f) }; };
@@ -2075,14 +2088,15 @@ function logCert(code) { // berilgan paytdagi ma'lumotni daftarga yozish (holati
     c.code, st.name, String(st.num), st.cls, t?.name || '', natijaOf(r), c.issued || (c.at || '').slice(0, 10) || t?.date || '', now());
 }
 try { for (const r of all('SELECT code FROM certificates WHERE code NOT IN (SELECT code FROM cert_log)').concat(all('SELECT code FROM mcerts WHERE code NOT IN (SELECT code FROM cert_log)'))) logCert(r.code); } catch (e) { console.error('cert_log', e); }
-const nextCertSeq = pre => Math.max(...['cert_log', 'certificates', 'mcerts'].map(t => one(`SELECT max(CAST(substr(code,-4) AS INTEGER)) n FROM ${t} WHERE code LIKE ?`, pre + '%').n || 0)) + 1;
+db.exec("CREATE TABLE IF NOT EXISTS cert_purged(code TEXT PRIMARY KEY, test_id INTEGER, student_id INTEGER, by INTEGER, at TEXT)"); // butunlay o'chirilgan sertifikat raqamlari: raqam qayta ishlatilmaydi, o'sha bolaga o'zi qayta berilmaydi
+const nextCertSeq = pre => Math.max(...['cert_log', 'certificates', 'mcerts', 'cert_purged'].map(t => one(`SELECT max(CAST(substr(code,-4) AS INTEGER)) n FROM ${t} WHERE code LIKE ?`, pre + '%').n || 0)) + 1;
 const canCert = u => u.role === 'ceo' || can(u, 'sertifikat');
 function assignCerts(testId, schoolId) {
   if (schoolId && schoolId === demoIds().school) return 0; // namuna maktabga haqiqiy sertifikat berilmaydi
   const t = one('SELECT * FROM tests WHERE id=?', testId); if (!t) return 0;
   const year = (t.date || now()).slice(0, 4); let n = 0;
   for (const sid of giftedIds(t, schoolId)) {
-    if (one('SELECT 1 FROM certificates WHERE test_id=? AND student_id=?', testId, sid)) continue;
+    if (one('SELECT 1 FROM certificates WHERE test_id=? AND student_id=?', testId, sid) || one('SELECT 1 FROM cert_purged WHERE test_id=? AND student_id=?', testId, sid)) continue;
     const code = `YX-${year}-${String(nextCertSeq(`YX-${year}-`)).padStart(4, '0')}`;
     run('INSERT INTO certificates(code,test_id,student_id,at) VALUES(?,?,?,?)', code, testId, sid, now()); logCert(code); n++;
   }
@@ -2129,6 +2143,20 @@ A['certs.revoke'] = (u, b) => {
   run("UPDATE cert_log SET status='bekor',status_at=?,reason=?,status_by=? WHERE code=?", now(), reason, u.id, g.code);
   log(u.id, 'sertifikat.bekor', { code: g.code, name: g.name, num: g.school, cls: g.cls, reason }); return {};
 };
+// Butunlay o'chirish — faqat CEO: daftardan ham, ro'yxatdan ham ketadi; QR tekshiruvi "topilmadi" deydi. Tarixga yoziladi.
+A['certs.purge'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo, 'Sertifikatni butunlay o‘chirishni faqat CEO qiladi');
+  const k = String(b?.code || '').toUpperCase(); if (b?.confirm !== true) bad('Tasdiqlash kerak');
+  const g = one('SELECT * FROM cert_log WHERE code=?', k), c = one('SELECT * FROM certificates WHERE code=?', k), m = one('SELECT * FROM mcerts WHERE code=?', k);
+  if (!g && !c && !m) bad('Sertifikat topilmadi');
+  return tx(() => {
+    run('DELETE FROM cert_log WHERE code=?', k); run('DELETE FROM certificates WHERE code=?', k); run('DELETE FROM mcerts WHERE code=?', k);
+    run('INSERT OR REPLACE INTO cert_purged(code,test_id,student_id,by,at) VALUES(?,?,?,?,?)', k, c?.test_id ?? null, c?.student_id ?? null, u.id, now());
+    log(u.id, 'sertifikat.ochirildi', { code: k, name: g?.name || m?.name || '', num: g?.school || m?.sch || '', cls: g?.cls || m?.cls || '', test: g?.test || m?.test || '' }); return {};
+  });
+};
+// Egasi (o'quvchi, maktab yoki imtihon) o'chirilgan, lekin daftarda turgan imtihon sertifikatlari — ro'yxatda ko'rinib turadi
+A['certs.yetim'] = u => { need(canCert(u)); return { rows: all('SELECT code,name,school,cls,test,natija,date,status,reason FROM cert_log WHERE manual=0 AND code NOT IN (SELECT code FROM certificates) ORDER BY code DESC') }; };
 A['certs.assign'] = (u, b) => { need(u.role === 'ceo'); const t = one("SELECT id FROM tests WHERE id=?", +b?.test_id); return { n: t ? assignCerts(t.id) : 0 }; };
 function verifyCert(code) {
   const k = String(code || '').toUpperCase();
@@ -2591,6 +2619,22 @@ A['ex.save'] = (u, b) => {
   const r = run('INSERT INTO exercises(grade,day,text,image,options,answer,explain,user_id,at) VALUES(?,?,?,?,?,?,?,?,?)', ...f, u.id, now());
   log(u.id, 'mashq.qoshish', { grade, day }); return { id: Number(r.lastInsertRowid) };
 };
+// Kunlik me'yor (Siroj, 17.11.2026): mashq o'quvchi uchun; 1-sinfga 6, 2-sinfga 8, 3-sinfga 10, 4-sinfga 12 ta misol
+const EX_NORM = { 1: 6, 2: 8, 3: 10, 4: 12 };
+// Bazadan ko'plab qo'shish: sinf, mavzu va necha kunga — har kunga me'yor to'lguncha tasodifiy misol olinadi (rasmsiz, variantlari matnli misollar)
+A['ex.bulk'] = (u, b) => {
+  need(can(u, 'mashq'), 'Mashq qo‘shish huquqi kerak');
+  const grade = parseInt(b.grade, 10), norm = EX_NORM[grade]; if (!norm) bad('Sinfni tanlang (1–4)');
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(b.from) ? b.from : today(), days = Math.min(60, Math.max(1, parseInt(b.days, 10) || 1)), topic = String(b.topic || '');
+  const need_ = []; for (let i = 0; i < days; i++) { const day = new Date(Date.parse(from + 'T12:00:00Z') + i * 864e5).toISOString().slice(0, 10); const bor = one('SELECT count(*) n FROM exercises WHERE grade=? AND day=?', grade, day).n; for (let k = bor; k < norm; k++) need_.push(day); }
+  if (!need_.length) return { n: 0, days };
+  const pool = all(`SELECT id,q,o,a,sol FROM probs WHERE active=1 AND grade=? AND img=''${topic ? ' AND topic=?' : ''} ORDER BY random() LIMIT 2000`, ...(topic ? [grade, topic] : [grade])).map(p => { try { const o = JSON.parse(p.o); return Array.isArray(o) && o.length >= 2 && o.every(x => typeof x === 'string' && x) && 'ABCDE'.slice(0, o.length).includes(p.a) ? { ...p, o: o.slice(0, 5) } : null; } catch { return null; } }).filter(Boolean)
+    .filter(p => !one('SELECT 1 FROM exercises WHERE grade=? AND text=?', grade, p.q));
+  if (b.dry) return { kerak: need_.length, bor: pool.length, days };
+  if (pool.length < need_.length) bad(pool.length ? `Bazada yetarli misol yo‘q: ${need_.length} ta kerak, ${pool.length} ta bor. Kunlar sonini kamaytiring yoki boshqa mavzu tanlang` : 'Bazada bu sinf uchun mos misol yo‘q. Avval misollar bazasi to‘ldiriladi');
+  tx(() => { need_.forEach((day, i) => { const p = pool[i]; run('INSERT INTO exercises(grade,day,text,image,options,answer,explain,user_id,at) VALUES(?,?,?,?,?,?,?,?,?)', grade, day, p.q, '', JSON.stringify(p.o), p.a, str(p.sol, 1000), u.id, now()); }); });
+  log(u.id, 'mashq.qoshish', { grade, day: from, soni: need_.length, kun: days }); return { n: need_.length, days };
+};
 // ---------------- O'quv yo'li (o'quvchi kabineti): bolaning natijasini saqlash. Sahifa: /a/k/yol/
 db.exec("CREATE TABLE IF NOT EXISTS yol_prog(student_id INTEGER PRIMARY KEY, data TEXT NOT NULL, at TEXT)");
 const yolKids = u => { need(u.role === 'ota'); return kidsOfPhone(phone9(u.phone)).map(studentInfo).filter(Boolean); };
@@ -2811,7 +2855,7 @@ A['ustoz.test.save'] = (u, b) => {
 };
 A['ex.delete'] = (u, b) => { need(can(u, 'mashq')); run('DELETE FROM exercises WHERE id=?', b.id); run('DELETE FROM ex_answers WHERE exercise_id=?', b.id); log(u.id, 'mashq.ochirish', { id: b.id }); return {}; };
 A['ex.list'] = u => {
-  if (isTeam(u)) return { today: today(), rows: all('SELECT * FROM exercises ORDER BY day DESC,id DESC LIMIT 300').map(e => ({ ...e, options: JSON.parse(e.options), done: one('SELECT count(*) n, sum(correct) c FROM ex_answers WHERE exercise_id=?', e.id) })) };
+  if (isTeam(u)) return { today: today(), norm: EX_NORM, rows: all('SELECT * FROM exercises ORDER BY day DESC,id DESC LIMIT 300').map(e => ({ ...e, options: JSON.parse(e.options), done: one('SELECT count(*) n, sum(correct) c FROM ex_answers WHERE exercise_id=?', e.id) })) };
   need(u.role === 'ota');
   const kids = kidsOfPhone(phone9(u.phone)).map(studentInfo).filter(Boolean);
   const grades = [...new Set(kids.map(k => k.grade))];
@@ -2996,7 +3040,7 @@ A['ceo.dash'] = (u, b) => {
 function ceoDash(u, b) {
   const dm = demoIds(), td = today(), dayAgo = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
   const per = [7, 30, 365].includes(+b.kun) ? +b.kun : 30, pct = (a, c) => c ? Math.round(a * 100 / c) : 0;
-  const allSc = all('SELECT id,num,viloyat,tuman FROM schools WHERE COALESCE(test,0)=0 AND id<>? ORDER BY num', dm.school).map(s => ({ ...s, nom: mkNum(s.num) }));
+  const allSc = all('SELECT id,num,viloyat,tuman FROM schools WHERE id<>? ORDER BY num', dm.school).map(s => ({ ...s, nom: mkNum(s.num) }));
   // hudud daraxti (tanlov uchun) — hamma maktablardan
   const tree = []; for (const s of allSc) { let v = tree.find(x => x.v === s.viloyat); if (!v) tree.push(v = { v: s.viloyat, t: [] }); let t = v.t.find(x => x.t === s.tuman); if (!t) v.t.push(t = { t: s.tuman, m: [] }); t.m.push({ id: s.id, nom: s.nom }); }
   const f = { v: typeof b.v === 'string' && tree.some(x => x.v === b.v) ? b.v : '', t: '', m: 0 };
@@ -3046,11 +3090,12 @@ function ceoDash(u, b) {
   const stMap = new Map(studs.map(s => [s.id, s]));
   const tests = all('SELECT id,name,date,status,gifted_min FROM tests ORDER BY id DESC').map(t => ({ ...t, bosqich: +(/(\d)\s*-?\s*bosqich/i.exec(t.name) || [])[1] || 1 }));
   const tMap = new Map(tests.map(t => [t.id, t]));
-  const best = new Map(), st1 = new Set(), st2 = new Set(), g70 = new Set(), perTest = new Map(), perMon = new Map(), xq = new Map();
+  const best = new Map(), st1 = new Set(), st2 = new Set(), g70 = new Set(), perTest = new Map(), perMon = new Map(), xq = new Map(), elonS = new Set(), elonC = new Map();
+  const elon = (t, sid) => { if (t.status === 'yakunlandi') return true; const k = t.id + '|' + sid; if (!elonC.has(k)) elonC.set(k, announced(t.id, sid) || announced(t.id, 0)); return elonC.get(k); };
   for (const r of all('SELECT test_id,student_id,score,qn,at,bits FROM results WHERE absent=0 AND score IS NOT NULL')) {
     const t = tMap.get(r.test_id); if (!t || !stMap.has(r.student_id)) continue; const v = r.qn ? Math.min(100, r.score * 100 / r.qn) : 0;
     if (!best.has(r.student_id) || best.get(r.student_id) < v) best.set(r.student_id, v);
-    (t.bosqich >= 2 ? st2 : st1).add(r.student_id); if (v >= (t.gifted_min || 70)) g70.add(r.student_id);
+    (t.bosqich >= 2 ? st2 : st1).add(r.student_id); if (elon(t, stMap.get(r.student_id).sid)) { elonS.add(r.student_id); if (v >= (t.gifted_min || 70)) g70.add(r.student_id); }
     perTest.set(r.test_id, (perTest.get(r.test_id) || 0) + 1);
     const bt = String(r.bits || ''), gr = stMap.get(r.student_id).grade; for (let q = 0; q < bt.length && q < 60; q++) { const k = r.test_id + '|' + gr + '|' + (q + 1); const o = xq.get(k) || xq.set(k, [0, 0]).get(k); o[1]++; if (bt[q] !== '1') o[0]++; }
     const m = String(r.at || '').slice(0, 7); if (m) { const o = perMon.get(m) || perMon.set(m, [0, 0]).get(m); o[t.bosqich >= 2 ? 1 : 0]++; }
@@ -3059,7 +3104,8 @@ function ceoDash(u, b) {
   const mons = []; for (let i = 5; i >= 0; i--) mons.push(new Date(Date.parse(td.slice(0, 7) + '-15') - i * 30.4 * 864e5).toISOString().slice(0, 7));
   const stBySc = grp(studs, s => s.sid), otgan = new Set([...topsh].map(id => stMap.get(id).sid));
   const kut = schools.filter(s => !otgan.has(s.id));
-  const sertA = all('SELECT c.student_id,l.status FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => !c.status && stMap.has(c.student_id)).length, sertQ = all('SELECT l.status FROM mcerts m LEFT JOIN cert_log l ON l.code=m.code').filter(c => !c.status).length;
+  const hududF = !!(f.v || f.t || f.m);
+  const sertA = hududF ? all('SELECT c.student_id,l.status FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => !c.status && stMap.has(c.student_id)).length : cnt("SELECT count(*) n FROM cert_log WHERE manual=0 AND status=''"), sertQ = cnt("SELECT count(*) n FROM cert_log WHERE manual=1 AND status=''");
   const i = {
     maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
     nat: [bv.filter(x => x >= 90).length, bv.filter(x => x >= 70 && x < 90).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x < 50).length],
@@ -3068,9 +3114,9 @@ function ceoDash(u, b) {
     hudud: [...grp(schools, s => f.t ? s.nom : f.v ? s.tuman : s.viloyat)].map(([nom, a]) => { const ids = new Set(a.map(s => s.id)); const st = studs.filter(s => ids.has(s.sid)); return { nom, m: a.length, n: st.length, t: st.filter(s => topsh.has(s.id)).length }; }).sort((a, c) => c.n - a.n).slice(0, 6),
     sinf: [1, 2, 3, 4].map(g => { const a = studs.filter(s => s.grade === g); return { g, n: a.length, t: a.filter(s => topsh.has(s.id)).length }; }),
     jadval: tests.slice(0, 5).map(t => ({ nom: t.name, bosqich: t.bosqich, sana: t.date || '', holat: t.status === 'yakunlandi' ? 'Yakunlangan' : perTest.get(t.id) ? 'Tekshirilmoqda' : 'Rejalashtirilgan', n: perTest.get(t.id) || 0 })),
-    top: [...otgan].map(sid => { const sc = scMap.get(sid); const a = (stBySc.get(sid) || []).filter(s => topsh.has(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, p70: pct(a.filter(s => g70.has(s.id)).length, a.length) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
+    top: [...new Set([...elonS].map(id => stMap.get(id).sid))].map(sid => { const sc = scMap.get(sid); const a = (stBySc.get(sid) || []).filter(s => elonS.has(s.id)); return { nom: sc.nom, joy: sc.tuman + ', ' + sc.viloyat, n: a.length, p70: pct(a.filter(s => g70.has(s.id)).length, a.length) }; }).sort((a, c) => c.n - a.n).slice(0, 5),
     tek: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).length, tekl: tests.filter(t => t.status !== 'yakunlandi' && perTest.get(t.id)).map(t => ({ id: t.id, n: perTest.get(t.id) })),
-    xato: (() => { const t = tests.find(t => perTest.get(t.id)); if (!t) return { nom: '', list: [] }; return { nom: t.name, list: [...xq].filter(([k, o]) => k.startsWith(t.id + '|') && o[1] >= 5).map(([k, o]) => ({ g: +k.split('|')[1], q: +k.split('|')[2], p: pct(o[0], o[1]) })).sort((a, c) => c.p - a.p).slice(0, 5) }; })(),
+    xato: (() => { const t = tests.find(t => [...xq.keys()].some(k => k.startsWith(t.id + '|'))); if (!t) return { nom: '', list: [], sabab: perTest.size ? 'ball' : '' }; const kam = [...xq].some(([k, o]) => k.startsWith(t.id + '|') && o[1] >= 5) ? 5 : 1; return { nom: t.name, list: [...xq].filter(([k, o]) => k.startsWith(t.id + '|') && o[1] >= kam).map(([k, o]) => ({ g: +k.split('|')[1], q: +k.split('|')[2], p: pct(o[0], o[1]) })).sort((a, c) => c.p - a.p).slice(0, 5) }; })(),
     kut: { n: kut.length, all: kut.map(s => ({ id: s.id, nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n), top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
   };
   return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
@@ -3248,6 +3294,19 @@ setInterval(() => { try { run('DELETE FROM sessions WHERE expires<?', now()); } 
 try { for (const a of all('SELECT test_id,school_id FROM announcements WHERE school_id>0')) assignCerts(a.test_id, a.school_id); } catch (e) { console.error('Sertifikat berishda xato:', e.message); }
 // bazadagi eski ismlarni ham bir xil yozuvga keltirish (bir marta; fixName qoidasi o'zgarsa — yangi nom bilan yana bir marta)
 // Siroj qoidasi (17.11.2026): bazani o'zgartirishdan oldin zaxira nusxa olinadi — "Zaxira nusxa" sahifasida ko'rinadi
+migrate('2026-11-17-05-tarix-toldirish', () => {
+  // 15–17-noyabrda sayt yangilanishi bilan qilingan muhim ishlar tarixga yozilmagan edi (Siroj, 17.11.2026) — shu yerda yoziladi
+  const ins = (at, action, d) => run('INSERT INTO audit(at,user_id,action,detail) VALUES(?,?,?,?)', at, 0, action, JSON.stringify(d));
+  const n = [];
+  ins('2026-11-16T11:20:00.000Z', 'baza.tozalash', { name: 'Claude tuzgan misollar, darslar va tushuntirishlar saytdan o‘chirildi (CEO buyrug‘i bilan)' }); n.push(1);
+  ins('2026-11-17T00:12:00.000Z', 'baza.tozalash', { name: 'Asosiy misollar bazasi bo‘shatildi (CEO buyrug‘i bilan)' });
+  ins('2026-11-17T00:30:00.000Z', 'baza.tozalash', { name: 'Bazadagi hamma misollar o‘chirildi, nusxasi serverda saqlandi (CEO buyrug‘i bilan)' });
+  const m = db.prepare("SELECT at,info FROM migrations WHERE id='2026-11-17-04-jamoa-sardor'").get();
+  if (m) { let i = {}; try { i = JSON.parse(m.info || '{}'); } catch { }
+    if (i.chiqarildi) ins(m.at, 'jamoa.chiqarish', { name: 'Claude tekshiruv (CEO buyrug‘i bilan)' });
+    if (i.sardor) ins(m.at, 'jamoa.huquq', { name: 'Abdurashidov G‘ulomjon: jamoa sardori qilindi (CEO buyrug‘i bilan)' }); }
+  return { yozildi: one('SELECT count(*) n FROM audit WHERE user_id=0 AND action IN (?,?,?)', 'baza.tozalash', 'jamoa.chiqarish', 'jamoa.huquq').n };
+});
 let zaxiraOk = true;
 try {
   if (!db.prepare('SELECT 1 FROM migrations WHERE id=?').get('2026-11-17-04-jamoa-sardor')) {
