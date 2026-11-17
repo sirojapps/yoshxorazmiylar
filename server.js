@@ -347,12 +347,12 @@ function state(u) {
   out.classes = all(`SELECT id,school_id,name,grade,teacher_name,obuna${u.role === 'direktor' ? ',teacher_phone' : ''} FROM classes WHERE id IN (${ph})`, ...classIds);
   const schoolIds = [...new Set(out.classes.map(c => c.school_id))];
   out.schools = all(`SELECT id,num,name,raqam,tuman,viloyat${u.role === 'direktor' ? ',director_name,director_phone' : ''} FROM schools WHERE id IN (${schoolIds.map(() => '?').join(',') || 'NULL'})`, ...schoolIds);
-  let studs = all(`SELECT id,class_id,name,phone,avatar,patronymic,jins FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
+  let studs = all(`SELECT id,class_id,name,phone,avatar,patronymic,jins,ozi,manba FROM students WHERE active=1 AND class_id IN (${ph}) ORDER BY name`, ...classIds);
   if (u.role === 'rahbar') { const my = one('SELECT school_id,grade FROM classes WHERE id=?', u.class_id);
     out.moveTo = my ? all('SELECT id,name FROM classes WHERE school_id=? AND grade=? AND id<>? ORDER BY name', my.school_id, my.grade, u.class_id) : []; }
   if (u.role === 'ota') { const k = new Set(kidsOfPhone(phone9(u.phone))); out.children = studs.filter(s => k.has(s.id)).map(s => s.id); }
   const hm = ['rahbar', 'direktor'].includes(u.role) ? hintsMap() : {};
-  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, patronymic: s.patronymic || '', jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', avatar: kidPh(s.avatar),
+  out.students = studs.map(s => ({ id: s.id, class_id: s.class_id, name: s.name, patronymic: s.patronymic || '', jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', avatar: kidPh(s.avatar), ...(isTeam(u) ? { manba: manbaOf(s) } : {}),
     ...(['rahbar', 'direktor'].includes(u.role) ? { phone: s.phone || '', extra: extraPhones(s.id), hint: hm[s.id] || '' } : {}) }));
   const visibleTests = tests.filter(t => schoolIds.some(sid => announced(t.id, sid)));
   out.tests = visibleTests.map(t => ({ ...t, finished: finished(t.id) }));
@@ -1845,7 +1845,10 @@ process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 // odam ko'radigan haqiqiy raqam — raqam ustunida (tuman ichida yagona). Shuning uchun hozirgi maktablarga tegilmaydi.
 try { db.exec('ALTER TABLE schools ADD COLUMN raqam INTEGER'); } catch (e) { }
 try { db.exec("ALTER TABLE students ADD COLUMN jins TEXT DEFAULT ''"); } catch (e) { }
-try { db.exec('ALTER TABLE students ADD COLUMN ozi INTEGER DEFAULT 0'); } catch (e) { } // 1 = botda o'zi ro'yxatdan o'tgan
+try { db.exec('ALTER TABLE students ADD COLUMN ozi INTEGER DEFAULT 0'); } catch (e) { }
+try { db.exec("ALTER TABLE students ADD COLUMN manba TEXT DEFAULT ''"); } catch (e) { }
+// QAYERDAN KELDI (Siroj, 17.11.2026): har bola bazada bir marta, manbasi bilan. 'r' = sinf rahbari qo'shgan, 'o' = botda o'zi ro'yxatdan o'tgan, 'i' = imtihon orqali (imtihon ro'yxati yoki natija varaqasidagi QR)
+const manbaOf = s => s.manba === 'rahbar' ? 'r' : s.manba === 'imtihon' ? 'i' : s.ozi > 0 ? 'o' : 'i'; // 1 = botda o'zi ro'yxatdan o'tgan
 const rxFixRaqam = () => run("UPDATE schools SET raqam=num WHERE raqam IS NULL AND num<100000 AND NOT (num>=101 AND name<>'')");
 rxFixRaqam();
 function mkNum(num) {
@@ -2794,7 +2797,7 @@ A['ustoz.kid.add'] = (u, b) => {
   const twin = all('SELECT id,name FROM students WHERE class_id=? AND active=1', u.class_id).find(x => nameKey(x.name) === nameKey(name));
   if (twin) bad(`Bu sinfda «${twin.name}» allaqachon bor`);
   const jins = b.jins === 'a' || b.jins === 'e' ? b.jins : '';
-  const r = run('INSERT INTO students(class_id,name,patronymic,phone,jins,created_at) VALUES(?,?,?,?,?,?)', u.class_id, name, pat, p, jins, now());
+  const r = run("INSERT INTO students(class_id,name,patronymic,phone,jins,manba,created_at) VALUES(?,?,?,?,?,'rahbar',?)", u.class_id, name, pat, p, jins, now());
   log(u.id, 'oquvchi.qoshish', { id: Number(r.lastInsertRowid), name, class_id: u.class_id, ustoz: true });
   return { id: Number(r.lastInsertRowid), name, ...ustozOtaPin(u, p) };
 };
@@ -3057,7 +3060,7 @@ function ceoDash(u, b) {
   if (f.t && allSc.some(s => s.id === +b.m && s.viloyat === f.v && s.tuman === f.t)) f.m = +b.m;
   const schools = allSc.filter(s => (!f.v || s.viloyat === f.v) && (!f.t || s.tuman === f.t) && (!f.m || s.id === f.m));
   const scMap = new Map(schools.map(s => [s.id, s]));
-  const studs = all('SELECT s.id,s.phone,s.ozi,s.created_at,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid));
+  const studs = all('SELECT s.id,s.phone,s.ozi,s.manba,s.created_at,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid)).map(s => ({ ...s, mb: manbaOf(s) }));
   const otaBy = new Map(); for (const o of all("SELECT id,phone,created_at,last_login FROM users WHERE role='ota' AND active=1 AND pin IS NOT NULL")) { const p = phone9(o.phone); if (p && !dm.set.has(o.id)) otaBy.set(p, o); }
   const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
   const d0 = dayAgo(per), vis = new Map(); for (const r of all('SELECT day,user_id FROM visits WHERE day>=?', dayAgo(Math.max(per + Math.ceil(per / 6), 31)))) (vis.get(r.user_id) || vis.set(r.user_id, []).get(r.user_id)).push(r.day);
@@ -3070,8 +3073,16 @@ function ceoDash(u, b) {
     plat.push({ ...s, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0), f7: days.some(d => d > d7), f14: days.some(d => d > d14 && d <= d7), f30: days.some(d => d > d30) });
   }
   const platIds = new Set(plat.map(s => s.id));
-  const mast = new Map();
-  for (const s of plat) { try { const sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum; if (sm && +sm.total > 0) mast.set(s.id, Math.min(100, Math.max(0, (+sm.done || 0) * 100 / +sm.total))); } catch { } }
+  const mast = new Map(); let bugunMisol = 0, darsOtilgan = 0;
+  for (const s of plat) { try { const sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum; if (!sm) continue; if (+sm.total > 0) mast.set(s.id, Math.min(100, Math.max(0, (+sm.done || 0) * 100 / +sm.total)));
+    const dn = sm.days && typeof sm.days === 'object' ? sm.days[td] : 0; if (typeof dn === 'number' && dn > 0) bugunMisol += Math.round(dn); else if (sm.today && sm.today.day === td) bugunMisol += Math.max(0, +sm.today.done || 0);
+    if (Array.isArray(sm.tl)) darsOtilgan += sm.tl.filter(r => Array.isArray(r) && r[3]).length; else if (sm.topics && typeof sm.topics === 'object') darsOtilgan += Object.values(sm.topics).filter(r => Array.isArray(r) && r[0]).length; } catch { } }
+  // kunlik mashqlarga bugun berilgan javoblar ham yechilgan misol
+  try { const t0 = new Date(Date.parse(td) - 5 * 3600e3).toISOString(); for (const r of all('SELECT student_id FROM ex_answers WHERE at>=?', t0)) if (platIds.has(r.student_id)) bugunMisol++; } catch { }
+  const mbS = a => ({ i: a.filter(s => s.mb === 'i').length, o: a.filter(s => s.mb === 'o').length, r: a.filter(s => s.mb === 'r').length });
+  const dirIn = new Set(all("SELECT school_id FROM users WHERE role='direktor' AND active=1 AND last_login IS NOT NULL").filter(x => scMap.has(x.school_id)).map(x => x.school_id));
+  const clsAll = all('SELECT id,school_id FROM classes').filter(c => scMap.has(c.school_id)), clsSet = new Set(clsAll.map(c => c.id));
+  const ustIn = new Set(all("SELECT id,class_id FROM users WHERE role='rahbar' AND active=1 AND last_login IS NOT NULL").filter(x => clsSet.has(x.class_id) && !dm.set.has(x.id)).map(x => x.class_id));
   const mv = [...mast.values()], avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0;
   const stepD = Math.max(1, Math.round(per / 6)), pts = [6, 5, 4, 3, 2, 1, 0].map(i => dayAgo(i * stepD));
   // hudud bo'yicha: hech narsa tanlanmagan — viloyatlar; viloyat — tumanlar; tuman yoki maktab — maktablar
@@ -3085,7 +3096,8 @@ function ceoDash(u, b) {
     jami: plat.length, kirgan: plat.filter(s => s.kirgan).length, faol: plat.filter(s => s.faol).length, obuna: plat.filter(s => s.obuna).length, maktab: bySc.size, ustoz, yangi: plat.filter(s => s.since > d0).length,
     // bosh sahifa (rasm bo'yicha): oxirgi 7 kunda faol, kam faol (30 kunda kirgan, lekin 7 kunda emas), o'sishlar
     faol7: plat.filter(s => s.f7).length, kam: plat.filter(s => !s.f7 && s.f30).length, faolOld: plat.filter(s => s.f14).length, kirganYangi: plat.filter(s => s.kirgan && s.since > d0).length, fo: plat.filter(s => s.f7 && !s.obuna).length,
-    bugun: plat.filter(s => s.days.includes(td)).length,
+    bugun: plat.filter(s => s.days.includes(td)).length, bugunMisol, dars: darsOtilgan, ul: { mk: [dirIn.size, schools.length], ust: [ustIn.size, clsAll.length] },
+    mb: { jami: mbS(plat), kirgan: mbS(plat.filter(s => s.kirgan)), faol7: mbS(plat.filter(s => s.f7)), obuna: mbS(plat.filter(s => s.obuna)) },
     din: pts.map((d, i) => ({ d, jami: plat.filter(s => s.since <= d).length, faol: plat.filter(s => s.days.some(x => x <= d && x > (i ? pts[i - 1] : dayAgo(7 * stepD)))).length })),
     ozl: { n: mv.length, avg: avg(mv), b: [mv.filter(x => x >= 90).length, mv.filter(x => x >= 70 && x < 90).length, mv.filter(x => x >= 50 && x < 70).length, mv.filter(x => x < 50).length],
       sinf: [1, 2, 3, 4].map(g => { const a = plat.filter(s => s.grade === g); const m = a.filter(s => mast.has(s.id)).map(s => mast.get(s.id)); return { g, n: a.length, avg: avg(m) }; }) },
@@ -3116,7 +3128,7 @@ function ceoDash(u, b) {
   const hududF = !!(f.v || f.t || f.m);
   const sertA = hududF ? all('SELECT c.student_id,l.status FROM certificates c LEFT JOIN cert_log l ON l.code=c.code').filter(c => !c.status && stMap.has(c.student_id)).length : cnt("SELECT count(*) n FROM cert_log WHERE manual=0 AND status=''"), sertQ = cnt("SELECT count(*) n FROM cert_log WHERE manual=1 AND status=''");
   const i = {
-    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id)).length, topsh: topsh.size,
+    maktab: schools.length, jami: studs.length, otgan: otgan.size, b1: st1.size, b2: st2.size, p70: g70.size, sert: sertA + sertQ, sertA, sertQ, plat: [...topsh].filter(id => platIds.has(id) && stMap.get(id).mb === 'i').length, topsh: topsh.size,
     nat: [bv.filter(x => x >= 90).length, bv.filter(x => x >= 70 && x < 90).length, bv.filter(x => x >= 50 && x < 70).length, bv.filter(x => x < 50).length],
     avg: bv.length ? Math.round(bv.reduce((a, c) => a + c, 0) / bv.length) : 0, max: bv.length ? Math.round(Math.max(...bv)) : 0, tn: tests.filter(t => perTest.get(t.id)).length,
     din: mons.map(m => ({ m, b1: (perMon.get(m) || [0, 0])[0], b2: (perMon.get(m) || [0, 0])[1] })),
@@ -3303,6 +3315,11 @@ setInterval(() => { try { run('DELETE FROM sessions WHERE expires<?', now()); } 
 try { for (const a of all('SELECT test_id,school_id FROM announcements WHERE school_id>0')) assignCerts(a.test_id, a.school_id); } catch (e) { console.error('Sertifikat berishda xato:', e.message); }
 // bazadagi eski ismlarni ham bir xil yozuvga keltirish (bir marta; fixName qoidasi o'zgarsa — yangi nom bilan yana bir marta)
 // Siroj qoidasi (17.11.2026): bazani o'zgartirishdan oldin zaxira nusxa olinadi — "Zaxira nusxa" sahifasida ko'rinadi
+migrate('2026-11-17-06-manba', () => {
+  // sinf rahbari qo'shgan bolalar tarixdan topiladi ('oquvchi.qoshish', ustoz:true). Faqat belgi qo'yiladi, hech narsa o'chmaydi.
+  let n = 0; for (const r of all("SELECT detail FROM audit WHERE action='oquvchi.qoshish'")) { try { const d = JSON.parse(r.detail); if (d && d.ustoz && d.id) n += Number(run("UPDATE students SET manba='rahbar' WHERE id=? AND COALESCE(manba,'')=''", d.id).changes || 0); } catch { } }
+  return { rahbar: n };
+});
 migrate('2026-11-17-05-tarix-toldirish', () => {
   // 15–17-noyabrda sayt yangilanishi bilan qilingan muhim ishlar tarixga yozilmagan edi (Siroj, 17.11.2026) — shu yerda yoziladi
   const ins = (at, action, d) => run('INSERT INTO audit(at,user_id,action,detail) VALUES(?,?,?,?)', at, 0, action, JSON.stringify(d));
