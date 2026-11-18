@@ -1685,6 +1685,68 @@ function pinMessage(got) {
   return 'Sizning PIN kodingiz:\n\n' + got.map(g => `${ROLE_UZ[g.kind] || ''} — ${g.name}\nPIN: ${g.pin}`).join('\n\n') +
     `\n\nSaytga kirish: ${siteUrl()}\nPIN kodni hech kimga bermang.`;
 }
+// ================= Natija varaqalari: imtihondan platformaga ko'prik (QR -> bot -> ota-ona PIN kodi)
+// Varaqadagi kod maxfiy kalit bilan imzolanadi: faqat qog'oz varaqani olgan odam bolaga ulana oladi.
+const varaqSir = () => { let s = getSet('varaq_sir'); if (!s) { s = crypto.randomBytes(24).toString('hex'); setSet('varaq_sir', s); } return s; };
+const varaqKod = id => 'v' + id + '_' + crypto.createHmac('sha256', varaqSir()).update('varaq:' + id).digest('hex').slice(0, 12);
+const varaqSid = k => { const m = /^v(\d+)_([0-9a-f]{12})$/.exec(String(k || '')); return m && varaqKod(+m[1]) === m[0] ? +m[1] : 0; };
+function varaqBogla(sid, p) {
+  const s = one('SELECT id,name,phone,manba,ozi FROM students WHERE id=? AND active=1', sid);
+  if (!s || !p) return 'Bu varaqadagi o‘quvchi topilmadi. Sinf rahbariga murojaat qiling.';
+  const bor = new Set([phone9(s.phone), ...extraPhones(sid)].filter(Boolean));
+  if (!bor.has(p)) {
+    if (bor.size >= 3) return 'Bu o‘quvchiga allaqachon 3 ta raqam ulangan. Yana ulash uchun sinf rahbariga murojaat qiling.';
+    if (kidsOfPhone(p).length >= MAX_KIDS) return `Raqamingizga allaqachon ${MAX_KIDS} nafar o‘quvchi ulangan. Sinf rahbariga murojaat qiling.`;
+    run('INSERT OR IGNORE INTO student_phones(student_id,phone) VALUES(?,?)', sid, p);
+    if (!s.manba && !(s.ozi > 0)) run("UPDATE students SET manba='imtihon' WHERE id=?", sid);
+    log(null, 'varaq.ulash', { student_id: sid, name: s.name, phone: p });
+  }
+  const got = grantByPhone(p);
+  return got.length ? pinMessage(got) : 'Raqamingiz ulandi. PIN kodni olish uchun /pin deb yozing.';
+}
+function varaqRows(t, sc, classId) {
+  const bk = {}, tp = {};
+  const bankOf = g => { if (!(g in bk)) { const l = one('SELECT b.data FROM tlinks l JOIN tbank b ON b.id=l.bank_id WHERE l.test_id=? AND l.grade=?', t.id, g); try { bk[g] = l ? JSON.parse(l.data) : null; } catch { bk[g] = null; } } return bk[g]; };
+  const topicOf = pid => { if (!(pid in tp)) { const p = one('SELECT topic FROM probs WHERE id=?', pid); tp[pid] = p ? (PB_TOPIC[p.topic]?.name || '') : ''; } return tp[pid]; };
+  const rows = all(`SELECT s.id,s.name,s.phone,c.id cid,c.name cls,c.grade,r.absent,r.score,r.qn,r.ok,r.nq,r.bits,r.variant FROM results r
+    JOIN students s ON s.id=r.student_id JOIN classes c ON c.id=s.class_id WHERE r.test_id=? AND c.school_id=? AND s.active=1 ORDER BY c.grade,c.name,s.name`, t.id, sc.id)
+    .filter(r => !classId || r.cid === classId);
+  return rows.map(r => {
+    const bits = String(r.bits || ''), qs = (bankOf(r.grade)?.[r.variant || 'A'] || bankOf(r.grade)?.A)?.qs || [];
+    const xato = [], mavzu = [];
+    [...bits].forEach((c, i) => { if (c !== '0') return; xato.push(i + 1); const m = qs[i]?.pid ? topicOf(qs[i].pid) : ''; if (m && !mavzu.includes(m)) mavzu.push(m); });
+    const chats = new Set(); for (const p of new Set([phone9(r.phone), ...extraPhones(r.id)].filter(Boolean))) for (const c of chatsOfPhone(p)) chats.add(c);
+    return { id: r.id, name: r.name, cid: r.cid, cls: r.cls, grade: r.grade, absent: r.absent ? 1 : 0, score: r.score, qn: r.qn, ok: r.ok, nq: r.nq, bits: bits ? 1 : 0, xato, mavzu, chats: [...chats] };
+  });
+}
+const varaqMumkin = u => u.role === 'ceo' || (isTeam(u) && can(u, 'pin_korish'));
+const varaqTS = b => {
+  const t = one('SELECT id,name,date FROM tests WHERE id=?', +b?.test_id), sc = one('SELECT * FROM schools WHERE id=?', +b?.school_id);
+  if (!t || !sc) bad('Imtihon yoki maktab topilmadi'); if (!announced(t.id, sc.id)) bad('Avval bu maktab natijasi e‘lon qilinsin');
+  return [t, sc];
+};
+A['varaq.list'] = (u, b) => {
+  need(varaqMumkin(u)); const [t, sc] = varaqTS(b);
+  const rows = varaqRows(t, sc, +b.class_id || 0).map(r => ({ ...r, ul: r.chats.length ? 1 : 0, chats: undefined, kod: r.absent ? '' : varaqKod(r.id) }));
+  return { test: t.name, date: t.date, school: mkNum(sc.num), bot: getSet('bot_username'), rows, tg: getSet(`varaq_tg:${t.id}:${sc.id}`) };
+};
+// natijani botga allaqachon ulangan ota-onalarga Telegram orqali yuborish (bir maktabga bir marta; qayta yuborish alohida so'raladi)
+A['varaq.tg'] = (u, b) => {
+  need(varaqMumkin(u)); const [t, sc] = varaqTS(b); const k = `varaq_tg:${t.id}:${sc.id}`;
+  if (getSet(k) && !b.yana) bad('Bu maktab natijalari avval yuborilgan');
+  const byChat = {};
+  for (const r of varaqRows(t, sc, 0)) {
+    if (r.absent || r.score == null || !r.chats.length) continue;
+    const l = [`${r.name} (${r.cls} sinf): ${r.qn === 100 ? `100 balldan ${r.score} ball` : `${r.qn} tadan ${r.score} tasi to‘g‘ri`}`];
+    if (r.mavzu.length) l.push('Takrorlash kerak bo‘lgan mavzular: ' + r.mavzu.slice(0, 6).join('; '));
+    else if (r.bits && !r.xato.length) l.push('Hamma savolga to‘g‘ri javob berdi.');
+    for (const c of r.chats) (byChat[c] ||= []).push(l.join('\n'));
+  }
+  const n = Object.keys(byChat).length;
+  for (const [c, l] of Object.entries(byChat)) tgSend(c, `Assalomu alaykum! "${t.name}" imtihoni natijasi:\n\n${l.join('\n\n')}\n\nBatafsil: ${siteUrl()}`);
+  setSet(k, now()); log(u.id, 'varaq.telegram', { test: t.name, maktab: mkNum(sc.num), soni: n });
+  return { n };
+};
 const CONTACT_KB = { reply_markup: { keyboard: [[{ text: '📱 Telefon raqamni yuborish', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true } };
 const NO_KB = { reply_markup: { remove_keyboard: true } };
 const tgState = new Map();
@@ -1796,6 +1858,8 @@ async function onUpdate(up) {
     if (m.contact.user_id !== m.from.id) return tgSend(chat, 'Iltimos, o‘zingizning raqamingizni pastdagi tugma orqali yuboring.', CONTACT_KB);
     const p = phone9(m.contact.phone_number);
     run('INSERT INTO tg_users(chat_id,phone,at) VALUES(?,?,?) ON CONFLICT(chat_id) DO UPDATE SET phone=excluded.phone,at=excluded.at', chat, p, now());
+    const vq = tgState.get(chat);
+    if (vq && vq.step === 'vq') { tgState.delete(chat); return tgSend(chat, varaqBogla(vq.sid, p), NO_KB); }
     const got = grantByPhone(p);
     if (got.length) return tgSend(chat, pinMessage(got), NO_KB);
     tgState.set(chat, { step: 'r_vil', phone: p });
@@ -1803,6 +1867,14 @@ async function onUpdate(up) {
     return rxAsk(chat, tgState.get(chat));
   }
   const txt = String(m.text || '').trim();
+  const vm = /^\/start\s+(v\d+_[0-9a-f]{12})$/.exec(txt);
+  if (vm) { // natija varaqasidagi QR kod
+    const sid = varaqSid(vm[1]); if (!sid) return tgSend(chat, 'Bu QR kod noto‘g‘ri yoki eskirgan. Sinf rahbaridan yangi natija varaqasini so‘rang.');
+    const lk = one('SELECT phone FROM tg_users WHERE chat_id=?', chat);
+    if (lk && lk.phone) { tgState.delete(chat); return tgSend(chat, varaqBogla(sid, lk.phone), NO_KB); }
+    tgState.set(chat, { step: 'vq', sid });
+    return tgSend(chat, 'Assalomu alaykum! Farzandingiz kabinetining PIN kodini olish uchun pastdagi tugma bilan telefon raqamingizni yuboring.', CONTACT_KB);
+  }
   const st = tgState.get(chat);
   if (rxText(chat, st, txt)) return;
   if (st?.step === 'child' && txt && !txt.startsWith('/')) {

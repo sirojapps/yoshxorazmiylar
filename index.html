@@ -3424,6 +3424,40 @@ async function bookPdf(bankId,only){
   pdf.save(fn(only||''));
 }
 
+// Natija varaqalari: har bolaga bitta varaqa (ismi, bali, takrorlash kerak mavzular, botga QR kod); bitta A4 ga ikkitadan
+async function varaqPdf(o,cid){const rows=(o.rows||[]).filter(r=>!r.absent&&r.score!=null&&(!cid||r.cid===cid));if(!rows.length)throw new Error('Varaqa chiqadigan o‘quvchi yo‘q');if(!o.bot)throw new Error('Telegram bot ulanmagan');
+  await loadLib(JSPDF,()=>window.jspdf);await loadLib(QRGEN,()=>window.qrcode);const fo=await yxFonts(),uni=!!fo.r;
+  const pdf=new jspdf.jsPDF({unit:'mm',format:'a4'});
+  if(uni){pdf.addFileToVFS('yx-r.ttf',fo.r);pdf.addFont('yx-r.ttf','yx','normal');pdf.addFileToVFS('yx-b.ttf',fo.b);pdf.addFont('yx-b.ttf','yx','bold')}
+  const FN=uni?'yx':'helvetica',T=s=>uni?String(s??'').replace(/[ʻ`´]/g,'‘').replace(/ʼ/g,'’').replace(/\t/g,' '):pdfTxt(s);
+  const F=(b,sz,c)=>{pdf.setFont(FN,b?'bold':'normal');pdf.setFontSize(sz);Array.isArray(c)?pdf.setTextColor(...c):pdf.setTextColor(c==null?0:c)};
+  const NAVY=[31,52,94],PW=210,M=14,HH=148.5,QS=40,QX=PW-M-QS-3,LW=QX-M-8;
+  const dt=/^\d{4}-\d{2}-\d{2}/.test(o.date||'')?o.date.slice(8,10)+'.'+o.date.slice(5,7)+'.'+o.date.slice(0,4):'';
+  const qr=(txt,x,y,s)=>{const q=qrcode(0,'M');q.addData(txt);q.make();const n=q.getModuleCount(),u=s/n;pdf.setFillColor(0,0,0);
+    for(let r=0;r<n;r++){let c=0;while(c<n){if(!q.isDark(r,c)){c++;continue}let e=c;while(e<n&&q.isDark(r,e))e++;pdf.rect(x+c*u,y+r*u,(e-c)*u+.03,u+.03,'F');c=e}}};
+  rows.forEach((r,i)=>{if(i&&i%2===0)pdf.addPage();const y0=(i%2)*HH;
+    if(i%2===0){pdf.setDrawColor(150);pdf.setLineWidth(.2);pdf.setLineDashPattern([2,2],0);pdf.line(6,HH,PW-6,HH);pdf.setLineDashPattern([],0)}
+    F(true,13,NAVY);pdf.text('YOSH XORAZMIYLAR',M,y0+16);F(true,11,NAVY);pdf.text(T('Imtihon natijasi'),PW-M,y0+16,{align:'right'});
+    pdf.setDrawColor(...NAVY);pdf.setLineWidth(.5);pdf.line(M,y0+19.5,PW-M,y0+19.5);
+    F(false,9.5,95);pdf.text(T([o.test,dt].filter(Boolean).join(' · ')),M,y0+25.5);
+    let sz=17;F(true,sz,0);const nm=T(r.name);while(sz>11&&pdf.getTextWidth(nm)>LW){sz-=.5;pdf.setFontSize(sz)}pdf.text(nm,M,y0+38);
+    F(false,10.5,70);pdf.text(T(`${o.school} · ${r.cls} sinf`),M,y0+44.5);
+    const big=String(r.score);F(true,30,NAVY);pdf.text(big,M,y0+61);const bw=pdf.getTextWidth(big);
+    F(true,12,NAVY);pdf.text(T(r.qn===100?'ball':'ta to‘g‘ri javob'),M+bw+2.5,y0+61);
+    F(false,10,70);pdf.text(T(r.qn===100?'100 balldan'+(r.ok!=null&&r.nq?` · to‘g‘ri javoblar: ${r.nq} tadan ${r.ok} tasi`:''):`${r.qn} ta savoldan`),M,y0+67.5);
+    let y=y0+79;const YM=y0+130;
+    if(r.mavzu&&r.mavzu.length){F(true,10.5,0);pdf.text(T('Takrorlash kerak bo‘lgan mavzular:'),M,y);y+=6;let k=0;
+      for(;k<r.mavzu.length;k++){F(false,10,25);const l=pdf.splitTextToSize(T(r.mavzu[k]),LW-5);if(y+l.length*4.6>YM-(k<r.mavzu.length-1?5:0))break;pdf.text('•',M+.5,y);pdf.text(l,M+5,y);y+=l.length*4.6+1.4}
+      if(k<r.mavzu.length){F(false,9.5,95);pdf.text(T(`va yana ${r.mavzu.length-k} ta mavzu`),M+5,y)}}
+    else if(r.xato&&r.xato.length){F(true,10.5,0);pdf.text(T('Xato qilingan savollar:'),M,y);y+=6;F(false,10.5,25);pdf.text(pdf.splitTextToSize(r.xato.join(', '),LW),M,y)}
+    else if(r.bits){F(true,11,[22,120,70]);pdf.text(T('Hamma savolga to‘g‘ri javob berildi. Barakalla!'),M,y)}
+    const qy=y0+31;qr(`https://t.me/${o.bot}?start=${r.kod}`,QX+1.5,qy,QS);
+    pdf.setDrawColor(...NAVY);pdf.setLineWidth(.3);pdf.roundedRect(QX-1.5,qy-3,QS+6,QS+6,2,2);
+    F(true,10,NAVY);pdf.text(T('Farzandingiz kabineti'),QX+1.5+QS/2,qy+QS+9.5,{align:'center'});
+    F(false,8.6,50);const st=['1. Telefon kamerasini QR kodga tuting.','2. Telegram ochiladi, «Boshlash» tugmasini bosing.','3. Telefon raqamingizni yuboring. Bot sizga PIN kod beradi.','4. PIN kod bilan saytga kiring: yoshxorazmiylar.uz'];let sy=qy+QS+15;
+    st.forEach(s=>{const l=pdf.splitTextToSize(T(s),QS+10);pdf.text(l,QX-3.5,sy);sy+=l.length*3.9+1});
+    F(false,8,120);pdf.text(T('Varaqani yo‘qotmang: QR kod faqat shu o‘quvchi uchun.'),M,y0+HH-8)});
+  const cn=cid?rows[0].cls:'hamma_sinflar';pdf.save(plain(`Natija_varaqalari_${o.school}_${cn}_${o.test}`).replace(/[^\w-]+/g,'_')+'.pdf')}
 // kalit varaqasi (faqat o'qituvchi uchun): har variant — raqam, javob, ball
 async function keyPdf(name,grade,ks,w){if(!ks.length){toast('Kalit yo’q',true);return}
   toast('Kalit tayyorlanmoqda…');await loadLib(JSPDF,()=>window.jspdf);const fo=await yxFonts(),uni=!!fo.r;
@@ -3645,7 +3679,7 @@ window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimS
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
-  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),actL:()=>ACT_L,kindL:()=>KIND_L,caReset:()=>{CA=null},pickImg:(cb,max)=>pickImage(cb,max),book:id=>bookPdf(id),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,uni:()=>{uniScan();const e=$('#scan');if(e)e.style.zIndex=60},
+  titul:(k,id,tid,sp)=>titulGo(k,id,tid,sp),setTest:id=>{testId=id},dlOpts:(tid,k,id)=>{testId=tid;return dlOpts(k,id)},dl:(tid,f,o)=>{testId=tid;return dlGo(f,o)},dlPref:()=>dlPref(),mediaUp:b=>mediaUp(b),pdfScan:f=>pdfScan(f),parseTest:t=>parseTestText(t),actL:()=>ACT_L,kindL:()=>KIND_L,caReset:()=>{CA=null},pickImg:(cb,max)=>pickImage(cb,max),book:id=>bookPdf(id),varaq:(o,cid)=>varaqPdf(o,cid),scan:(cid,tid)=>{scanOpen(cid,tid);const e=$('#scan');if(e)e.style.zIndex=60},scanOn:()=>!!SC,uni:()=>{uniScan();const e=$('#scan');if(e)e.style.zIndex=60},
   ochish:v=>{return; /* 17.11.2026: CEO uchun eski sahifa butunlay yopildi — hamma ish yangi kabinetda */ const [k,x]=String(v||'').split(':');window.__ceoEski=true;tab='bosh';stack=[];
     if(k==='tab')tab=x;else if(k==='side')stack=[x];render();
     if(k==='act'||k==='dl'){const el=document.createElement('button');el.type='button';el.style.display='none';if(k==='dl'){el.dataset.act='dl';el.dataset.k='district';el.dataset.id='0'}else el.dataset.act=x;document.body.appendChild(el);el.click();el.remove()}},
@@ -3841,7 +3875,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=24" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=25" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=5" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
