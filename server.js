@@ -3060,7 +3060,7 @@ function ceoDash(u, b) {
   if (f.t && allSc.some(s => s.id === +b.m && s.viloyat === f.v && s.tuman === f.t)) f.m = +b.m;
   const schools = allSc.filter(s => (!f.v || s.viloyat === f.v) && (!f.t || s.tuman === f.t) && (!f.m || s.id === f.m));
   const scMap = new Map(schools.map(s => [s.id, s]));
-  const studs = all('SELECT s.id,s.phone,s.ozi,s.manba,s.created_at,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid)).map(s => ({ ...s, mb: manbaOf(s) }));
+  const studs = all('SELECT s.id,s.phone,s.ozi,s.manba,s.created_at,s.class_id cid,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid)).map(s => ({ ...s, mb: manbaOf(s) }));
   const otaBy = new Map(); for (const o of all("SELECT id,phone,created_at,last_login FROM users WHERE role='ota' AND active=1 AND pin IS NOT NULL")) { const p = phone9(o.phone); if (p && !dm.set.has(o.id)) otaBy.set(p, o); }
   const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
   const d0 = dayAgo(per), vis = new Map(); for (const r of all('SELECT day,user_id FROM visits WHERE day>=?', dayAgo(Math.max(per + Math.ceil(per / 6), 31)))) (vis.get(r.user_id) || vis.set(r.user_id, []).get(r.user_id)).push(r.day);
@@ -3072,7 +3072,7 @@ function ceoDash(u, b) {
     let fam = null; for (const p of [phone9(s.phone), ...(extra.get(s.id) || [])]) if (p && otaBy.has(p)) { fam = otaBy.get(p); break; }
     if (!fam && !(s.ozi > 0)) continue;
     const days = fam ? (vis.get(fam.id) || []) : [];
-    platAll.push({ ...s, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0), f7: days.some(d => d > d7), f14: days.some(d => d > d14 && d <= d7), f30: days.some(d => d > d30) });
+    platAll.push({ ...s, pinli: !!fam, since: String((fam && fam.created_at) || s.created_at || '').slice(0, 10), days, kirgan: !!(fam && fam.last_login), faol: days.some(d => d > d0), f7: days.some(d => d > d7), f14: days.some(d => d > d14 && d <= d7), f30: days.some(d => d > d30) });
   }
   const plat = platAll.filter(s => s.mb !== 'i'), platIds = new Set(platAll.map(s => s.id)), pIds = new Set(plat.map(s => s.id));
   const mast = new Map(); let bugunMisol = 0, darsOtilgan = 0;
@@ -3151,7 +3151,30 @@ function ceoDash(u, b) {
     xato: (() => { const t = tests.find(t => [...xq.keys()].some(k => k.startsWith(t.id + '|'))); if (!t) return { nom: '', list: [], sabab: perTest.size ? 'ball' : '' }; const kam = [...xq].some(([k, o]) => k.startsWith(t.id + '|') && o[1] >= 5) ? 5 : 1; return { nom: t.name, list: [...xq].filter(([k, o]) => k.startsWith(t.id + '|') && o[1] >= kam).map(([k, o]) => ({ g: +k.split('|')[1], q: +k.split('|')[2], p: pct(o[0], o[1]) })).sort((a, c) => c.p - a.p).slice(0, 5) }; })(),
     kut: { n: kut.length, all: kut.map(s => ({ id: s.id, nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n), top: kut.map(s => ({ nom: s.nom, joy: s.tuman, n: (stBySc.get(s.id) || []).length })).sort((a, c) => c.n - a.n).slice(0, 5) },
   };
-  return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i };
+  // ULANISH XARITASI (Siroj, 18.11.2026): har maktab bir qator — direktor, sinf rahbarlari, PIN olgan ota-onalar, kabinetga kirgan bolalar.
+  // Ikki alohida ro'yxat: xar.i — imtihon orqali kelgan (ro'yxati kiritilgan) bolalar bo'yicha; xar.p — o'zi yoki sinf rahbari orqali kelganlar bo'yicha. Har bola faqat bittasida.
+  const xar = (() => {
+    const dirs = new Map(); for (const d of all("SELECT id,school_id,name,phone,last_login FROM users WHERE role='direktor' AND active=1")) if (!dm.set.has(d.id)) dirs.set(d.school_id, d);
+    const scI = new Map(all('SELECT id,director_name,director_phone FROM schools').map(x => [x.id, x]));
+    const rah = all("SELECT id,class_id,last_login FROM users WHERE role='rahbar' AND active=1 AND pin IS NOT NULL").filter(x => !dm.set.has(x.id));
+    const rahBor = new Set(rah.map(x => x.class_id)), rahIn = new Set(rah.filter(x => x.last_login).map(x => x.class_id));
+    const clsBy = grp(all('SELECT id,school_id FROM classes'), c => c.school_id), pa = new Map(platAll.map(s => [s.id, s]));
+    const qator = (sc, kids, cls) => {
+      const d = dirs.get(sc.id), si = scI.get(sc.id) || {}, pk = kids.map(k => pa.get(k.id)).filter(Boolean);
+      return { id: sc.id, nom: sc.nom, tuman: sc.tuman, vil: sc.viloyat, d: d && d.last_login ? 1 : 0, dn: (d && d.name) || si.director_name || '', dt: phone9((d && d.phone) || si.director_phone) || '',
+        u: [cls.filter(c => rahIn.has(c)).length, cls.length], p: [pk.filter(k => k.pinli).length, kids.length], b: [pk.filter(k => k.kirgan).length, kids.length],
+        h: pk.filter(k => k.since > d7).length, ob: pk.filter(k => k.obuna).length };
+    };
+    const I = [], P = [];
+    for (const sc of schools) {
+      const st = stBySc.get(sc.id) || [], ki = st.filter(s => s.mb === 'i'), kp = st.filter(s => s.mb !== 'i'), cl = (clsBy.get(sc.id) || []).map(c => c.id);
+      const ci = new Set(ki.map(k => k.cid)), cp = cl.filter(c => !ci.has(c) && (rahBor.has(c) || kp.some(k => k.cid === c)));
+      if (ki.length || (!st.length && !cp.length && !dirs.has(sc.id))) I.push(qator(sc, ki, [...ci]));
+      if (kp.length || cp.length || (!ki.length && dirs.has(sc.id))) P.push(qator(sc, kp, [...new Set([...cp, ...kp.map(k => k.cid)])]));
+    }
+    return { i: I, p: P };
+  })();
+  return { kun: td, per, f, daraja, tree, me: { name: u.name, role: u.role, demo: !!u._demo }, hal, p, i, xar };
 }
 
 // Yangi CEO kabineti — "Maktablar va sinflar": har bola bo'yicha platformadagi holat. Faqat o'qiydi.
