@@ -1747,6 +1747,54 @@ A['varaq.tg'] = (u, b) => {
   setSet(k, now()); log(u.id, 'varaq.telegram', { test: t.name, maktab: mkNum(sc.num), soni: n });
   return { n };
 };
+// ================= Ketma-ket kunlar (olov) va haftalik hisobot
+// Bola misol yechgan har kun o'quv yo'li xulosasidagi `days` ro'yxatiga tushadi. Ketma-ket kunlar soni shu ro'yxatdan SERVERDA sanaladi.
+const kunOldin = n => new Date(Date.parse(today()) - n * 864e5).toISOString().slice(0, 10);
+function olovOf(sm) {
+  if (!sm || typeof sm !== 'object') return { cur: 0, best: 0, bugun: false };
+  const D = sm.days && typeof sm.days === 'object' && !Array.isArray(sm.days) ? sm.days : null, td = today();
+  let cur = 0, uzun = 0;
+  if (D) {
+    const bor = d => Object.prototype.hasOwnProperty.call(D, d);
+    let i = bor(td) ? 0 : 1; while (i < 400 && bor(kunOldin(i))) { cur++; i++; }
+    let run = 0, old = ''; for (const d of Object.keys(D).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()) { run = old && Date.parse(d) - Date.parse(old) === 864e5 ? run + 1 : 1; old = d; if (run > uzun) uzun = run; }
+  } else if (sm.last === td || sm.last === kunOldin(1)) cur = Math.max(0, Math.floor(+sm.streak || 0));
+  const best = Math.min(3660, Math.max(cur, uzun, Math.floor(+sm.best || 0) || 0));
+  return { cur, best, bugun: D ? Object.prototype.hasOwnProperty.call(D, td) : sm.last === td };
+}
+const yolSum = sid => { try { return (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', sid)?.data || 'null') || {}).sum || null; } catch { return null; } };
+// Haftalik hisobot: yakshanba kechqurun (Toshkent 19:00 dan keyin) botga ulangan ota-onaga. Shu hafta yoki o'tgan hafta shug'ullangan bola bo'lsagina yuboriladi.
+const hhOff = chat => !!getSet('hh_off:' + chat);
+function hhMatn(k, sm) {
+  const D = sm && sm.days && typeof sm.days === 'object' ? sm.days : {}; let kun = 0, misol = 0, oldin = 0;
+  for (let i = 0; i < 14; i++) { const d = kunOldin(i); if (!Object.prototype.hasOwnProperty.call(D, d)) continue; if (i < 7) { kun++; misol += Math.max(0, Math.round(+D[d] || 0)); } else oldin++; }
+  if (!kun && !oldin) return '';
+  const o = olovOf(sm), l = [`${k.name}, ${k.cls} sinf`];
+  if (!kun) l.push('Shu hafta shug‘ullanmadi. O‘tgan hafta shug‘ullangan edi, eslatib qo‘ying.');
+  else { l.push(`Shu hafta 7 kundan ${kun} kun shug‘ullandi`); if (misol) l.push(`${misol} ta misol yechdi`); if (o.cur > 1) l.push(`${o.cur} kun ketma-ket shug‘ullanmoqda`); }
+  if (+sm.total > 0) l.push(`Tugatgan mavzulari: ${Math.max(0, +sm.total)} tadan ${Math.max(0, +sm.done || 0)} tasi`);
+  if (sm.cur && sm.cur.name) l.push('Hozirgi mavzusi: ' + String(sm.cur.name).slice(0, 90));
+  return l.join('\n');
+}
+const HH_KB = on => ({ reply_markup: { inline_keyboard: [[{ text: on ? 'Haftalik hisobotni o‘chirish' : 'Haftalik hisobotni yoqish', callback_data: 'hh:' + (on ? 0 : 1) }]] } });
+function hhYubor() {
+  let n = 0;
+  for (const t of all('SELECT chat_id,phone FROM tg_users')) {
+    if (!t.phone || hhOff(t.chat_id)) continue;
+    const l = kidsOfPhone(t.phone).map(id => { const k = studentInfo(id); return k ? hhMatn(k, yolSum(id)) : ''; }).filter(Boolean);
+    if (!l.length) continue;
+    tgSend(t.chat_id, 'Haftalik hisobot\n\n' + l.join('\n\n') + `\n\nBatafsil: ${siteUrl()}`, HH_KB(true)); n++;
+  }
+  return n;
+}
+function hhTek() { // har 10 daqiqada: yakshanba, Toshkent vaqti bilan 19:00 dan keyin, haftasiga bir marta
+  try {
+    const t = new Date(Date.now() + 5 * 3600e3); if (t.getUTCDay() !== 0 || t.getUTCHours() < 19) return;
+    const td = today(); if (getSet('hh_last') === td) return; setSet('hh_last', td);
+    const n = hhYubor(); if (n) log(null, 'hisobot.haftalik', { soni: n });
+  } catch (e) { console.error('haftalik hisobot', e); }
+}
+if (process.env.NO_BOT !== '1' && process.env.YX_TEST !== '1') setInterval(hhTek, 10 * 60e3).unref();
 const CONTACT_KB = { reply_markup: { keyboard: [[{ text: '📱 Telefon raqamni yuborish', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true } };
 const NO_KB = { reply_markup: { remove_keyboard: true } };
 const tgState = new Map();
@@ -1841,6 +1889,8 @@ async function onUpdate(up) {
   const cb = up.callback_query;
   if (cb) {
     const chat = String(cb.message.chat.id); tg('answerCallbackQuery', { callback_query_id: cb.id });
+    if (/^hh:[01]$/.test(String(cb.data))) { const on = String(cb.data) === 'hh:1'; if (on) run('DELETE FROM settings WHERE key=?', 'hh_off:' + chat); else setSet('hh_off:' + chat, now());
+      return tgSend(chat, on ? 'Haftalik hisobot yoqildi. Har yakshanba kechqurun yuboraman.' : 'Haftalik hisobot o‘chirildi. Endi yakshanba kuni xabar kelmaydi. Xohlasangiz, qayta yoqishingiz mumkin.', HH_KB(on)); }
     const st = tgState.get(chat); if (!st) return;
     const [k, v] = String(cb.data).split(':');
     if (rxCallback(chat, st, k, v)) return;
@@ -1875,6 +1925,7 @@ async function onUpdate(up) {
     tgState.set(chat, { step: 'vq', sid });
     return tgSend(chat, 'Assalomu alaykum! Farzandingiz kabinetining PIN kodini olish uchun pastdagi tugma bilan telefon raqamingizni yuboring.', CONTACT_KB);
   }
+  if (txt === '/hisobot') { const on = !hhOff(chat); return tgSend(chat, on ? 'Haftalik hisobot yoqilgan: har yakshanba kechqurun farzandingiz shu hafta necha kun shug‘ullangani va nechta misol yechgani haqida xabar keladi.' : 'Haftalik hisobot o‘chirilgan.', HH_KB(on)); }
   const st = tgState.get(chat);
   if (rxText(chat, st, txt)) return;
   if (st?.step === 'child' && txt && !txt.startsWith('/')) {
@@ -2717,11 +2768,13 @@ A['yol.get'] = (u, b) => {
   const kids = yolKids(u); if (!kids.length) return { kids: [], sid: 0, prog: null, sum: null };
   const k = kids.find(x => x.id === +b.student_id) || kids[0];
   let prog = null; try { prog = JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', k.id)?.data || 'null'); } catch { }
-  return { kids: kids.map(x => ({ id: x.id, name: x.name, grade: x.grade, cls: x.cls })), sid: k.id, prog, sum: (prog && prog.sum) || null };
+  const sum = (prog && prog.sum) || null; if (sum && typeof sum === 'object') { const o = olovOf(sum); sum.streak = o.cur; sum.best = o.best; }
+  return { kids: kids.map(x => ({ id: x.id, name: x.name, grade: x.grade, cls: x.cls })), sid: k.id, prog, sum };
 };
 A['yol.yoz'] = (u, b) => {
   const sid = +b.student_id; need(yolKids(u).some(x => x.id === sid));
   const p = b.prog; if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) bad('Noto‘g‘ri ma’lumot');
+  if (p.sum && typeof p.sum === 'object' && !Array.isArray(p.sum)) { const eski = yolSum(sid); p.sum.best = Math.max(olovOf(p.sum).best, Math.min(3660, Math.floor(+(eski && eski.best) || 0) || 0)); } // eng uzun ketma-ketlik kamaymaydi
   const data = JSON.stringify(p); if (data.length > 150000) bad('Ma’lumot juda katta');
   run('INSERT INTO yol_prog(student_id,data,at) VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET data=excluded.data, at=excluded.at', sid, data, now());
   return { ok: true };
@@ -2779,7 +2832,7 @@ A['ustoz.get'] = (u, b) => {
     let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
     const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
     const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0;
-    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
+    return { id: s.id, name: s.name, jins: s.jins === 'a' || s.jins === 'e' ? s.jins : '', started: !!sm, olov: olovOf(sm).cur, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days),
       cur: sm && sm.cur ? String(sm.cur.name || '').slice(0, 90) : '', in: phones.some(x => inSet.has(x)), tel: phones.length > 0, ...(s.ozi === 1 ? { yangi: 1, pat: s.patronymic || '' } : {}) };
   });
   let holat = null; try { holat = JSON.parse(one('SELECT data FROM uholat WHERE class_id=?', c.id)?.data || 'null'); } catch { }
@@ -2810,7 +2863,7 @@ A['dir.get'] = u => {
       let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
       const phones = [s.phone, ...all('SELECT phone FROM student_phones WHERE student_id=?', s.id).map(r => r.phone)].map(phone9).filter(Boolean);
       const days = sm && sm.days && typeof sm.days === 'object' ? Object.keys(sm.days).filter(d => d >= wk).length : 0, x = sco[s.id];
-      return { id: s.id, name: s.name, started: !!sm, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days), in: phones.some(p => inSet.has(p)),
+      return { id: s.id, name: s.name, started: !!sm, olov: olovOf(sm).cur, done: sm ? Math.max(0, +sm.done || 0) : 0, total: sm ? Math.max(0, +sm.total || 0) : 0, days: Math.min(7, days), in: phones.some(p => inSet.has(p)),
         tn: x[2], tp: x[1] ? Math.round(x[0] / x[1] * 100) : null, rep: sm && Array.isArray(sm.rep) ? sm.rep.map(r => String((r && r.name) || '').slice(0, 90)).filter(Boolean).slice(0, 5) : [] };
     });
     return { id: c.id, name: c.name, grade: c.grade, ustoz: { name: (t && t.name) || c.teacher_name || '', jins: t && (t.jins === 'a' || t.jins === 'e') ? t.jins : '', bor: !!t, pin: !!(t && t.pin), kun: t ? ago(t.last_login) : null }, kids, tests: tests.slice(0, 30), ochiq };
