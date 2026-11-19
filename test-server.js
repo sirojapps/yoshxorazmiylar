@@ -3333,11 +3333,29 @@ A['user.card'] = (u, b) => {
   return { id: x.id, role: x.role, rol: RL[x.role] || '', name: x.role === 'ceo' ? (x.name || 'CEO') : x.name, phone: phone9(x.phone), avatar: String(x.avatar || '').startsWith('data:') ? x.avatar : '', last: x.last_login || '', since: x.created_at || '', active: x.active, school, cls, kids, th };
 };
 
+// ---- GOOGLE QOIDASI (19.11.2026, Siroj: "bunaqa kamchiliklarga boshqa yo'l qo'yma").
+// Asosiy sayt: Google bosh sahifani ochib ko'ra olishi SHART. Bosh sahifa ochilganda /api/ver va /api/state chaqiriladi —
+// ular robots.txt da yopiq bo'lsa, Google sahifani "Server bilan aloqa yo'q" xatosi bilan ko'radi va Search Console
+// "robots.txt da bloklangan" deb xabar beradi. Shuning uchun shu ikkitasi ochiq, qolgan /api/ yopiq.
+// Bosh sahifa yangi manzilni chaqiradigan bo'lsa — shu ro'yxatga qo'shiladi. Tekshiruv: tekshiruv/google.js (har yuklashda o'zi ishlaydi).
+// Sinov sayti: butunlay yopiq. Kabinet, dars, sertifikat (/t/) sahifalari va /api/ qidiruvga chiqmaydi (X-Robots-Tag: noindex).
+const BOT_OCHIQ_API = ['/api/ver', '/api/state'];
+function robotsTxt() {
+  if (process.env.YX_TEST === '1') return 'User-agent: *\nDisallow: /\n';
+  return 'User-agent: *\nAllow: /\n' + BOT_OCHIQ_API.map(p => 'Allow: ' + p + '$\n').join('') + 'Disallow: /api/\n\nSitemap: https://yoshxorazmiylar.uz/sitemap.xml\n';
+}
+function noIndex(p) {
+  if (process.env.YX_TEST === '1') return true;
+  if (p === '/' || p === '/index.html' || /^\/google[0-9a-f]+\.html$/.test(p)) return false;
+  return /^\/(api|t|ph|oq|darslar|a\/k)(\/|$)/.test(p) || /\.html?$/i.test(p);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     const ip = String(req.headers['x-real-ip'] || req.socket.remoteAddress);
     res.setHeader('Content-Security-Policy', CSP); // har javobga; kabinet va dars sahifalarida pastda CSP_FRAME bilan almashtiriladi
+    if (noIndex(url.pathname)) res.setHeader('X-Robots-Tag', 'noindex'); // Google qidiruviga faqat bosh sahifa chiqadi (GOOGLE QOIDASI — pastda)
     if (isHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=15552000'); // brauzer 180 kun faqat https bilan ochadi
     if (url.pathname === '/api/login' && req.method === 'POST') {
       if (failBlocked(ip)) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });
@@ -3380,8 +3398,7 @@ const server = http.createServer(async (req, res) => {
       const isCeo = !!(p9 && c && c.pass && (phone9(getSet('ceo_phone')) || phone9(c.phone)) === p9);
       return send(res, 200, { kind: isCeo ? 'parol' : 'pin' });
     }
-    if (url.pathname === '/robots.txt' && process.env.YX_TEST === '1') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('User-agent: *\nDisallow: /\n'); }
-    if (url.pathname === '/robots.txt') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...SEC }); return res.end('User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://yoshxorazmiylar.uz/sitemap.xml\n'); }
+    if (url.pathname === '/robots.txt') { res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...SEC }); return res.end(robotsTxt()); }
     if (url.pathname === '/sitemap.xml') { res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', ...SEC }); return res.end('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://yoshxorazmiylar.uz/</loc></url></urlset>\n'); }
     if (url.pathname === '/googlea6059590c58b5b1a.html') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...SEC }); return res.end('google-site-verification: googlea6059590c58b5b1a.html'); }
     if (url.pathname === '/api/logout') { run('DELETE FROM sessions WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }, { 'Set-Cookie': 'yx=; Path=/; Max-Age=0' }); }

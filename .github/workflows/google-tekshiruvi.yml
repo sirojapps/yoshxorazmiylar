@@ -1,0 +1,37 @@
+# Sayt Google qidiruvi uchun to'g'ri ochiq/yopiqligini o'zi tekshiradi (tekshiruv/google.js).
+# 1) har yuklashda — ombordagi kodni; 2) yuklashdan 12 daqiqa keyin va har kuni — haqiqiy saytni.
+name: Google tekshiruvi
+on:
+  push:
+    branches: [main]
+    paths: [server.js, test-server.js, index.html, test-index.html, install.sh, tekshiruv/**, .github/workflows/google-tekshiruvi.yml]
+  schedule:
+    - cron: '17 3 * * *' # har kuni 08:17 (Toshkent)
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kod:
+    name: Ombordagi kod
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: node tekshiruv/google.js
+  sayt:
+    name: Haqiqiy sayt
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Server yangilanishini kutish (5 daqiqada bir yangilanadi)
+        if: github.event_name == 'push'
+        run: sleep 720
+      - run: node tekshiruv/google.js --jonli
