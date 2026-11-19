@@ -3802,10 +3802,13 @@ function fitLogin(){const l=document.querySelector('#app .login');if(!l||!l.quer
   const hero=l.querySelector('.lhero');
   if(getComputedStyle(l).display==='grid'){if(hero)hero.style.gridRow='1 / span '+kids.length;l.style.paddingBlock='12px'}
   const set=z=>kids.forEach(e=>{e.style.zoom=z===1?'':z});
-  const over=()=>document.documentElement.scrollHeight-innerHeight;
-  set(1);if(over()<=0)return;
+  // Telefonda 100vh manzil qatori yashiringandagi balandlik (innerHeight dan katta) — shuning uchun min-height o'lchashda hisobga olinmaydi, faqat ichidagi narsalar balandligi o'lchanadi
+  const mh=l.style.minHeight;l.style.minHeight='0px';
+  const over=()=>Math.ceil(l.getBoundingClientRect().bottom+scrollY)-innerHeight;
+  const done=()=>{l.style.minHeight=mh};
+  set(1);if(over()<=0)return done();
   let lo=.35,hi=1;for(let i=0;i<9;i++){const m=(lo+hi)/2;set(m);if(over()<=0)lo=m;else hi=m}
-  set(lo)}
+  set(lo);done()}
 let __fz;addEventListener('resize',()=>{clearTimeout(__fz);__fz=setTimeout(fitLogin,80)});
 function loginHero(){document.body.classList.add('lgx');const l=document.querySelector('#app .login');if(!l||l.querySelector('.lhero'))return;
   l.insertAdjacentHTML('afterbegin','<div class="lhero"><img src="/a/kirish.webp?v=1" alt="" onerror="this.parentNode.remove();document.body.classList.remove(&quot;lgx&quot;)"></div>');
