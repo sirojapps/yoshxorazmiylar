@@ -148,7 +148,7 @@ const log = (uid, action, detail) => { if (MINOR_ACTS.includes(action)) return; 
 const PERMS = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'reyting', 'pinlar', 'pin_korish', 'tarix', 'xabar', 'mashq', 'yuklash', 'sertifikat'];
 // kuzatuvchi: hamma narsani ko'radi, hech narsani o'zgartirmaydi (faqat CEO beradi)
 const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_korish', 'mashq', 'sardor', 'sertifikat'];
-const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
+const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'dm.get', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 function newPin() {
@@ -984,6 +984,17 @@ const probNsig = p => { const w = probNorm(p.q); if (w.filter(x => x !== '#').le
 try { for (const r of all("SELECT id,q,img FROM probs WHERE nsig IS NULL OR nsig=''")) { const ns = probNsig({ q: r.q, img: r.img }); if (ns) run('UPDATE probs SET nsig=? WHERE id=?', ns, r.id); } } catch (e) { }
 function probRow(r) { const o = JSON.parse(r.o); return { id: r.id, grade: r.grade, topic: r.topic, kind: r.kind, level: r.level, q: r.q, img: r.img, o, a: r.a, fix: !!r.fix, sol: r.sol, src: r.src, at: r.at, pic: !!r.img || o.some(v => v.i) }; }
 
+// Darslar va mavzular (21.11.2026): tayyor darslardan qaysilari bolalarga ochilganini CEO belgilaydi. Ro'yxat settings.dm_ochiq da (mavzu kodlari).
+const dmOchiq = () => { try { const a = JSON.parse(getSet('dm_ochiq') || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch { return []; } };
+A['dm.get'] = u => { need(isTeam(u)); return { ochiq: dmOchiq() }; };
+A['dm.set'] = (u, b) => {
+  need(u.role === 'ceo', 'Darsni faqat CEO ochadi yoki yopadi');
+  const id = String(b.id || ''); if (!/^[0-9A-Za-z]{2,12}$/.test(id)) bad('Mavzu kodi noto‘g‘ri');
+  const s = new Set(dmOchiq()), och = !!b.och; if (och) s.add(id); else s.delete(id);
+  setSet('dm_ochiq', JSON.stringify([...s]));
+  log(u.id, och ? 'dars.ochish' : 'dars.yopish', { id, name: String(b.nom || '').slice(0, 160) });
+  return { ochiq: [...s] };
+};
 A['pb.meta'] = u => {
   need(canKey(u), 'Misollar bazasi faqat kalit huquqi borlar uchun');
   const counts = {};
