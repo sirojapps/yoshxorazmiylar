@@ -987,6 +987,7 @@ function probRow(r) { const o = JSON.parse(r.o); return { id: r.id, grade: r.gra
 // Darslar va mavzular (21.11.2026): tayyor darslardan qaysilari bolalarga ochilganini CEO belgilaydi. Ro'yxat settings.dm_ochiq da (mavzu kodlari).
 const dmOchiq = () => { try { const a = JSON.parse(getSet('dm_ochiq') || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch { return []; } };
 A['dm.get'] = u => { need(isTeam(u)); return { ochiq: dmOchiq() }; };
+A['dm.ochiq'] = () => ({ ochiq: dmOchiq() }); // bola kabineti: CEO ochgan darslar ro'yxati (kirgan har foydalanuvchi ko'ra oladi)
 A['dm.set'] = (u, b) => {
   need(u.role === 'ceo', 'Darsni faqat CEO ochadi yoki yopadi');
   const id = String(b.id || ''); if (!/^[0-9A-Za-z]{2,12}$/.test(id)) bad('Mavzu kodi noto‘g‘ri');
