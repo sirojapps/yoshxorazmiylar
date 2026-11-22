@@ -87,11 +87,11 @@ if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-dars
 fi
 put_darslar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi
   [ "$DARS_OK" = 1 ] || return 0
-  if [ -d "$1/darslar" ] && [ ! -L "$1/darslar" ] && cmp -s /tmp/yx-darslar.tgz "$3" && cmp -s "$DQ/qismlar.txt" "$1/darslar/qismlar.txt" 2>/dev/null; then return 0; fi # o'zgarmagan
+  if [ -d "$1/darslar" ] && [ ! -L "$1/darslar" ] && cmp -s /tmp/yx-darslar.tgz "$3" && cmp -s "$DQ/qismlar.txt" "$1/darslar/.bolak-ok" 2>/dev/null; then return 0; fi # o'zgarmagan (.bolak-ok: bo'laklar ham shu papkaga yoyilganining belgisi)
   rm -rf "$1/darslar.new"; mkdir -p "$1/darslar.new"
   tar -xzf /tmp/yx-darslar.tgz -C "$1/darslar.new" --no-same-owner
   while read -r QH QF; do [ -n "${QF:-}" ] || continue; tar -xzf "$DQ/$QF" -C "$1/darslar.new" --no-same-owner; done < "$DQ/qismlar.txt"
-  [ -e "$1/darslar.new/qismlar.txt" ] || : > "$1/darslar.new/qismlar.txt"
+  cp "$DQ/qismlar.txt" "$1/darslar.new/.bolak-ok"
   rm -rf "$1/darslar.old"
   # eski tartibda sinov saytida bu papka asosiy saytga havola (symlink) edi: faqat havolaning o'zi olib tashlanadi, asosiy papkaga tegilmaydi
   if [ -L "$1/darslar" ]; then rm -f "$1/darslar"; elif [ -d "$1/darslar" ]; then mv "$1/darslar" "$1/darslar.old"; fi
