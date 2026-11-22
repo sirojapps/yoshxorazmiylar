@@ -69,13 +69,29 @@ else
 if cmp -s "$APP/public/index.html.new" "$APP/public/index.html" 2>/dev/null; then rm -f "$APP/public/index.html.new"
 else mv "$APP/public/index.html.new" "$APP/public/index.html"; echo "Sahifa yangilandi (asosiy)"; fi
 # darslar.tar.gz → public/darslar. Har sayt (asosiy va sinov) O'Z nusxasini oladi: sinov sayti asosiy sayt papkasiga bog'lanmaydi.
-DARS_OK=0
-if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt 2>/dev/null && grep -qx 'index.html' /tmp/yx-darslar.txt; then DARS_OK=1; fi
+# Darslar ko'payib, bitta arxiv GitHub chegarasiga (100 MB) yaqinlashgani uchun dars fayllari BO'LAKLARDA (darslar-<sinf>-<chorak>.tar.gz) turadi.
+# Asosiy arxiv ichidagi qismlar.txt har bo'lakning nomi va sha256 yig'indisini aytadi: bo'lak o'zgarsa asosiy arxiv ham o'zgaradi.
+# Biror bo'lak hali yetib kelmagan yoki yig'indisi mos kelmasa — darslar papkasiga tegilmaydi, keyingi yangilanishda qayta uriniladi.
+DARS_OK=0; DQ=/tmp/yx-dq; rm -rf "$DQ"; mkdir -p "$DQ"; : > "$DQ/qismlar.txt"
+if olish darslar.tar.gz /tmp/yx-darslar.tgz 2>/dev/null && tar -tzf /tmp/yx-darslar.tgz > /tmp/yx-darslar.txt 2>/dev/null && grep -qx 'index.html' /tmp/yx-darslar.txt; then DARS_OK=1
+  if grep -qx 'qismlar.txt' /tmp/yx-darslar.txt; then
+    tar -xzf /tmp/yx-darslar.tgz -O qismlar.txt > "$DQ/qismlar.txt" 2>/dev/null || DARS_OK=0
+    while read -r QH QF; do
+      [ -n "${QF:-}" ] || continue
+      case "$QF" in darslar-*.tar.gz) ;; *) DARS_OK=0; echo "Dars bo'lagi nomi noto'g'ri: $QF"; break;; esac
+      case "$QF" in */*|*..*) DARS_OK=0; echo "Dars bo'lagi nomi noto'g'ri: $QF"; break;; esac
+      if olish "$QF" "$DQ/$QF" 2>/dev/null && [ "$(sha256sum "$DQ/$QF" | cut -d' ' -f1)" = "$QH" ] && tar -tzf "$DQ/$QF" >/dev/null 2>&1; then :
+      else DARS_OK=0; echo "Dars bo'lagi hali tayyor emas: $QF (keyingi yangilanishda qayta uriniladi)"; break; fi
+    done < "$DQ/qismlar.txt"
+  fi
+fi
 put_darslar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi
   [ "$DARS_OK" = 1 ] || return 0
-  if [ -d "$1/darslar" ] && [ ! -L "$1/darslar" ] && cmp -s /tmp/yx-darslar.tgz "$3"; then return 0; fi # o'zgarmagan
+  if [ -d "$1/darslar" ] && [ ! -L "$1/darslar" ] && cmp -s /tmp/yx-darslar.tgz "$3" && cmp -s "$DQ/qismlar.txt" "$1/darslar/qismlar.txt" 2>/dev/null; then return 0; fi # o'zgarmagan
   rm -rf "$1/darslar.new"; mkdir -p "$1/darslar.new"
   tar -xzf /tmp/yx-darslar.tgz -C "$1/darslar.new" --no-same-owner
+  while read -r QH QF; do [ -n "${QF:-}" ] || continue; tar -xzf "$DQ/$QF" -C "$1/darslar.new" --no-same-owner; done < "$DQ/qismlar.txt"
+  [ -e "$1/darslar.new/qismlar.txt" ] || : > "$1/darslar.new/qismlar.txt"
   rm -rf "$1/darslar.old"
   # eski tartibda sinov saytida bu papka asosiy saytga havola (symlink) edi: faqat havolaning o'zi olib tashlanadi, asosiy papkaga tegilmaydi
   if [ -L "$1/darslar" ]; then rm -f "$1/darslar"; elif [ -d "$1/darslar" ]; then mv "$1/darslar" "$1/darslar.old"; fi
@@ -344,7 +360,7 @@ fi
 
 }
 sinov_sayti || echo "DIQQAT: sinov sayti sozlanmadi — asosiy sayt ishlayveradi."
-rm -f /tmp/yx-darslar.tgz /tmp/yx-darslar.txt
+rm -rf /tmp/yx-darslar.tgz /tmp/yx-darslar.txt "$DQ"
 
 say "7/8 Kunlik zaxira nusxa sozlanmoqda"
 cat > /etc/cron.d/yx-backup <<EOF
