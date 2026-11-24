@@ -1835,6 +1835,19 @@ function obunaEslat() {
   }
 }
 setInterval(() => { try { obunaEslat(); } catch (e) { console.error('obuna eslatma', e.message); } }, 3600e3).unref();
+// PIN kaliti va baza faqat CEO yuklab oladigan parolli nusxada server tashqarisida saqlanadi. 30 kundan beri yuklab olinmagan bo'lsa —
+// CEO'ga Telegram'da eslatma (haftasiga bir marta); "Zaxira nusxa" sahifasida ham ogohlantirish chiqadi (backup.list → yuklab).
+const ZX_ESKI = 30 * 864e5;
+function zaxiraEslat() {
+  if (process.env.YX_TEST === '1') return;
+  const y = getSet('zaxira_yuklab'), e = getSet('zaxira_eslatma');
+  if (y && Date.now() - Date.parse(y) < ZX_ESKI) return;
+  if (e && Date.now() - Date.parse(e) < 7 * 864e5) return;
+  const c = ceoRow(); if (!c) return;
+  setSet('zaxira_eslatma', now());
+  notifyUsers([c.id], `Eslatma: bazaning parolli nusxasini ${y ? '30 kundan beri' : 'hali bir marta ham'} yuklab olmagansiz. Server buzilsa, ma'lumot va PIN kodlar faqat shu nusxa bilan tiklanadi. ${siteUrl()} → Zaxira nusxa → Parol bilan yuklab olish.`);
+}
+setInterval(() => { try { zaxiraEslat(); } catch (e) { console.error('zaxira eslatma', e.message); } }, 3600e3).unref();
 function mavzuPart(m) { if (!m) return null;
   const steps = m.steps || [], ex = m.ex || [], xs = Array.isArray(m.x) ? m.x : (m.x ? [m.x] : []);
   return { t: m.t, steps: steps.slice(0, 2), ex: ex.slice(0, 1), x: xs.slice(0, 1), mashq: [], locked: { steps: Math.max(0, steps.length - 2), ex: Math.max(0, ex.length - 1), x: Math.max(0, xs.length - 1), mashq: (m.mashq || []).length }, ...(m.steps ? {} : { short: true }) }; }
@@ -2389,7 +2402,7 @@ A['backup.list'] = u => {
   need(u.role === 'ceo', 'Zaxira nusxalarni faqat CEO ko‘radi');
   const tk = new Set(all("SELECT detail FROM audit WHERE action IN ('zaxira.tiklash','zaxira.tiklandi')").map(r => { try { return JSON.parse(r.detail).safety; } catch { return ''; } }));
   const l = bkFiles().map(x => x.safety ? { ...x, tiklash: tk.has(x.f) } : x), last = l.find(x => !x.safety);
-  return { list: l, last: last ? { ...last, ...bkCheck(last.f) } : null, live: countsOf(db), restored: getSet('restored') };
+  return { list: l, last: last ? { ...last, ...bkCheck(last.f) } : null, live: countsOf(db), restored: getSet('restored'), yuklab: getSet('zaxira_yuklab') };
 };
 A['backup.check'] = (u, b) => { need(u.role === 'ceo'); return { ...bkFind(b.f), ...bkCheck(b.f) }; };
 A['backup.restore'] = (u, b) => {
@@ -3727,7 +3740,7 @@ const server = http.createServer(async (req, res) => {
           fs.writeFileSync(kf, PIN_KEY.toString('hex') + '\n', { mode: 0o600 });
           fs.writeFileSync(rf, `Yosh Xorazmiylar — zaxira nusxa (${name}).\r\n\r\n${name}.db — butun baza.\r\npin-kalit — PIN kodlar kaliti. Bazani yangi serverga tiklaganda bu faylni ham data/pin-kalit qilib qo'ying,\r\naks holda hech kimning PIN'i ishlamaydi. Bu faylni hech kimga bermang.\r\n`);
           await zipEnc(z, [f, kf, rf], pw);
-          log(u.id, 'zaxira.yuklab_olish', {});
+          log(u.id, 'zaxira.yuklab_olish', {}); setSet('zaxira_yuklab', now());
           return send(res, 200, fs.readFileSync(z), { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${name}.zip"` });
         } finally { fs.rmSync(dir, { recursive: true, force: true }); }
       }

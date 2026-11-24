@@ -56,23 +56,31 @@ fi
 # Darslar ko'payib, bitta arxiv GitHub chegarasiga (100 MB) yaqinlashgani uchun dars fayllari BO'LAKLARDA (darslar-<sinf>-<chorak>.tar.gz) turadi.
 # Asosiy arxiv ichidagi qismlar.txt har bo'lakning nomi va sha256 yig'indisini aytadi: bo'lak o'zgarsa asosiy arxiv ham o'zgaradi.
 # Biror bo'lak hali yetib kelmagan yoki yig'indisi mos kelmasa — darslar papkasiga tegilmaydi, keyingi yangilanishda qayta uriniladi.
+# Arxivlar root huquqida ochiladi: ichida faqat oddiy fayl va papka bo'lishi shart. Havola (symlink/hardlink), qurilma fayli,
+# "/" bilan boshlanadigan yoki ".." li yo'l bo'lsa — arxiv umuman ochilmaydi (papkadan tashqariga yozib bo'lmasin).
+tar_toza(){ # $1 = arxiv. Toza bo'lsa 0
+  local t n; t=$(tar -tvzf "$1" 2>/dev/null) || return 1; n=$(tar -tzf "$1" 2>/dev/null) || return 1
+  # grep -q emas: pipefail bilan grep erta chiqsa printf SIGPIPE oladi va natija teskari bo'lib qolishi mumkin
+  if printf '%s\n' "$t" | grep -v '^[-d]' >/dev/null; then echo "DIQQAT: $(basename "$1") ichida oddiy fayl/papkadan boshqa narsa (havola va h.k.) bor — ochilmadi."; return 1; fi
+  if printf '%s\n' "$n" | grep -E '^/|(^|/)\.\.(/|$)' >/dev/null; then echo "DIQQAT: $(basename "$1") ichida papkadan tashqariga chiqadigan yo'l bor — ochilmadi."; return 1; fi
+  return 0; }
 arxiv_tayyorla(){ # $1 = p | t. Natija: $W/$1/darslar.tgz + q/ (bo'laklar) va dars.ok; $W/$1/rasm.tgz va rasm.ok
   local d="$W/$1" ok=0 QH QF
   : > "$d/q/qismlar.txt"
-  if olish "$1" darslar.tar.gz "$d/darslar.tgz" 2>/dev/null && tar -tzf "$d/darslar.tgz" > "$d/darslar.txt" 2>/dev/null && grep -qx 'index.html' "$d/darslar.txt"; then ok=1
+  if olish "$1" darslar.tar.gz "$d/darslar.tgz" 2>/dev/null && tar -tzf "$d/darslar.tgz" > "$d/darslar.txt" 2>/dev/null && grep -qx 'index.html' "$d/darslar.txt" && tar_toza "$d/darslar.tgz"; then ok=1
     if grep -qx 'qismlar.txt' "$d/darslar.txt"; then
       tar -xzf "$d/darslar.tgz" -O qismlar.txt > "$d/q/qismlar.txt" 2>/dev/null || ok=0
       while read -r QH QF; do
         [ -n "${QF:-}" ] || continue
         case "$QF" in darslar-*.tar.gz) ;; *) ok=0; echo "Dars bo'lagi nomi noto'g'ri: $QF"; break;; esac
         case "$QF" in */*|*..*) ok=0; echo "Dars bo'lagi nomi noto'g'ri: $QF"; break;; esac
-        if olish "$1" "$QF" "$d/q/$QF" 2>/dev/null && [ "$(sha256sum "$d/q/$QF" | cut -d' ' -f1)" = "$QH" ] && tar -tzf "$d/q/$QF" >/dev/null 2>&1; then :
+        if olish "$1" "$QF" "$d/q/$QF" 2>/dev/null && [ "$(sha256sum "$d/q/$QF" | cut -d' ' -f1)" = "$QH" ] && tar -tzf "$d/q/$QF" >/dev/null 2>&1 && tar_toza "$d/q/$QF"; then :
         else ok=0; echo "Dars bo'lagi hali tayyor emas: $QF (keyingi yangilanishda qayta uriniladi)"; break; fi
       done < "$d/q/qismlar.txt"
     fi
   fi
   if [ "$ok" = 1 ]; then touch "$d/dars.ok"; fi
-  if olish "$1" rasmlar.tar.gz "$d/rasm.tgz" 2>/dev/null && tar -tzf "$d/rasm.tgz" >/dev/null 2>&1; then touch "$d/rasm.ok"; fi
+  if olish "$1" rasmlar.tar.gz "$d/rasm.tgz" 2>/dev/null && tar -tzf "$d/rasm.tgz" >/dev/null 2>&1 && tar_toza "$d/rasm.tgz"; then touch "$d/rasm.ok"; fi
   return 0; }
 put_darslar(){ # $1 = public papka, $2 = asosiy | sinov, $3 = saqlangan arxiv nusxasi, $4 = p | t
   local d="$W/$4" QH QF
@@ -251,8 +259,9 @@ fi
 # 24.11.2026 (2-versiya): sinov saytining PIN kaliti ALOHIDA (asosiy saytnikidan ko'chirilmaydi) va jamoa / sinov maktablari
 # odamlariga sinov sayti uchun YANGI PIN beriladi — ular faqat serverdagi $SINOV_PINLAR faylida (root o'qiydi).
 # Sinov sayti buzib kirilsa ham undan asosiy saytning birorta PIN'ini topib bo'lmaydi. Obuna jadvallari ham niqoblanadi.
+# 3-versiya: CEO paroli ham sinov bazasiga o'tmaydi (asosiy saytdagi parol sinov saytida ishlamaydi) — CEO sinov saytiga sinov PIN'i bilan kiradi.
 # Tartib o'zgarsa NIQOB_V oshiriladi: mavjud sinov bazasi keyingi yangilanishda qayta niqoblanadi.
-NIQOB_V=2
+NIQOB_V=3
 SINOV_PINLAR="/root/yx-sinov-pinlar.txt"
 niqobla(){ # $1 = sinov bazasi fayli (faqat $APPT ichida)
   case "$1" in "$APPT"/*) ;; *) echo "niqobla: faqat sinov bazasi uchun"; return 1;; esac
@@ -306,7 +315,9 @@ try {
   const newPin = () => { let p; do { p = String(crypto.randomInt(100000, 1000000)); } while (usedPin.has(p)); usedPin.add(p); return p; };
   for (const u of all('SELECT * FROM users')) {
     if (ozi(u)) { // jamoa va sinov maktablari: ism va raqam o'sha, PIN — faqat sinov sayti uchun yangisi (namuna hisoblarining ichki belgisiga tegilmaydi)
+      if (uc.has('pass')) run("UPDATE users SET pass='' WHERE id=?", u.id); // asosiy saytdagi parol sinov saytida ishlamaydi
       if (u.pin != null && String(u.pin) !== '' && !String(u.pin).startsWith('demo-')) { const p = newPin(); run('UPDATE users SET pin=? WHERE id=?', pinH(p), u.id); sinovPin.push([u.role, u.name || '', u.phone || '', p]); }
+      else if (u.role === 'ceo') { const p = newPin(); run('UPDATE users SET pin=? WHERE id=?', pinH(p), u.id); sinovPin.push([u.role, u.name || '', u.phone || '', p]); } // parol bilan kirgan CEO'ning PIN'i bo'lmasligi mumkin
       continue;
     }
     // PIN: haqiqiy odamniki sinov saytida ishlamasin — eski (ochiq) yozuv ham, maxfiy kalitli yozuv ham tasodifiy qiymatga almashtiriladi
@@ -344,7 +355,7 @@ try {
   run("INSERT INTO settings(key,value) VALUES('niqob',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", String(V));
   // kalit va PIN'lar ro'yxati bazaga yozilishidan OLDIN saqlanadi (bittasi yozilmasa — hech narsa o'zgarmaydi)
   fs.writeFileSync(path.join(root, 'data', 'pin-kalit'), KEY.toString('hex') + '\n', { mode: 0o600 });
-  if (pinFile) fs.writeFileSync(pinFile, `Sinov sayti (test.yoshxorazmiylar.uz) uchun PIN'lar — ${new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')} (Toshkent vaqti).\nFaqat sinov saytida ishlaydi, asosiy saytdagi PIN'ingiz o'zgarmagan.\n\n` + sinovPin.map(r => r.join(' | ')).join('\n') + '\n', { mode: 0o600 });
+  if (pinFile) fs.writeFileSync(pinFile, `Sinov sayti (test.yoshxorazmiylar.uz) uchun PIN'lar — ${new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')} (Toshkent vaqti).\nFaqat sinov saytida ishlaydi (parol yo'q, PIN bilan kiriladi), asosiy saytdagi PIN va parolingiz o'zgarmagan.\n\n` + sinovPin.map(r => r.join(' | ')).join('\n') + '\n', { mode: 0o600 });
   db.exec('COMMIT');
   console.log(`Sinov bazasi niqoblandi: ${st.bola} o'quvchi, ${st.odam} kattalar, ${tel.size} telefon raqami almashtirildi; ${sinovPin.length} kishiga sinov PIN'i berildi (${pinFile || '-'}).`);
 } catch (e) { db.exec('ROLLBACK'); console.error('niqob xatosi:', e.message); process.exit(1); }

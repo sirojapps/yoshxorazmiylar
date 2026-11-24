@@ -202,6 +202,7 @@ class Kim {
           const x = spawnSync('7z', ['x', '-pSinov-parol-123', '-o' + path.join(zd, 'x'), zf]);
           const ich = x.status === 0 ? fs.readdirSync(path.join(zd, 'x')) : [];
           if (!ich.some(f => f.endsWith('.db'))) xato('zaxira ZIP ichida baza yo‘q');
+          if (!(await ceo.f('backup.list', {})).yuklab) xato('zaxira yuklab olingan vaqt saqlanmadi (eslatma uchun)');
           if (!ich.includes('pin-kalit') || fs.readFileSync(path.join(zd, 'x', 'pin-kalit'), 'utf8').trim() !== fs.readFileSync(path.join(DIR, 'data', 'pin-kalit'), 'utf8').trim()) xato('zaxira ZIP ichida PIN kaliti yo‘q yoki boshqa');
         }
       } }
