@@ -23,7 +23,7 @@ function boot() {
   fs.copyFileSync(SRV, path.join(DIR, 'server.js'));
   fs.writeFileSync(path.join(DIR, 'public', 'index.html'), '<!doctype html><title>YOSH XORAZMIYLAR</title>');
   fs.mkdirSync(path.join(DIR, 'public', 'darslar'), { recursive: true });
-  for (const k of ['2A1', '2A2']) fs.writeFileSync(path.join(DIR, 'public', 'darslar', k + '.html'), '<!doctype html><title>dars</title>DARS-MAZMUNI');
+  for (const k of ['2A1', '2A2', '3A1']) fs.writeFileSync(path.join(DIR, 'public', 'darslar', k + '.html'), '<!doctype html><title>dars</title>DARS-MAZMUNI');
   fs.writeFileSync(path.join(DIR, 'public', 'darslar', 'index.html'), '<!doctype html><title>darslar</title>');
   const p = spawn(process.execPath, ['--no-warnings', path.join(DIR, 'server.js')], { env: { ...process.env, DATA_DIR: path.join(DIR, 'data'), BACKUP_DIR: path.join(DIR, 'backups'), PORT: String(PORT), NO_BOT: '1', YX_TEST: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = ''; p.stdout.on('data', d => log += d); p.stderr.on('data', d => log += d);
@@ -146,6 +146,10 @@ class Kim {
     if (await dars(otaA, '2A1')) xato('obuna majburiy: obunasiz bola darsni ochdi');
     await ceo.f('obuna.yoq', { student_id: kA, turi: 'oy' });
     if (!(await dars(otaA, '2A1'))) xato('obuna majburiy: obunali bola darsni ocha olmadi ');
+    // boshqa sinf darsi: "obuna kerak" emas, "boshqa sinf uchun" deyiladi
+    await ceo.f('dm.set', { id: '3A1', och: true });
+    { const r = await fetch(B + '/darslar/3A1.html', { headers: { Cookie: otaA.ck } }); const t = await r.text();
+      if (r.status !== 403 || !t.includes('boshqa sinf')) xato('boshqa sinf darsi: noto‘g‘ri javob (' + r.status + ')'); }
     await ceo.f('obuna.sozlama', { majburiy: false });
     // ---------------- 5) PIN (2- va 3-band): bazada ochiq PIN yo'q; telefonsiz PIN berilmaydi; PIN faqat o'z raqami bilan ochiladi
     const ochiq = q('SELECT id FROM users WHERE pin GLOB ?', '[0-9][0-9][0-9][0-9][0-9][0-9]');
@@ -158,8 +162,22 @@ class Kim {
     const pA = await pin('ota', '901000006');
     if ((await new Kim('begona').f('login', { phone: '939999999', pin: pA }, true)).status === 200) xato('PIN begona raqam bilan ochildi');
     if ((await new Kim('ota2').f('login', { phone: '901000006', pin: pA }, true)).status !== 200) xato('PIN o‘z raqami bilan ochilmadi');
+    // zaxiradan tiklangan eski (ochiq) PIN: begona raqam bilan urinish uni o'zgartirmaydi; egasi kirganda maxfiy ko'rinishga o'tadi
+    { const w = new DatabaseSync(path.join(DIR, 'data', 'yx.db')); w.exec('PRAGMA busy_timeout=5000');
+      const id = w.prepare("SELECT id FROM users WHERE role='ota' AND phone='901000006'").get().id; w.prepare('UPDATE users SET pin=? WHERE id=?').run('123457', id);
+      if ((await new Kim('begona2').f('login', { phone: '939999998', pin: '123457' }, true)).status === 200) xato('eski PIN begona raqam bilan ochildi');
+      if (w.prepare('SELECT pin FROM users WHERE id=?').get(id).pin !== '123457') xato('eski PIN begona raqam bilan urinishda o‘zgartirildi');
+      if ((await new Kim('ota3').f('login', { phone: '901000006', pin: '123457' }, true)).status !== 200) xato('eski PIN egasi bilan ochilmadi');
+      if (!/^h1\$/.test(w.prepare('SELECT pin FROM users WHERE id=?').get(id).pin)) xato('eski PIN egasi kirgach maxfiy ko‘rinishga o‘tmadi');
+      w.close(); }
     db.close();
     if (process.env.LOG) console.log(S.log().split('\n').filter(l => /Error|^\s+at /.test(l)).slice(0, 60).join('\n'));
+    S.p.kill(); await new Promise(r => S.p.exitCode != null ? r() : S.p.once('exit', r));
+    fs.writeFileSync(path.join(DIR, 'data', 'pin-kalit'), 'buzuq\n');
+    const S2 = boot(); for (let i = 0; i < 60 && !/http:\/\/127/.test(S2.log()) && S2.p.exitCode == null; i++) await wait(250);
+    if (!fs.readdirSync(path.join(DIR, 'data')).some(f => f.startsWith('pin-kalit.buzuq-'))) xato('buzuq PIN kaliti saqlanmadi');
+    if (!/DIQQAT: .*pin-kalit buzuq/.test(S2.log())) xato('buzuq PIN kaliti haqida jurnalda ogohlantirish yo‘q');
+    S2.p.kill();
   } finally { S.p.kill(); fs.rmSync(DIR, { recursive: true, force: true }); }
   console.log(fail ? `\nNATIJA: ${fail} ta XATO` : '\nNATIJA: hammasi to‘g‘ri');
   process.exit(fail ? 1 : 0);

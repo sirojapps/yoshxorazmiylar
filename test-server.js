@@ -158,8 +158,20 @@ function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.leng
 // Bazadagi 'pin' ustuni ma'nosi o'zgarmadi: NULL — PIN yo'q, boshqa qiymat — PIN bor ("pin IS NOT NULL" tekshiruvlari o'z joyida).
 const PIN_KEY = (() => {
   const f = path.join(DATA, 'pin-kalit');
-  try { const k = fs.readFileSync(f, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(k)) return Buffer.from(k, 'hex'); } catch (e) { }
-  const k = crypto.randomBytes(32); fs.writeFileSync(f, k.toString('hex') + '\n', { mode: 0o600 }); return k;
+  let t = null;
+  try { t = fs.readFileSync(f, 'utf8'); } catch (e) {
+    // fayl bor, lekin o'qib bo'lmadi (huquq va h.k.): yangisini yozish hamma PIN'ni buzadi — sayt ishga tushmaydi, sababi jurnalda
+    if (e.code !== 'ENOENT') { console.error(`DIQQAT: ${f} o'qilmadi (${e.code}). Fayl huquqini tuzating — yangi kalit yozilmadi.`); throw e; }
+  }
+  if (t != null) {
+    const k = t.trim(); if (/^[0-9a-f]{64}$/.test(k)) return Buffer.from(k, 'hex');
+    const b = f + '.buzuq-' + Date.now(); fs.renameSync(f, b); // buzuq fayl o'chirilmaydi — tiklash uchun saqlanadi
+    console.error(`DIQQAT: ${f} buzuq — ${path.basename(b)} nomi bilan saqlandi, yangi kalit yozildi. Eski PIN'lar ishlamaydi: kalitni tiklang yoki PIN'larni qayta bering.`);
+  } else {
+    let n = 0; try { n = db.prepare("SELECT count(*) n FROM users WHERE pin LIKE 'h1$%'").get().n; } catch (e) { }
+    if (n) console.error(`DIQQAT: ${f} yo'q, bazada esa ${n} ta PIN bor — yangi kalit yozildi, ular ishlamaydi. Kalit nusxasini joyiga qo'ying va saytni qayta ishga tushiring.`);
+  }
+  const k = crypto.randomBytes(32); fs.writeFileSync(f, k.toString('hex') + '\n', { mode: 0o600, flag: 'wx' }); return k;
 })();
 const pinH = p => 'h1$' + crypto.createHmac('sha256', PIN_KEY).update('pin:' + String(p)).digest('hex');
 const pinOchiq = v => /^\d{6}$/.test(String(v ?? '')); // eski (xeshlanmagan) yozuv
@@ -1743,6 +1755,7 @@ A['obuna.holat'] = (u, b) => {
 // Ota-ona: obuna so'rovi (to'lov tizimi ulanguncha — jamoa yoqadi)
 A['obuna.sorov'] = (u, b) => {
   need(u.role === 'ota', 'Obunani ota-ona so‘raydi');
+  if (u._demo) bad('Bu namuna kabinet: obuna so‘rovi yuborilmaydi');
   const sid = +b.student_id; need(kidsOfPhone(phone9(u.phone)).includes(sid), 'Faqat o‘z farzandingiz uchun');
   const turi = b.turi === 'yil' ? 'yil' : 'oy';
   if (one("SELECT 1 FROM obuna_sorov WHERE student_id=? AND status='yangi'", sid)) return { ok: true, avval: true };
@@ -3574,13 +3587,15 @@ function darsRuxsat(u, kod) {
   if (u.role !== 'ota') return 403;
   if (!dmOchiq().includes(kod)) return 'yopiq';
   if (!obMajburiy()) return true;
-  const g = +String(kod)[0];
-  return kidsOfPhone(phone9(u.phone)).some(id => studentInfo(id)?.grade === g && obunaBor(id)) ? true : 'obuna';
+  const g = +String(kod)[0], kids = kidsOfPhone(phone9(u.phone)).filter(id => studentInfo(id)?.grade === g);
+  if (!kids.length) return 'sinf';
+  return kids.some(id => obunaBor(id)) ? true : 'obuna';
 }
 function darsYopiq(g) {
   const m = g === 401 ? ['Darsni ko‘rish uchun saytga kiring', 'Telefon raqamingiz va PIN kodingiz bilan kiring, keyin darsni kabinetingizdan oching.']
     : g === 'obuna' ? ['Bu dars obuna bilan ochiladi', 'Obunani ota-ona kabinetidagi «Obuna» bo‘limida yoqasiz.']
-    : g === 'yopiq' ? ['Bu dars hali ochilmagan', 'Dars tayyor bo‘lgach, kabinetingizda o‘zi chiqadi.'] : ['Bu sahifa siz uchun emas', ''];
+    : g === 'yopiq' ? ['Bu dars hali ochilmagan', 'Dars tayyor bo‘lgach, kabinetingizda o‘zi chiqadi.']
+    : g === 'sinf' ? ['Bu dars boshqa sinf uchun', 'Farzandingiz sinfining darslari kabinetingizda.'] : ['Bu sahifa siz uchun emas', ''];
   return `<!doctype html><html lang="uz"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${m[0]}</title>
 <body style="margin:0;min-height:100dvh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:linear-gradient(160deg,#6db5f0,#c2e8ff 52%,#eef9ff);color:#09256c">
 <div style="max-width:420px;margin:20px;padding:28px 24px;background:#fff;border-radius:22px;box-shadow:0 8px 30px #00346c33;text-align:center">
@@ -3607,7 +3622,7 @@ const server = http.createServer(async (req, res) => {
         if (c && c.active && c.pass && own === p9 && passOk(String(lb.password).slice(0, 128), c.pass)) u = c;
       } else {
         u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', pinH(String(pin))) : null;
-        if (!u && /^\d{6}$/.test(String(pin))) { u = one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) || null; if (u) run('UPDATE users SET pin=? WHERE id=?', pinH(String(pin)), u.id); } // zaxiradan tiklangan eski baza
+        if (!u && /^\d{6}$/.test(String(pin))) { u = one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) || null; if (u) u._eskiPin = 1; } // zaxiradan tiklangan eski baza (telefon tekshirilgach o'tkaziladi)
         if (u && u.role === 'ceo' && u.pass) u = null; // parol o'rnatilgan bo'lsa CEO PIN bilan kira olmaydi
       }
       if (u && lb.password == null) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
@@ -3619,6 +3634,7 @@ const server = http.createServer(async (req, res) => {
           else u = null;
         }
       }
+      if (u && u._eskiPin) run('UPDATE users SET pin=? WHERE id=?', pinH(String(pin)), u.id);
       if (!u) {
         const n = Math.max(failBump(ip, 20), failBump(pk, 5)); // bitta raqamga 5 ta, bitta qurilmadan jami 20 ta urinish
         return send(res, 401, { error: failBlocked(pk) || failBlocked(ip) ? 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' : (lb.password != null ? 'Telefon raqami yoki parol noto‘g‘ri. Qaytadan kiriting.' : 'Telefon raqami yoki PIN noto‘g‘ri. Qaytadan kiriting.') });

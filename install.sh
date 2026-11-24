@@ -104,15 +104,22 @@ unit_yoz(){ # $1 = xizmat nomi, $2 = sozlama matni
   # shu serverda avval ishlamagan sozlama qayta sinalmaydi (sayt har yangilanishda to'xtab-yonmasin). Qo'lda to'liq o'rnatish yana sinaydi.
   if [ "$MODE" != full ] && [ -f "$f.rad" ] && [ "$(printf '%s\n' "$2" | sha256sum)" = "$(cat "$f.rad")" ]; then return 1; fi
   [ -f "$f" ] && cp -p "$f" "$f.prev"
+  rm -f "$f.rad" # qayta sinaladi; yana ishlamasa unit_qaytar belgini qayta qo'yadi
   printf '%s\n' "$2" > "$f.new"; mv -f "$f.new" "$f"
   systemctl daemon-reload; systemctl enable "$1" >/dev/null 2>&1 || true
   return 0; }
 # Yangi sozlama bilan xizmat ishga tushmasa — avvalgi sozlamaga qaytiladi (sayt to'xtab qolmasin)
+ishlayapti(){ # $1 = xizmat nomi: qayta ishga tushirib, 4 soniya ichida ikki marta tekshiradi (darrov yiqiladigan dastur "ishlayapti" deb o'tib ketmasin)
+  systemctl restart "$1"; sleep 2; systemctl is-active --quiet "$1" || return 1; sleep 2; systemctl is-active --quiet "$1"; }
+# Yangi sozlama bilan ishga tushmadi: avvalgi sozlama bilan sinab ko'riladi. Avvalgisi bilan ISHLASA — aybdor yangi sozlama:
+# u shu serverda boshqa sinalmaydi (.rad, qo'lda to'liq o'rnatishgacha). Avvalgisi bilan ham ishlamasa — sozlama aybdor emas:
+# yangi sozlama joyiga qaytariladi, .rad yozilmaydi.
 unit_qaytar(){ # $1 = xizmat nomi
   local f="/etc/systemd/system/$1.service"
   [ -f "$f.prev" ] || return 1
-  echo "Yangi xizmat sozlamasi bilan ishga tushmadi — avvalgisi qaytarildi ($1)."
-  cp -p "$f" "$f.yomon"; sha256sum < "$f.yomon" > "$f.rad"; cp -p "$f.prev" "$f"; systemctl daemon-reload; systemctl restart "$1"; sleep 2; systemctl is-active --quiet "$1"; }
+  cp -p "$f" "$f.yomon"; cp -p "$f.prev" "$f"; systemctl daemon-reload
+  if ishlayapti "$1"; then sha256sum < "$f.yomon" > "$f.rad"; echo "Yangi xizmat sozlamasi bilan ishga tushmadi — avvalgisi qaytarildi ($1)."; return 0; fi
+  cp -p "$f.yomon" "$f"; systemctl daemon-reload; return 1; }
 # Xizmat himoyasi: sayt dasturi faqat o'z data va backups papkasiga yoza oladi, tizimning qolgan qismi unga faqat o'qish uchun;
 # yangi huquq ololmaydi (sudo/setuid ishlamaydi), /tmp o'ziniki, uy papkalari ko'rinmaydi.
 himoya(){ # $1 = sayt papkasi
@@ -176,18 +183,18 @@ $(himoya "$APP")
 [Install]
 WantedBy=multi-user.target"; then UNIT_CH=1; echo "Asosiy sayt xizmati sozlamasi yangilandi."; fi
 if [ "$SRV_CH" = 1 ] || [ "$UNIT_CH" = 1 ] || ! systemctl is-active --quiet yx; then
-  systemctl restart yx
-  sleep 2
-  if ! systemctl is-active --quiet yx; then
+  if ! ishlayapti yx; then
     echo "Sayt yangi fayl/sozlama bilan ishga tushmadi:"; journalctl -u yx -n 30 --no-pager || true
+    # Qaysi o'zgarish aybdorligini aniqlash: avval yangi server.js + avvalgi sozlama (ishlasa — aybdor sozlama, o'rnatish davom etadi),
+    # bo'lmasa avvalgi server.js (yangi sozlama bilan, kerak bo'lsa avvalgisi bilan ham) — aybdor server.js, yangilanish XATO deb belgilanadi.
     if [ "$UNIT_CH" = 1 ] && unit_qaytar yx; then
-      # yangi server.js ishlayapti, faqat himoyali sozlama bu serverga to'g'ri kelmadi: o'rnatish davom etadi
       echo "DIQQAT: himoyali xizmat sozlamasi bu serverda ishlamadi — sayt avvalgi sozlama bilan ishlayapti (qo'lda to'liq o'rnatishda qayta sinaladi)."
     else
       if [ "$SRV_CH" = 1 ] && [ -f "$APP/server.js.prev" ]; then # avvalgi ishlab turgan nusxaga qaytish
         cp -p "$APP/server.js" "$APP/server.js.yomon"; cp -p "$APP/server.js.prev" "$APP/server.js"; chown yx:yx "$APP/server.js"
-        systemctl restart yx; sleep 2
-        systemctl is-active --quiet yx && echo "Avvalgi server.js qaytarildi — sayt ishlayapti." || echo "DIQQAT: avvalgi nusxa bilan ham ishga tushmadi!"
+        if ishlayapti yx; then echo "Avvalgi server.js qaytarildi — sayt ishlayapti."
+        elif [ "$UNIT_CH" = 1 ] && unit_qaytar yx; then echo "Avvalgi server.js va avvalgi sozlama qaytarildi — sayt ishlayapti."
+        else echo "DIQQAT: avvalgi nusxa bilan ham ishga tushmadi!"; fi
       fi
       exit 1
     fi
@@ -388,9 +395,8 @@ $(himoya "$APPT")
 [Install]
 WantedBy=multi-user.target"; then TST_CH=1; echo "Sinov sayti xizmati sozlamasi yangilandi."; fi
   if [ "$TST_CH" = 1 ] || ! systemctl is-active --quiet yx-test; then
-    systemctl restart yx-test; sleep 2
-    if systemctl is-active --quiet yx-test; then echo "Sinov sayti qayta ishga tushirildi."
-    else unit_qaytar yx-test && echo "Sinov sayti avvalgi xizmat sozlamasi bilan ishlayapti." || echo "DIQQAT: sinov sayti ishga tushmadi."; fi
+    if ishlayapti yx-test; then echo "Sinov sayti qayta ishga tushirildi."
+    else unit_qaytar yx-test && echo "Sinov sayti avvalgi xizmat sozlamasi bilan ishlayapti." || echo "DIQQAT: sinov sayti ishga tushmadi (xizmat sozlamasi aybdor emas — sinov server.js ni tekshiring)."; fi
   fi
   if [ "$MODE" = full ]; then
   if [ ! -f /etc/nginx/sites-available/yx-test ]; then

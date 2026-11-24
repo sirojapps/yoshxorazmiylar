@@ -29,10 +29,10 @@ async function boot() {
   let log = '';
   srv = spawn(process.execPath, ['--no-warnings', ...(process.env.PROF ? ['--cpu-prof', '--cpu-prof-dir=' + path.join(DIR, 'prof'), '--require', process.env.PROF] : []), path.join(DIR, 'server.js')], { env: { ...process.env, DATA_DIR: DATA, BACKUP_DIR: path.join(DIR, 'backups'), PORT: String(PORT), NO_BOT: '1', YX_TEST: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
   srv.stdout.on('data', d => log += d); srv.stderr.on('data', d => log += d);
-  for (let i = 0; i < 400 && !/http:\/\/127/.test(log); i++) await wait(250);
+  for (let i = 0; i < 400 && !/http:\/\/127/.test(log) && srv.exitCode == null; i++) await wait(250);
   if (!/http:\/\/127/.test(log)) { console.log(log); throw new Error('server ishga tushmadi'); }
 }
-async function stop() { if (!srv) return; srv.kill('SIGTERM'); await new Promise(r => srv.once('exit', r)); srv = null; }
+async function stop() { if (!srv) return; if (srv.exitCode != null || srv.signalCode != null) { srv = null; return; } srv.kill('SIGTERM'); await new Promise(r => srv.once('exit', r)); srv = null; }
 const rss = () => { try { return Math.round(+fs.readFileSync(`/proc/${srv.pid}/status`, 'utf8').match(/VmRSS:\s+(\d+)/)[1] / 1024); } catch { return 0; } };
 
 function seed() {
