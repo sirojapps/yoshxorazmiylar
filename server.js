@@ -90,7 +90,8 @@ try { db.exec("ALTER TABLE certificates ADD COLUMN issued TEXT DEFAULT ''"); } c
 // sinov uchun ochilgan maktab (saytni tekshirish uchun): uning bolalariga sertifikat berilmaydi, reytingga ta'sir qilmaydi deb belgilanadi
 try { db.exec("ALTER TABLE schools ADD COLUMN test INTEGER DEFAULT 0"); } catch (e) { }
 try { db.exec("ALTER TABLE sessions ADD COLUMN as_user INTEGER"); } catch (e) { } // namuna kabinet: CEO kimning ko'zi bilan ko'ryapti
-try { db.exec("ALTER TABLE sessions ADD COLUMN seen TEXT"); } catch (e) { } // oxirgi harakat vaqti: 30 daqiqa hech narsa bosilmasa, kirish yopiladi
+try { db.exec("ALTER TABLE sessions ADD COLUMN seen TEXT"); } catch (e) { }
+try { db.exec("ALTER TABLE users ADD COLUMN chiqdi TEXT"); } catch (e) { } // saytdan oxirgi marta chiqqan vaqti (oxirgi ochiq sahifasi yopilganda) // oxirgi harakat vaqti: 30 daqiqa hech narsa bosilmasa, kirish yopiladi
 // qo'lda tayyorlanadigan sertifikatlar: andoza (ramka, logotip, imzo, muhr) o'sha, ism va matnni CEO o'zi yozadi
 db.exec("CREATE TABLE IF NOT EXISTS mcerts(id INTEGER PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, award TEXT DEFAULT '', ribbon TEXT DEFAULT '', body TEXT DEFAULT '', wish TEXT DEFAULT '', issued TEXT DEFAULT '', by INTEGER, at TEXT)");
 try { db.exec("ALTER TABLE students ADD COLUMN avatar TEXT DEFAULT ''"); } catch (e) { }
@@ -375,7 +376,7 @@ function state(u) {
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
-    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar,pin FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x), pin: undefined, pinBor: !!x.pin })); // PIN raqami saqlanmaydi — faqat "bor/yo'q"
+    out.team = all("SELECT id,role,name,phone,perms,active,last_login,chiqdi,avatar,pin FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, ...saytda(x), perms: perms(x), pin: undefined, pinBor: !!x.pin })); // PIN raqami saqlanmaydi — faqat "bor/yo'q"
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
     out.hints = hintsMap();
     Object.assign(out, extras(u, out));
@@ -1345,7 +1346,7 @@ A['unapprove'] = (u, b) => tx(() => {
 
 // PINs: only the CEO issues; list is visible with the 'pinlar' right, PIN digits with 'pin_korish'
 function pinTargets() {
-  const users = all('SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role!=\'ceo\' ORDER BY id');
+  const users = all('SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE role!=\'ceo\' ORDER BY id');
   const list = [];
   // tezlik (9-band): har maktab/sinf uchun butun ro'yxatni qidirmasdan — oldindan jadval (birinchi topilgani, avvalgidek)
   const dirBy = new Map(), rahBy = new Map(), otaBy = new Map();
@@ -1376,12 +1377,12 @@ function pinTargets() {
 function pinTarget(kind, ref) {
   if (kind === 'direktor') {
     const s = one('SELECT * FROM schools WHERE id=?', +ref); if (!s) return null;
-    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role='direktor' AND school_id=? AND active=1 ORDER BY id LIMIT 1", s.id);
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE role='direktor' AND school_id=? AND active=1 ORDER BY id LIMIT 1", s.id);
     return { kind: 'direktor', ref: s.id, school_id: s.id, name: s.director_name || (mkNum(s.num) + ' direktori'), phone: s.director_phone, user: us || null };
   }
   if (kind === 'rahbar') {
     const c = one('SELECT c.*,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', +ref); if (!c) return null;
-    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role='rahbar' AND class_id=? AND active=1 ORDER BY id LIMIT 1", c.id);
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE role='rahbar' AND class_id=? AND active=1 ORDER BY id LIMIT 1", c.id);
     return { kind: 'rahbar', ref: c.id, school_id: c.school_id, class_id: c.id, name: c.teacher_name || (mkNum(c.num) + ' ' + c.name + ' sinf rahbari'), phone: c.teacher_phone, user: us || null };
   }
   if (kind === 'ota') {
@@ -1390,12 +1391,12 @@ function pinTarget(kind, ref) {
     const p = phone9(ref); if (!p || p !== String(ref)) return null;
     const kids = all('SELECT s.id,s.name,s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1 AND (s.phone=? OR s.id IN (SELECT student_id FROM student_phones WHERE phone=?)) ORDER BY (s.phone=?) DESC, s.id', p, p, p);
     if (!kids.length) return null;
-    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE +role='ota' AND active=1 AND phone=? ORDER BY id LIMIT 1", p);
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE +role='ota' AND active=1 AND phone=? ORDER BY id LIMIT 1", p);
     const names = [...new Set(kids.map(k => k.name))];
     return { kind: 'ota', ref: p, school_id: kids[0].school_id, class_id: kids[0].class_id, name: names.join(', ') + ' ota-onasi', phone: p, kids: names, user: us || null };
   }
   if (kind === 'jamoa') {
-    const t = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE id=? AND role='jamoa' AND active=1", +ref);
+    const t = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE id=? AND role='jamoa' AND active=1", +ref);
     return t ? { kind: 'jamoa', ref: t.id, name: t.name, phone: t.phone, user: t } : null;
   }
   return null;
@@ -1412,12 +1413,12 @@ function pinTargetsOfPhone(p) {
 }
 A['pins'] = u => {
   if (u.role === 'direktor') { // direktor: faqat o'z maktabidagi sinf rahbarlari
-    return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+    return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login, ...saytda(x.user) } : null })) };
   }
   need(can(u, 'pinlar'));
   const show = can(u, 'pin_korish'), DS = demoIds().school;
   // 'pin_korish' huquqi borga (CEO'ga doim) PIN raqamlari ko'rinadi; eski ko'rinishdagi PIN egasi kirguncha yulduzcha bo'lib turadi
-  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? (show && pinOchir(x.user.pin)) || '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? (show && pinOchir(x.user.pin)) || '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login, ...saytda(x.user) } : null })) };
 };
 A['pin.issue'] = (u, b) => {
   need(u.role === 'ceo' || u.role === 'direktor', 'PIN‘ni CEO yoki direktor beradi');
@@ -3347,6 +3348,9 @@ function userOf(req) {
 // ---------------- jonli kanal (/api/live): bir qurilmada amal bajarilsa, o'sha odamning boshqa ochiq qurilmalari 1–2 soniyada o'zi yangilanadi.
 // Server faqat "yangilan" degan belgi yuboradi (ma'lumotning o'zi emas); sahifa keyin odatdagi so'rov bilan yangi holatni oladi.
 const LIVE = new Map(); // user_id → Set({res, tok})
+// "Hozir saytda": odamning kamida bitta sahifasi ochiq (jonli kanal ulangan). Aks holda — oxirgi marta qachon chiqqani
+// (oxirgi sahifasi yopilgan vaqt; u yozilmagan eski hisoblarda oxirgi kirish vaqti).
+const saytda = x => LIVE.has(x.id) ? { onl: 1 } : { chiqdi: [x.chiqdi, x.last_login].filter(Boolean).sort().pop() || '' };
 function liveOpen(req, res, u) {
   const uid = u._real || u.id, tok = cookie(req, 'yx');
   let set = LIVE.get(uid); if (!set) LIVE.set(uid, set = new Set());
@@ -3355,7 +3359,7 @@ function liveOpen(req, res, u) {
   res.write('retry: 5000\n\n');
   const c = { res, tok }; set.add(c);
   const hb = setInterval(() => { try { if (!one('SELECT 1 FROM sessions WHERE token=?', tok)) return res.end(); res.write(': .\n\n'); } catch { } }, 25000); // aloqa uzilmasligi uchun; kirish yopilgan bo'lsa kanal ham yopiladi
-  const close = () => { clearInterval(hb); set.delete(c); if (!set.size && LIVE.get(uid) === set) LIVE.delete(uid); };
+  const close = () => { clearInterval(hb); set.delete(c); if (!set.size && LIVE.get(uid) === set) { LIVE.delete(uid); try { runHk('UPDATE users SET chiqdi=? WHERE id=?', now(), uid); } catch { } } };
   req.on('close', close); res.on('close', close);
 }
 function liveSend(uid, exceptTok) { const set = LIVE.get(uid); if (!set) return; for (const c of set) if (!exceptTok || c.tok !== exceptTok) try { c.res.write('data: 1\n\n'); } catch { } }
@@ -3589,7 +3593,7 @@ A['ceo.mk'] = (u) => {
 // Xabarlarda yozgan odam bosilsa — u haqida qisqa ma'lumot (faqat CEO va jamoa ko'radi)
 A['user.card'] = (u, b) => {
   need(isTeam(u), 'Faqat jamoa ko‘radi');
-  const x = one('SELECT id,role,name,phone,school_id,class_id,avatar,last_login,created_at,active FROM users WHERE id=?', +b.id); if (!x) bad('Topilmadi');
+  const x = one('SELECT id,role,name,phone,school_id,class_id,avatar,last_login,chiqdi,created_at,active FROM users WHERE id=?', +b.id); if (!x) bad('Topilmadi');
   const RL = { ceo: 'CEO', jamoa: 'Loyiha jamoasi', direktor: 'Maktab direktori', rahbar: 'Sinf rahbari', ota: 'Ota-ona' };
   const sc = id => { const s = id ? one('SELECT id,num,viloyat,tuman FROM schools WHERE id=?', id) : null; return s ? { id: s.id, nom: mkNumQ(s.num), viloyat: s.viloyat || '', tuman: s.tuman || '' } : null; };
   let school = sc(x.school_id), cls = null, kids = [];
@@ -3597,7 +3601,7 @@ A['user.card'] = (u, b) => {
   if (x.role === 'ota') kids = kidsOfPhone(phone9(x.phone)).map(studentInfo).filter(Boolean).map(s => ({ id: s.id, name: s.name, cls: s.cls, maktab: mkNumQ(s.num) }));
   if (!school && kids.length) { const s = one('SELECT school_id FROM classes WHERE id=?', studentInfo(kids[0].id).class_id); school = sc(s && s.school_id); }
   const th = visibleThreads(u).filter(t => t.user_id === x.id && t.kind !== 'chat').map(t => t.id);
-  return { id: x.id, role: x.role, rol: RL[x.role] || '', name: x.role === 'ceo' ? (x.name || 'CEO') : x.name, phone: phone9(x.phone), avatar: String(x.avatar || '').startsWith('data:') ? x.avatar : '', last: x.last_login || '', since: x.created_at || '', active: x.active, school, cls, kids, th };
+  return { id: x.id, role: x.role, rol: RL[x.role] || '', name: x.role === 'ceo' ? (x.name || 'CEO') : x.name, phone: phone9(x.phone), avatar: String(x.avatar || '').startsWith('data:') ? x.avatar : '', last: x.last_login || '', ...saytda(x), since: x.created_at || '', active: x.active, school, cls, kids, th };
 };
 
 // ---- GOOGLE QOIDASI (19.11.2026, Siroj: "bunaqa kamchiliklarga boshqa yo'l qo'yma").

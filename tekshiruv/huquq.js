@@ -165,6 +165,12 @@ class Kim {
     { const pX = await pin('ota', '901000003'), r = (await ceo.f('pins', {})).list.find(x => x.kind === 'ota' && x.phone === '901000003');
       if (!r || r.user.pin !== pX) xato('CEO PIN ro‘yxatida PIN raqamini ko‘rmayapti (' + (r && r.user.pin) + ')');
       await otaA.kir('901000003', pX); // ota-ona kabineti keyingi sinovlarda yangi PIN bilan davom etadi
+      // "hozir saytda": sahifasi ochiq (jonli kanal) bo'lsa onl, yopilgach — chiqqan vaqti
+      { const ac = new AbortController(), r = await fetch(B + '/api/live', { headers: { Cookie: otaA.ck }, signal: ac.signal }); await wait(300);
+        const qa = async () => (await ceo.f('pins', {})).list.find(x => x.kind === 'ota' && x.phone === '901000003').user;
+        if (r.status !== 200 || (await qa()).onl !== 1) xato('sahifasi ochiq ota-ona "hozir saytda" ko‘rinmadi');
+        ac.abort(); await wait(400); const z = await qa();
+        if (z.onl || !z.chiqdi) xato('sahifasi yopilgan ota-ona uchun chiqqan vaqti yo‘q'); }
       const jp = await ceo.f('team.save', { name: 'Pinlar Ko‘ruvchi', phone: '905000009', perms: { pinlar: true } });
       const jk = await new Kim('jamoa(pinlar)').kir('905000009', jp.pin); await jk.f('consent', { consent: true }).catch(() => { });
       if (/"pin":"\d{6}"/.test(JSON.stringify(await jk.f('pins', {})))) xato('pin_korish huquqisiz jamoa a’zosi PIN raqamini ko‘rdi');
