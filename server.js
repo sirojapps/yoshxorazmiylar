@@ -151,8 +151,20 @@ const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_koris
 const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'dm.get', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
+// PIN kodlar bazada OCHIQ saqlanmaydi (kod auditi, 24.11.2026). Bazada faqat maxfiy kalitli xesh (HMAC-SHA256) turadi: 'h1$' + 64 belgi.
+// Kalit bazada emas, alohida faylda (DATA/pin-kalit, faqat sayt o'qiydi; zaxira nusxalarga kirmaydi) — baza yoki zaxira begona qo'lga
+// tushsa ham PIN'larni tiklab bo'lmaydi. PIN 6 raqam bo'lgani uchun oddiy xesh yetmaydi (million variantni bir necha daqiqada sinab chiqish mumkin).
+// Kalit yo'qolsa hamma PIN ishlamay qoladi: CEO paroli bilan kirib, PIN'larni qayta berish kerak bo'ladi (kalitning nusxasini saqlang).
+// Bazadagi 'pin' ustuni ma'nosi o'zgarmadi: NULL — PIN yo'q, boshqa qiymat — PIN bor ("pin IS NOT NULL" tekshiruvlari o'z joyida).
+const PIN_KEY = (() => {
+  const f = path.join(DATA, 'pin-kalit');
+  try { const k = fs.readFileSync(f, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(k)) return Buffer.from(k, 'hex'); } catch (e) { }
+  const k = crypto.randomBytes(32); fs.writeFileSync(f, k.toString('hex') + '\n', { mode: 0o600 }); return k;
+})();
+const pinH = p => 'h1$' + crypto.createHmac('sha256', PIN_KEY).update('pin:' + String(p)).digest('hex');
+const pinOchiq = v => /^\d{6}$/.test(String(v ?? '')); // eski (xeshlanmagan) yozuv
 function newPin() {
-  for (;;) { const p = String(crypto.randomInt(100000, 1000000)); if (!one('SELECT 1 FROM users WHERE pin=?', p)) return p; }
+  for (;;) { const p = String(crypto.randomInt(100000, 1000000)); if (!one('SELECT 1 FROM users WHERE pin=? OR pin=?', pinH(p), p)) return p; }
 }
 function perms(u) {
   if (u.role === 'ceo') return Object.fromEntries(PERMS.map(k => [k, true]).concat([['sardor', true], ['ceo', true]]));
@@ -181,9 +193,9 @@ function clsName(n) { const m = String(n).toUpperCase().replace(/\s| /g, '').ma
 // first run: create CEO
 if (!one("SELECT 1 FROM users WHERE role='ceo'")) {
   const pin = newPin();
-  run("INSERT INTO users(role,name,pin,pin_at,created_at) VALUES('ceo','CEO',?,?,?)", pin, now(), now());
+  run("INSERT INTO users(role,name,pin,pin_at,created_at) VALUES('ceo','CEO',?,?,?)", pinH(pin), now(), now());
   fs.writeFileSync(path.join(DATA, 'ceo-pin.txt'), pin + '\n', { mode: 0o600 });
-  console.log('CEO PIN:', pin);
+  console.log('CEO PIN yaratildi: data/ceo-pin.txt faylida (jurnalga yozilmaydi)'); // 4-band: maxfiy ma'lumot jurnalga yozilmaydi
 }
 // ---- CEO paroli: faqat CEO uchun. Parol o'rnatilgach CEO PIN bilan kira olmaydi.
 function passHash(pw) { const salt = crypto.randomBytes(16); const h = crypto.scryptSync(String(pw), salt, 64, { N: 16384, r: 8, p: 1 }); return 's1$' + salt.toString('hex') + '$' + h.toString('hex'); }
@@ -206,8 +218,9 @@ const ceoRow = () => one("SELECT * FROM users WHERE role='ceo' ORDER BY id LIMIT
   run("UPDATE users SET pass='' WHERE role='ceo'");
   const c = ceoRow(); if (c) run('DELETE FROM sessions WHERE user_id=?', c.id);
   try { fs.unlinkSync(f); } catch (e) { }
-  if (c) fs.writeFileSync(path.join(DATA, 'ceo-pin.txt'), (c.pin || '') + '\n', { mode: 0o600 });
-  console.log('CEO paroli o‘chirildi — endi CEO PIN bilan kiradi. PIN:', c && c.pin);
+  // PIN bazada faqat xesh ko'rinishida — eskisini ko'rsatib bo'lmaydi, shuning uchun yangi CEO PIN beriladi
+  if (c) { const pin = newPin(); run('UPDATE users SET pin=?,pin_at=? WHERE id=?', pinH(pin), now(), c.id); fs.writeFileSync(path.join(DATA, 'ceo-pin.txt'), pin + '\n', { mode: 0o600 }); }
+  console.log('CEO paroli o‘chirildi — endi CEO PIN bilan kiradi. Yangi PIN data/ceo-pin.txt faylida (jurnalga yozilmaydi).');
 })();
 
 // ---------------------------------------------------------------- scoring
@@ -328,7 +341,7 @@ function state(u) {
     }
     out.approvals = {};
     for (const t of tests) { out.approvals[t.id] = {}; for (const s of [{ id: 0 }, ...out.schools]) out.approvals[t.id][s.id] = approvedState(t.id, s.id); }
-    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar,pin FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x), pin: u.role === 'ceo' && !u._demo && x.role === 'jamoa' && x.active ? x.pin : undefined }));
+    out.team = all("SELECT id,role,name,phone,perms,active,last_login,avatar,pin FROM users WHERE role IN ('ceo','jamoa')").filter(x => !DM.set.has(x.id)).map(x => ({ ...x, perms: perms(x), pin: undefined, pinBor: !!x.pin })); // PIN raqami saqlanmaydi — faqat "bor/yo'q"
     out.notes = all('SELECT * FROM notes ORDER BY at DESC');
     out.hints = hintsMap();
     Object.assign(out, extras(u, out));
@@ -1298,14 +1311,17 @@ A['unapprove'] = (u, b) => tx(() => {
 
 // PINs: only the CEO issues; list is visible with the 'pinlar' right, PIN digits with 'pin_korish'
 function pinTargets() {
-  const users = all('SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role!=\'ceo\'');
+  const users = all('SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role!=\'ceo\' ORDER BY id');
   const list = [];
+  // tezlik (9-band): har maktab/sinf uchun butun ro'yxatni qidirmasdan — oldindan jadval (birinchi topilgani, avvalgidek)
+  const dirBy = new Map(), rahBy = new Map(), otaBy = new Map();
+  for (const x of users) if (x.active) { if (x.role === 'direktor' && !dirBy.has(x.school_id)) dirBy.set(x.school_id, x); else if (x.role === 'rahbar' && !rahBy.has(x.class_id)) rahBy.set(x.class_id, x); else if (x.role === 'ota') { const p = phone9(x.phone); if (p && !otaBy.has(p)) otaBy.set(p, x); } }
   for (const s of all('SELECT * FROM schools ORDER BY num')) {
-    const us = users.find(x => x.role === 'direktor' && x.school_id === s.id && x.active);
+    const us = dirBy.get(s.id);
     list.push({ kind: 'direktor', ref: s.id, school_id: s.id, name: s.director_name || (mkNum(s.num) + ' direktori'), phone: s.director_phone, user: us || null });
   }
   for (const c of all('SELECT c.*,s.num FROM classes c JOIN schools s ON s.id=c.school_id ORDER BY s.num,c.grade,c.name')) {
-    const us = users.find(x => x.role === 'rahbar' && x.class_id === c.id && x.active);
+    const us = rahBy.get(c.id);
     list.push({ kind: 'rahbar', ref: c.id, school_id: c.school_id, class_id: c.id, name: c.teacher_name || (mkNum(c.num) + ' ' + c.name + ' sinf rahbari'), phone: c.teacher_phone, user: us || null });
   }
   const byPhone = {};
@@ -1318,30 +1334,72 @@ function pinTargets() {
     const o = (byPhone[s.phone] ||= { kind: 'ota', ref: s.phone, school_id: s.school_id, class_id: s.class_id, name: '', phone: s.phone, kids: [] });
     if (!o.kids.includes(s.name)) o.kids.push(s.name);
   }
-  for (const [p, o] of Object.entries(byPhone)) { o.name = o.kids.join(', ') + ' ota-onasi'; o.user = users.find(x => x.role === 'ota' && phone9(x.phone) === p && x.active) || null; list.push(o); }
+  for (const [p, o] of Object.entries(byPhone)) { o.name = o.kids.join(', ') + ' ota-onasi'; o.user = otaBy.get(p) || null; list.push(o); }
   for (const t of users.filter(x => x.role === 'jamoa' && x.active)) list.push({ kind: 'jamoa', ref: t.id, name: t.name, phone: t.phone, user: t });
   return list;
 }
+// Bitta PIN egasi (pinTargets() dagi bilan aynan bir xil ko'rinishda), butun bazani o'qimasdan
+function pinTarget(kind, ref) {
+  if (kind === 'direktor') {
+    const s = one('SELECT * FROM schools WHERE id=?', +ref); if (!s) return null;
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role='direktor' AND school_id=? AND active=1 ORDER BY id LIMIT 1", s.id);
+    return { kind: 'direktor', ref: s.id, school_id: s.id, name: s.director_name || (mkNum(s.num) + ' direktori'), phone: s.director_phone, user: us || null };
+  }
+  if (kind === 'rahbar') {
+    const c = one('SELECT c.*,s.num FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.id=?', +ref); if (!c) return null;
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE role='rahbar' AND class_id=? AND active=1 ORDER BY id LIMIT 1", c.id);
+    return { kind: 'rahbar', ref: c.id, school_id: c.school_id, class_id: c.id, name: c.teacher_name || (mkNum(c.num) + ' ' + c.name + ' sinf rahbari'), phone: c.teacher_phone, user: us || null };
+  }
+  if (kind === 'ota') {
+    const m = /^no(\d+)$/.exec(String(ref));
+    if (m) { const s = one('SELECT s.id,s.name,s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.active=1', +m[1]); return s ? { kind: 'ota', ref: 'no' + s.id, school_id: s.school_id, class_id: s.class_id, name: s.name + ' ota-onasi', phone: '', kids: [s.name], user: null } : null; }
+    const p = phone9(ref); if (!p || p !== String(ref)) return null;
+    const kids = all('SELECT s.id,s.name,s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1 AND (s.phone=? OR s.id IN (SELECT student_id FROM student_phones WHERE phone=?)) ORDER BY (s.phone=?) DESC, s.id', p, p, p);
+    if (!kids.length) return null;
+    const us = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE +role='ota' AND active=1 AND phone=? ORDER BY id LIMIT 1", p);
+    const names = [...new Set(kids.map(k => k.name))];
+    return { kind: 'ota', ref: p, school_id: kids[0].school_id, class_id: kids[0].class_id, name: names.join(', ') + ' ota-onasi', phone: p, kids: names, user: us || null };
+  }
+  if (kind === 'jamoa') {
+    const t = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login FROM users WHERE id=? AND role='jamoa' AND active=1", +ref);
+    return t ? { kind: 'jamoa', ref: t.id, name: t.name, phone: t.phone, user: t } : null;
+  }
+  return null;
+}
+// Bitta telefon raqamining hamma PIN egalari (direktor, sinf rahbari, ota-ona, jamoa) — Telegram bot uchun
+function pinTargetsOfPhone(p) {
+  p = phone9(p); if (!p) return [];
+  const out = [];
+  for (const s of all('SELECT id FROM schools WHERE director_phone=? ORDER BY num', p)) out.push(pinTarget('direktor', s.id));
+  for (const c of all('SELECT c.id FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.teacher_phone=? ORDER BY s.num,c.grade,c.name', p)) out.push(pinTarget('rahbar', c.id));
+  out.push(pinTarget('ota', p));
+  for (const t of all("SELECT id FROM users WHERE +role='jamoa' AND active=1 AND phone=?", p)) out.push(pinTarget('jamoa', t.id));
+  return out.filter(Boolean);
+}
 A['pins'] = u => {
   if (u.role === 'direktor') { // direktor: faqat o'z maktabidagi sinf rahbarlari
-    return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin || '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+    return { list: pinTargets().filter(x => x.kind === 'rahbar' && x.school_id === u.school_id).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
   }
   need(can(u, 'pinlar'));
   const show = can(u, 'pin_korish'), DS = demoIds().school;
-  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: show && (x.kind !== 'jamoa' || u.role === 'ceo') ? x.user.pin : (x.user.pin ? '••••••' : ''), pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? '••••••' : '', yashirin: true, pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
 };
 A['pin.issue'] = (u, b) => {
   need(u.role === 'ceo' || u.role === 'direktor', 'PIN‘ni CEO yoki direktor beradi');
-  const t = pinTargets().find(x => x.kind === b.kind && String(x.ref) === String(b.ref)); if (!t) bad('Topilmadi');
+  const t = pinTarget(b.kind, b.ref); if (!t) bad('Topilmadi');
   if (u.role === 'direktor') need(t.kind === 'rahbar' && t.school_id === u.school_id, 'Direktor faqat o‘z maktabidagi sinf rahbarlariga PIN beradi');
   if (t.kind === 'ota' && !t.phone) bad('Ota-onaning telefon raqami kerak');
   return ensurePin(t, u.id, true);
 };
+// PIN faqat telefon raqami bor odamga beriladi (kod auditi, 3-band): PIN o'sha raqam bilangina ochiladi.
+// Eski PIN'ni qayta ko'rsatib bo'lmaydi (bazada xesh) — PIN'i bor odamga faqat YANGI PIN beriladi (renew), eskisi ishlamay qoladi.
 function ensurePin(t, by, renew) {
-  if (t.user && t.user.pin && !renew) return { pin: t.user.pin, name: t.name, phone: t.phone, kind: t.kind };
+  if (t.user && t.user.pin && !renew) return { bor: true, name: t.name, phone: t.phone, kind: t.kind };
+  const ph = phone9(t.phone) || phone9(t.user && t.user.phone);
+  if (!ph) bad('Avval telefon raqamini yozing: PIN faqat raqami yozilgan odamga beriladi va o‘sha raqam bilangina ochiladi');
   const pin = newPin();
-  if (t.user) { run('UPDATE users SET pin=?,pin_at=?,phone=?,name=? WHERE id=?', pin, now(), t.phone || t.user.phone, t.name, t.user.id); run('DELETE FROM sessions WHERE user_id=?', t.user.id); }
-  else run('INSERT INTO users(role,name,phone,pin,pin_at,school_id,class_id,created_at) VALUES(?,?,?,?,?,?,?,?)', t.kind, t.name, t.phone || '', pin, now(), t.school_id || null, t.class_id || null, now());
+  if (t.user) { run('UPDATE users SET pin=?,pin_at=?,phone=?,name=? WHERE id=?', pinH(pin), now(), ph, t.name, t.user.id); run('DELETE FROM sessions WHERE user_id=?', t.user.id); }
+  else run('INSERT INTO users(role,name,phone,pin,pin_at,school_id,class_id,created_at) VALUES(?,?,?,?,?,?,?,?)', t.kind, t.name, ph, pinH(pin), now(), t.school_id || null, t.class_id || null, now());
   log(by, t.user ? 'pin.yangilash' : 'pin.berish', { kind: t.kind, name: t.name, bot: by == null });
   return { pin, name: t.name, phone: t.phone, kind: t.kind };
 }
@@ -1354,10 +1412,11 @@ A['pin.revoke'] = (u, b) => {
 A['team.save'] = (u, b) => {
   need(u.role === 'ceo', 'Jamoani faqat CEO boshqaradi');
   const name = fixName(b.name, 80); if (!name) bad('Ismni yozing');
+  if (!phone9(b.phone)) bad('Telefon raqamini yozing: PIN faqat shu raqam bilan ochiladi');
   const p = {}; for (const k of PERMS) p[k] = !!b.perms?.[k]; p.sardor = !!b.perms?.sardor; p.kuzatuvchi = !!b.perms?.kuzatuvchi; if (p.kuzatuvchi) for (const k of KUZ_OFF) p[k] = false;
   if (b.id) { const old = one('SELECT * FROM users WHERE id=? AND role=\'jamoa\'', b.id); run('UPDATE users SET name=?,phone=?,perms=? WHERE id=?', name, phone9(b.phone), JSON.stringify(p), b.id); log(u.id, 'jamoa.huquq', { name, old: old && JSON.parse(old.perms), new: p }); return { id: b.id }; }
   const pin = newPin();
-  const r = run("INSERT INTO users(role,name,phone,perms,pin,pin_at,created_at) VALUES('jamoa',?,?,?,?,?,?)", name, phone9(b.phone), JSON.stringify(p), pin, now(), now());
+  const r = run("INSERT INTO users(role,name,phone,perms,pin,pin_at,created_at) VALUES('jamoa',?,?,?,?,?,?)", name, phone9(b.phone), JSON.stringify(p), pinH(pin), now(), now());
   log(u.id, 'jamoa.qoshish', { name, perms: p }); return { id: Number(r.lastInsertRowid), pin };
 };
 A['team.remove'] = (u, b) => {
@@ -1480,16 +1539,31 @@ const text = k => getSet(k) || DEFAULT_TEXTS[k] || '';
 
 function kidsOfPhone(p) {
   if (!p) return [];
-  const a = all('SELECT id,phone FROM students WHERE active=1').filter(s => phone9(s.phone) === p).map(s => s.id);
+  const a = all('SELECT id FROM students WHERE active=1 AND phone=?', p).map(s => s.id); // telefon bazada doim 9 raqam (2026-11-24-02 migratsiyasi), indeks bilan
   const b = all('SELECT sp.student_id id FROM student_phones sp JOIN students s ON s.id=sp.student_id WHERE s.active=1 AND sp.phone=?', p).map(r => r.id);
   return [...new Set([...a, ...b])];
 }
 const studentInfo = id => one(`SELECT s.id,s.name,s.class_id,c.name cls,c.grade,c.school_id,sc.num FROM students s JOIN classes c ON c.id=s.class_id JOIN schools sc ON sc.id=c.school_id WHERE s.id=?`, id);
-const parentsOf = sid => all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidsOfPhone(phone9(x.phone)).includes(sid));
+const parentsOf = sid => { // bolaning hamma raqamlari → shu raqamli ota-onalar (avval hamma ota-onalar × hamma bolalar aylanib chiqilardi)
+  const s = one('SELECT phone FROM students WHERE id=? AND active=1', sid); if (!s) return [];
+  const ps = [...new Set([phone9(s.phone), ...all('SELECT phone FROM student_phones WHERE student_id=?', sid).map(r => phone9(r.phone))].filter(Boolean))];
+  return ps.length ? all(`SELECT * FROM users WHERE +role='ota' AND active=1 AND phone IN (${ps.map(() => '?').join(',')}) ORDER BY id`, ...ps) : []; };
 const rahbarsOf = classId => all("SELECT * FROM users WHERE role='rahbar' AND active=1 AND class_id=?", classId);
 const ceoId = () => one("SELECT id FROM users WHERE role='ceo'").id;
 const directorsOf = schoolId => all("SELECT * FROM users WHERE role='direktor' AND active=1 AND school_id=?", schoolId);
 const rahbarsOfSchool = schoolId => all("SELECT u.* FROM users u JOIN classes c ON c.id=u.class_id WHERE u.role='rahbar' AND u.active=1 AND c.school_id=?", schoolId);
+// 24.11 yuklama sinovi: butun ota-onalar jadvalini o'qish o'rniga — faqat kerakli bolalarning raqamlari bo'yicha (indeks bilan, bo'laklab).
+// bolaRaqamlari: sinf (yoki maktab) faol o'quvchilarining hamma raqami (asosiy + qo'shimcha), 9 raqam ko'rinishida
+function bolaRaqamlari(classId, schoolId) {
+  const w = classId ? 's.class_id=?' : 's.class_id IN (SELECT id FROM classes WHERE school_id=?)', v = classId || schoolId;
+  return [...new Set([...all(`SELECT s.phone FROM students s WHERE s.active=1 AND ${w}`, v), ...all(`SELECT sp.phone FROM student_phones sp JOIN students s ON s.id=sp.student_id WHERE s.active=1 AND ${w}`, v)].map(r => phone9(r.phone)).filter(Boolean))];
+}
+function otalarRaqamda(phones, cols = 'id,phone', shart = '') { // shu raqamli faol ota-ona hisoblari
+  const ps = [...new Set(phones.map(phone9).filter(Boolean))], out = [];
+  for (let i = 0; i < ps.length; i += 400) { const ch = ps.slice(i, i + 400); out.push(...all(`SELECT ${cols} FROM users WHERE +role='ota' AND active=1 ${shart} AND phone IN (${ch.map(() => '?').join(',')})`, ...ch)); }
+  return out;
+}
+const kirganOtalar = phones => new Set(otalarRaqamda(phones, 'phone', 'AND last_login IS NOT NULL').map(o => phone9(o.phone)));
 const kidInSchool = (u, schoolId, classId) => kidsOfPhone(phone9(u.phone)).some(id => { const x = one('SELECT s.class_id,c.school_id FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', id); return x && x.school_id === schoolId && (!classId || x.class_id === classId); });
 // Ro'yxatdan (Excel) kelgan ota-ona raqamlariga ishonilmaydi: ular faqat "tekshirilmagan taklif" bo'lib turadi.
 // Haqiqiy raqamni sinf rahbari yoki jamoa qo'lda kiritadi (yoki sinf rahbari bot so'rovini tasdiqlaydi).
@@ -1581,11 +1655,14 @@ A['iresult.save'] = (u, b) => {
 function rahbarExtras(u, out) {
   const ex = {};
   // har bola: ota-onasida PIN bormi, saytga kirganmi (telefon raqami bo'yicha)
-  const otas = all("SELECT phone,pin,last_login FROM users WHERE role='ota' AND active=1");
+  // faqat shu sinf bolalarining raqamlari bo'yicha (indeks bilan) — butun ota-onalar jadvali o'qilmaydi (24.11 yuklama sinovi)
+  const phs = [...new Set(out.students.flatMap(s => [s.phone, ...(s.extra || [])]).map(phone9).filter(Boolean))];
+  const otaBy = new Map();
+  for (let i = 0; i < phs.length; i += 400) { const ch = phs.slice(i, i + 400);
+    for (const o of all(`SELECT phone,pin,last_login FROM users WHERE +role='ota' AND active=1 AND phone IN (${ch.map(() => '?').join(',')})`, ...ch)) { const k = phone9(o.phone); (otaBy.get(k) || otaBy.set(k, []).get(k)).push(o); } }
   ex.parentAcc = {};
   for (const s of out.students) {
-    const ps = [s.phone, ...(s.extra || [])].map(phone9).filter(Boolean);
-    const us = otas.filter(o => ps.includes(phone9(o.phone)));
+    const us = [s.phone, ...(s.extra || [])].map(phone9).filter(Boolean).flatMap(p => otaBy.get(p) || []);
     ex.parentAcc[s.id] = { pin: us.some(o => o.pin), in: us.some(o => o.last_login) };
   }
   ex.rnotes = Object.fromEntries(all('SELECT student_id,text,at FROM rnotes WHERE user_id=?', u.id).map(r => [r.student_id, { text: r.text, at: r.at }]));
@@ -1604,14 +1681,132 @@ const MAVZU = {}; // 16.11.2026: mavzu tushuntirishlari olib tashlandi (Siroj qa
 try { db.exec('ALTER TABLE classes ADD COLUMN obuna INTEGER DEFAULT 0'); } catch (e) { }
 A['class.obuna'] = (u, b) => { need(u.role === 'ceo', 'Obunani faqat CEO yoqadi'); const c = one('SELECT id,name FROM classes WHERE id=?', +b.id); if (!c) bad('Sinf topilmadi');
   run('UPDATE classes SET obuna=? WHERE id=?', b.on ? 1 : 0, c.id); log(u.id, b.on ? 'obuna.yoqish' : 'obuna.ochirish', { sinf: c.name }); return {}; };
+// ================= HAR BOLA UCHUN OBUNA (kod auditi 8-band, 24.11.2026; Siroj qarorlari 12.11 va 14.11.2026)
+// Kim to'lasa — O'SHA BOLAGA ochiladi; o'qituvchi (rahbar, direktor) bepul. Oylik: shu oy oxirigacha; yillik: O'QUV YILI oxirigacha (25-avgust).
+// Narx QOLGAN KUNLARGA qarab: oylik = oy narxi × qolgan kun / oydagi kun; yillik = 25-avgustgacha oyma-oy summasi − 20% (birdaniga to'lagani uchun).
+// 100 so'mgacha yaxlitlanadi. Narx: oyiga 25 000; birinchi o'quv yili (2027-yil 25-avgustgacha) "Ochilish narxi" 15 000.
+// Yozuvlar HECH QACHON o'chmaydi (maktab o'chirilsa ham): bekor qilinsa faqat belgi qo'yiladi. Obuna bola + telefon + ismga bog'lanadi:
+// bola qayta ro'yxatdan o'tsa (yangi yozuv), o'sha raqam va ism bo'yicha obunasi davom etadi.
+// To'lov tizimi (Click/Payme) ulanguncha obunani CEO qo'lda yoqadi; ota-ona kabinetidan so'rov yuboradi.
+// Eski sinf obunasi (classes.obuna) ham amal qiladi: sinf yoqilgan bo'lsa (masalan maktab to'lagan) — sinfning hamma bolasi obunali.
+db.exec(`CREATE TABLE IF NOT EXISTS obunalar(id INTEGER PRIMARY KEY, student_id INTEGER NOT NULL, phone TEXT DEFAULT '', ism TEXT DEFAULT '',
+  turi TEXT NOT NULL, boshlanish TEXT NOT NULL, tugash TEXT NOT NULL, summa INTEGER DEFAULT 0, manba TEXT DEFAULT 'ceo', tolov_id TEXT DEFAULT '',
+  izoh TEXT DEFAULT '', by INTEGER, at TEXT, bekor INTEGER DEFAULT 0, bekor_at TEXT, bekor_by INTEGER, eslatma INTEGER DEFAULT 0)`);
+db.exec(`CREATE TABLE IF NOT EXISTS obuna_sorov(id INTEGER PRIMARY KEY, student_id INTEGER NOT NULL, user_id INTEGER, phone TEXT DEFAULT '', turi TEXT DEFAULT '',
+  status TEXT DEFAULT 'yangi', at TEXT, by INTEGER, javob_at TEXT)`);
+for (const q of ['obunalar(student_id)', 'obunalar(phone)', 'obunalar(tugash)', 'obuna_sorov(status)']) try { db.exec(`CREATE INDEX IF NOT EXISTS ix_${q.replace(/\W+/g, '_')} ON ${q}`); } catch (e) { }
+const OB_DEF = { obuna_narx: 25000, obuna_ochilish_narx: 15000, obuna_ochilish_gacha: '2027-08-25', obuna_chegirma: 20 };
+const obSet = k => { const v = getSet(k); return v === '' ? OB_DEF[k] : (typeof OB_DEF[k] === 'number' ? Math.max(0, +v || 0) : v); };
+const obMajburiy = () => getSet('obuna_majburiy') === '1'; // yoqilsa: ota-ona darsni faqat obuna bilan ochadi (to'lov tizimi ulangach)
+const kunSoni = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate(); // m: 1..12
+const sanaQosh = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+const oquvYiliOxiri = d => { const y = +d.slice(0, 4); return d <= `${y}-08-25` ? `${y}-08-25` : `${y + 1}-08-25`; };
+const yuz = x => Math.round(x / 100) * 100;
+function obunaNarx(d = today()) {
+  // o'quv yili 2-sentyabrdan 25-avgustgacha (Siroj, 14.11.2026): yozgi ta'tilda (26-avgust – 1-sentyabr) obuna 2-sentyabrdan boshlanadi
+  if (d.slice(5) > '08-25' && d.slice(5) < '09-02') d = d.slice(0, 4) + '-09-02';
+  const oyN = d <= obSet('obuna_ochilish_gacha') ? obSet('obuna_ochilish_narx') : obSet('obuna_narx'), asosiy = obSet('obuna_narx');
+  const qism = (y, m, k) => { const n = kunSoni(y, m), oxir = m === 8 ? 25 : n, bosh = m === 9 ? Math.max(k, 2) : k, q = Math.max(0, oxir - bosh + 1); return { q, n, oxir, sum: oyN * q / n }; };
+  const y0 = +d.slice(0, 4), m0 = +d.slice(5, 7), k0 = +d.slice(8, 10), o = qism(y0, m0, k0);
+  const oy = { turi: 'oy', boshlanish: d, tugash: `${d.slice(0, 7)}-${String(o.oxir).padStart(2, '0')}`, kun: o.q, summa: yuz(o.sum) };
+  let sum = o.sum, kun = o.q, y = y0, m = m0;
+  while (m !== 8) { m++; if (m > 12) { m = 1; y++; } const x = qism(y, m, 1); sum += x.sum; kun += x.q; }
+  const chegirma = obSet('obuna_chegirma'), oyma = yuz(sum), summa = yuz(sum * (100 - chegirma) / 100);
+  const yil = { turi: 'yil', boshlanish: d, tugash: `${y}-08-25`, kun, oyma, summa, chegirma, tejash: Math.max(0, oyma - summa) };
+  return { oy, yil, oyNarx: oyN, asosiy, ochilish: oyN < asosiy, ochilishGacha: obSet('obuna_ochilish_gacha') };
+}
+// bolaning amaldagi obunasi (eng kech tugaydigani) — yoki null
+function obunaOf(sid, d = today()) {
+  const s = one('SELECT s.id,s.name,s.phone,c.obuna FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', sid); if (!s) return null;
+  let r = one("SELECT * FROM obunalar WHERE student_id=? AND bekor=0 AND boshlanish<=? AND tugash>=? ORDER BY tugash DESC LIMIT 1", sid, d, d);
+  if (!r) { // qayta ro'yxatdan o'tgan bola: eski yozuvdagi obuna shu raqam va ism bilan davom etadi
+    const ps = [phone9(s.phone), ...all('SELECT phone FROM student_phones WHERE student_id=?', sid).map(x => phone9(x.phone))].filter(Boolean);
+    if (ps.length) r = all(`SELECT o.* FROM obunalar o LEFT JOIN students x ON x.id=o.student_id AND x.active=1 WHERE x.id IS NULL AND o.bekor=0 AND o.boshlanish<=? AND o.tugash>=? AND o.phone IN (${ps.map(() => '?').join(',')}) ORDER BY o.tugash DESC`, d, d, ...ps).find(o => nameKey(o.ism) === nameKey(s.name)) || null;
+  }
+  if (r) return { id: r.id, turi: r.turi, boshlanish: r.boshlanish, tugash: r.tugash, manba: r.manba };
+  if (s.obuna) return { id: 0, turi: 'sinf', boshlanish: '', tugash: oquvYiliOxiri(d), manba: 'sinf' };
+  return null;
+}
+const obunaBor = sid => !!obunaOf(sid);
+const faolObunaSet = (d = today()) => new Set(all('SELECT student_id FROM obunalar WHERE bekor=0 AND boshlanish<=? AND tugash>=?', d, d).map(r => r.student_id));
+const obKid = (sid, d) => { const si = studentInfo(sid); if (!si) return null; const o = obunaOf(sid, d); return { id: si.id, name: si.name, cls: si.cls, grade: si.grade, maktab: mkNum(si.num), obuna: o, sorov: !!one("SELECT 1 FROM obuna_sorov WHERE student_id=? AND status='yangi'", sid) }; };
+// Narxlar va bolalarning obuna holati. Ota-ona — o'z bolalari; sinf rahbari — o'z sinfi; direktor — o'z maktabi; jamoa — so'ralgan bolalar yoki sinf.
+A['obuna.holat'] = (u, b) => {
+  const d = today(); let ids = [];
+  if (u.role === 'ota') ids = kidsOfPhone(phone9(u.phone));
+  else if (u.role === 'rahbar') ids = all('SELECT id FROM students WHERE class_id=? AND active=1', u.class_id).map(r => r.id);
+  else if (u.role === 'direktor') ids = all('SELECT s.id FROM students s JOIN classes c ON c.id=s.class_id WHERE c.school_id=? AND s.active=1', u.school_id).map(r => r.id);
+  else if (isTeam(u)) ids = Array.isArray(b.ids) ? b.ids.slice(0, 500).map(Number).filter(Boolean) : b.class_id ? all('SELECT id FROM students WHERE class_id=? AND active=1', +b.class_id).map(r => r.id) : [];
+  else need(false);
+  return { narx: obunaNarx(d), majburiy: obMajburiy(), bolalar: ids.map(id => obKid(id, d)).filter(Boolean), bugun: d };
+};
+// Ota-ona: obuna so'rovi (to'lov tizimi ulanguncha — jamoa yoqadi)
+A['obuna.sorov'] = (u, b) => {
+  need(u.role === 'ota', 'Obunani ota-ona so‘raydi');
+  const sid = +b.student_id; need(kidsOfPhone(phone9(u.phone)).includes(sid), 'Faqat o‘z farzandingiz uchun');
+  const turi = b.turi === 'yil' ? 'yil' : 'oy';
+  if (one("SELECT 1 FROM obuna_sorov WHERE student_id=? AND status='yangi'", sid)) return { ok: true, avval: true };
+  run('INSERT INTO obuna_sorov(student_id,user_id,phone,turi,status,at) VALUES(?,?,?,?,?,?)', sid, u.id, phone9(u.phone), turi, 'yangi', now());
+  const si = studentInfo(sid); log(u.id, 'obuna.sorov', { student_id: sid, name: si && si.name, turi });
+  if (process.env.YX_TEST !== '1') { pushUsers([ceoId(), ...sardorIds()], 'Yangi obuna so‘rovi: ' + (si ? si.name : ''), '/#obuna', 'obuna'); notifyUsers([ceoId()], `Yangi obuna so‘rovi: ${si ? si.name + ' (' + mkNum(si.num) + ', ' + si.cls + ')' : ''} — ${turi === 'yil' ? 'yillik' : 'oylik'}. Ko‘rish: ${siteUrl()}`); }
+  return { ok: true };
+};
+// CEO: bolaga obunani qo'lda yoqish (to'lov tizimi ulanguncha). Summa — shu kungi narx (yoki CEO yozgani, masalan chegirma bilan).
+A['obuna.yoq'] = (u, b) => {
+  need(u.role === 'ceo', 'Obunani faqat CEO yoqadi');
+  const s = one('SELECT id,name,phone FROM students WHERE id=? AND active=1', +b.student_id); if (!s) bad('O‘quvchi topilmadi');
+  const turi = b.turi === 'yil' ? 'yil' : 'oy', n = obunaNarx()[turi];
+  const cur = obunaOf(s.id); if (cur && cur.id && cur.tugash >= n.tugash) bad(`Bu bolada ${cur.tugash} gacha obuna bor`);
+  const summa = b.summa == null || b.summa === '' ? n.summa : Math.max(0, Math.round(+b.summa) || 0);
+  const ph = phone9(s.phone) || (one('SELECT phone FROM student_phones WHERE student_id=? LIMIT 1', s.id) || {}).phone || '';
+  const r = run('INSERT INTO obunalar(student_id,phone,ism,turi,boshlanish,tugash,summa,manba,izoh,by,at) VALUES(?,?,?,?,?,?,?,?,?,?,?)', s.id, ph, s.name, turi, n.boshlanish, n.tugash, summa, 'ceo', str(b.izoh, 300), u.id, now());
+  run("UPDATE obuna_sorov SET status='bajarildi',by=?,javob_at=? WHERE student_id=? AND status='yangi'", u.id, now(), s.id);
+  log(u.id, 'obuna.yoqish', { student_id: s.id, name: s.name, turi, tugash: n.tugash, summa });
+  if (process.env.YX_TEST !== '1') notifyUsers(parentsOf(s.id).map(x => x.id), `${s.name} uchun obuna yoqildi: ${n.tugash.split('-').reverse().join('.')} gacha. Hamma darslar ochiq. ${siteUrl()}`);
+  return { id: Number(r.lastInsertRowid), tugash: n.tugash, summa };
+};
+// CEO: obunani bekor qilish — yozuv o'chmaydi, faqat belgi qo'yiladi (to'lov yozuvlari hech qachon o'chmaydi)
+A['obuna.bekor'] = (u, b) => {
+  need(u.role === 'ceo', 'Obunani faqat CEO bekor qiladi');
+  const r = one('SELECT * FROM obunalar WHERE id=?', +b.id); if (!r) bad('Topilmadi'); if (r.bekor) bad('Allaqachon bekor qilingan');
+  run('UPDATE obunalar SET bekor=1,bekor_at=?,bekor_by=? WHERE id=?', now(), u.id, r.id);
+  log(u.id, 'obuna.bekor', { student_id: r.student_id, name: r.ism, turi: r.turi, sabab: str(b.sabab, 200) }); return {};
+};
+A['obuna.sorov.rad'] = (u, b) => { need(u.role === 'ceo'); run("UPDATE obuna_sorov SET status='rad',by=?,javob_at=? WHERE id=? AND status='yangi'", u.id, now(), +b.id); return {}; };
+// Jamoa: obunalar ro'yxati, so'rovlar va tushum
+A['obuna.list'] = u => {
+  need(isTeam(u)); const d = today(), m0 = d.slice(0, 7) + '-01';
+  const inf = sid => { const si = studentInfo(sid); return si ? { name: si.name, cls: si.cls, maktab: mkNum(si.num), school_id: si.school_id } : null; };
+  const rows = all('SELECT * FROM obunalar ORDER BY id DESC LIMIT 1000').map(r => ({ ...r, faol: !r.bekor && r.boshlanish <= d && r.tugash >= d, bola: inf(r.student_id) }));
+  const sorov = all("SELECT * FROM obuna_sorov WHERE status='yangi' ORDER BY id").map(r => ({ ...r, bola: inf(r.student_id) }));
+  const sum = (w, ...a) => one(`SELECT COALESCE(sum(summa),0) n, count(*) c FROM obunalar WHERE bekor=0 ${w}`, ...a);
+  return { rows, sorov, narx: obunaNarx(d), majburiy: obMajburiy(), faol: faolObunaSet(d).size, sinf: one('SELECT count(*) n FROM classes WHERE obuna=1').n,
+    tushum: { oy: sum('AND at>=?', m0 + 'T00:00:00'), jami: sum('') }, bugun: d };
+};
+A['obuna.sozlama'] = (u, b) => {
+  need(u.role === 'ceo');
+  if (b.majburiy != null) { setSet('obuna_majburiy', b.majburiy ? '1' : '0'); log(u.id, 'obuna.sozlama', { majburiy: !!b.majburiy }); }
+  return { majburiy: obMajburiy() };
+};
+// Obuna tugashidan 3 kun oldin ota-onaga Telegram'da eslatma (bir marta)
+function obunaEslat() {
+  if (process.env.YX_TEST === '1') return;
+  const d = sanaQosh(today(), 3);
+  for (const r of all('SELECT * FROM obunalar WHERE bekor=0 AND eslatma=0 AND tugash=?', d)) {
+    run('UPDATE obunalar SET eslatma=1 WHERE id=?', r.id);
+    if (all('SELECT 1 FROM obunalar WHERE student_id=? AND bekor=0 AND tugash>?', r.student_id, d).length) continue; // keyingisi allaqachon bor
+    notifyUsers(parentsOf(r.student_id).map(x => x.id), `${r.ism} obunasi ${d.split('-').reverse().join('.')} kuni tugaydi. Davom ettirish: ${siteUrl()} → Obuna.`);
+  }
+}
+setInterval(() => { try { obunaEslat(); } catch (e) { console.error('obuna eslatma', e.message); } }, 3600e3).unref();
 function mavzuPart(m) { if (!m) return null;
   const steps = m.steps || [], ex = m.ex || [], xs = Array.isArray(m.x) ? m.x : (m.x ? [m.x] : []);
   return { t: m.t, steps: steps.slice(0, 2), ex: ex.slice(0, 1), x: xs.slice(0, 1), mashq: [], locked: { steps: Math.max(0, steps.length - 2), ex: Math.max(0, ex.length - 1), x: Math.max(0, xs.length - 1), mashq: (m.mashq || []).length }, ...(m.steps ? {} : { short: true }) }; }
 A['mavzu.get'] = (u, b) => { const code = String(b.topic || ''); if (PB_LOCKED(code)) bad('Bu bo‘lim yopiq');
   let full = isTeam(u) || u.role === 'direktor';
-  if (u.role === 'rahbar') { const c = one('SELECT grade,obuna FROM classes WHERE id=?', u.class_id); if (String(code)[0] !== String(c?.grade)) bad('Faqat o‘z sinfingiz mavzulari'); full = !!c?.obuna; }
-  else if (u.role === 'ota') { const kids = kidsOfPhone(phone9(u.phone)); const cs = kids.map(id => one('SELECT c.grade,c.obuna FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=?', id)).filter(Boolean);
-    const my = cs.filter(c => +String(code)[0] === c.grade); if (!my.length) bad('Faqat farzandingiz sinfi mavzulari'); full = my.some(c => c.obuna); }
+  if (u.role === 'rahbar') { const c = one('SELECT grade FROM classes WHERE id=?', u.class_id); if (String(code)[0] !== String(c?.grade)) bad('Faqat o‘z sinfingiz mavzulari'); full = true; } // o'qituvchi bepul (Siroj, 12.11.2026)
+  else if (u.role === 'ota') { const my = kidsOfPhone(phone9(u.phone)).map(id => studentInfo(id)).filter(s => s && +String(code)[0] === s.grade);
+    if (!my.length) bad('Faqat farzandingiz sinfi mavzulari'); full = my.some(s => obunaBor(s.id)); }
   else need(full);
   const m = MAVZU[code] || null; return full ? m : mavzuPart(m); };
 A['pb.sample'] = (u, b) => { // sinf rahbari: o'z sinfi mavzusidan tasodifiy misollar (yechimi bilan)
@@ -1681,21 +1876,26 @@ function notifyAnnounce(testId, schoolId) {
   const staff = all("SELECT id FROM users WHERE active=1 AND ((role='direktor' AND school_id=?) OR (role='rahbar' AND class_id IN (SELECT id FROM classes WHERE school_id=?)))", schoolId, schoolId).map(r => r.id);
   notifyUsers(staff, `"${t.name}" sinovi natijalari e‘lon qilindi. Ko‘rish: ${siteUrl()}`);
 }
-function grantByPhone(p) {
+// Telegram orqali tasdiqlangan raqam egasiga PIN: yangi kabinet — yangi PIN; PIN'i bor bo'lsa — faqat /pin buyrug'ida (yangi) beriladi,
+// chunki eski PIN bazada xesh ko'rinishida (ko'rsatib bo'lmaydi). renew=true: eski PIN o'rniga yangisi (eskisi ishlamay qoladi).
+function grantByPhone(p, renew = false) {
   if (!p) return [];
   const got = [];
-  for (const t of pinTargets()) {
-    if (phone9(t.phone) !== p) continue;
-    if (t.kind === 'jamoa') { if (t.user?.pin) got.push({ pin: t.user.pin, name: t.name, kind: 'jamoa' }); continue; }
+  for (const t of pinTargetsOfPhone(p)) {
+    if (t.kind === 'jamoa') { if (t.user?.pin) got.push(renew ? ensurePin(t, null, true) : { bor: true, name: t.name, kind: 'jamoa' }); continue; }
     if (t.user && t.user.pin && phone9(t.user.phone) && phone9(t.user.phone) !== p) continue; // PIN egasining raqami boshqa — bermaymiz
-    got.push(ensurePin(t, null, false));
+    got.push(ensurePin(t, null, renew));
   }
   return got;
 }
 const ROLE_UZ = { ota: 'Ota-ona', rahbar: 'Sinf rahbari', direktor: 'Direktor', jamoa: 'Jamoa a‘zosi' };
 function pinMessage(got) {
-  return 'Sizning PIN kodingiz:\n\n' + got.map(g => `${ROLE_UZ[g.kind] || ''} — ${g.name}\nPIN: ${g.pin}`).join('\n\n') +
-    `\n\nSaytga kirish: ${siteUrl()}\nPIN kodni hech kimga bermang.`;
+  const yangi = got.filter(g => g.pin), bor = got.filter(g => !g.pin);
+  let m = '';
+  if (yangi.length) m += 'Sizning PIN kodingiz:\n\n' + yangi.map(g => `${ROLE_UZ[g.kind] || ''} — ${g.name}\nPIN: ${g.pin}`).join('\n\n');
+  if (bor.length) m += (m ? '\n\n' : '') + 'Sizda PIN kod bor:\n' + bor.map(g => `${ROLE_UZ[g.kind] || ''} — ${g.name}`).join('\n') +
+    '\n\nPIN kodni unutgan bo‘lsangiz, /pin deb yozing — yangi PIN keladi (eskisi ishlamay qoladi).';
+  return m + `\n\nSaytga kirish: ${siteUrl()}\nPIN kodni hech kimga bermang.`;
 }
 // ================= Natija varaqalari: imtihondan platformaga ko'prik (QR -> bot -> ota-ona PIN kodi)
 // Varaqadagi kod maxfiy kalit bilan imzolanadi: faqat qog'oz varaqani olgan odam bolaga ulana oladi.
@@ -1950,7 +2150,7 @@ async function onUpdate(up) {
   }
   const linked = one('SELECT phone FROM tg_users WHERE chat_id=?', chat);
   if (linked && (txt === '/pin' || txt.startsWith('/start'))) {
-    const got = grantByPhone(linked.phone);
+    const got = grantByPhone(linked.phone, txt === '/pin');
     if (got.length) return tgSend(chat, pinMessage(got), NO_KB);
   }
   return tgSend(chat, 'Assalomu alaykum! Ro‘yxatdan o‘tish uchun pastdagi tugma bilan telefon raqamingizni yuboring.', CONTACT_KB);
@@ -2016,7 +2216,7 @@ const RX_KUT = 'Rahmat! Ma’lumotlaringiz qabul qilindi.\n\n';
 function rxTeacher(r, cl, by) {
   const p = phone9(r.phone);
   run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', r.fam + ' ' + r.ism, p, cl.id);
-  const t = pinTargets().find(x => x.kind === 'rahbar' && x.ref === cl.id); const g = ensurePin(t, by, true);
+  const t = pinTarget('rahbar', cl.id); const g = ensurePin(t, by, true);
   run("UPDATE users SET jins=? WHERE role='rahbar' AND class_id=? AND active=1", r.jins, cl.id); return g.pin;
 }
 // Arizani ko'rib, kabinetni ochadi yoki tasdiqqa qoldiradi. Qaytaradi: { status, msg }
@@ -2046,8 +2246,9 @@ function rxOpen(r) {
     run('INSERT INTO students(class_id,name,patronymic,phone,jins,ozi,created_at) VALUES(?,?,?,?,?,1,?)', cl.id, full, r.pat, p, r.jins, now());
     notifyUsers(rahbarsOf(cl.id).map(x => x.id), `Sinfingizga yangi o‘quvchi ro‘yxatdan o‘tdi: ${full} (${cl.name}). Ko‘rish: ${siteUrl()}`);
   }
-  const t = pinTargets().find(x => x.kind === 'ota' && x.ref === p); if (!t) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
-  return { status: 'ochildi', msg: rxPinMsg(ensurePin(t, null, false).pin) };
+  const t = pinTarget('ota', p); if (!t) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
+  const g = ensurePin(t, null, false);
+  return { status: 'ochildi', msg: g.pin ? rxPinMsg(g.pin) : 'Ro‘yxatdan o‘tdingiz. Sizda PIN kod bor — saytga o‘sha PIN bilan kiring.\nUnutgan bo‘lsangiz, /pin deb yozing — yangi PIN keladi.\n\nSaytga kirish: ' + siteUrl() };
 }
 function rxProcess(id) {
   const r = one('SELECT * FROM royxat WHERE id=?', id); if (!r || r.status !== 'yangi') return null;
@@ -2071,7 +2272,7 @@ A['royxat.act'] = async (u, b) => {
     const sc = rxSchool(r, true), p = phone9(r.phone);
     if (r.rol === 'd') {
       run('UPDATE schools SET director_name=?,director_phone=? WHERE id=?', r.fam + ' ' + r.ism, p, sc.id);
-      const t = pinTargets().find(x => x.kind === 'direktor' && x.ref === sc.id); const g = ensurePin(t, u.id, true);
+      const t = pinTarget('direktor', sc.id); const g = ensurePin(t, u.id, true);
       run("UPDATE users SET jins=? WHERE role='direktor' AND school_id=? AND active=1", r.jins, sc.id); return g.pin;
     }
     if (r.rol === 'u') { const cl = rxClass(sc, r.sinf, true); if (!cl) bad('Sinf nomi noto‘g‘ri'); return rxTeacher(r, cl, u.id); }
@@ -2363,12 +2564,12 @@ function recipients(t, fromId) {
   const leaders = [ceoId(), ...sardorIds()];
   if (t.kind === 'jamoa') ids = [...leaders, t.user_id, ...all("SELECT id,role,perms FROM users WHERE role='jamoa' AND active=1").filter(x => perms(x).xabar).map(x => x.id)];
   if (t.kind === 'ota') ids = [t.user_id, ...rahbarsOf(t.class_id).map(r => r.id)];
-  if (t.kind === 'sinf') ids = all("SELECT id,phone FROM users WHERE role='ota' AND active=1").filter(x => kidsOfPhone(phone9(x.phone)).some(k => one('SELECT class_id FROM students WHERE id=?', k)?.class_id === t.class_id)).map(x => x.id);
+  if (t.kind === 'sinf') ids = otalarRaqamda(bolaRaqamlari(t.class_id)).map(x => x.id); // sinfdagi biror bolaning raqamiga ega ota-onalar
   if (t.kind === 'chat') ids = all("SELECT id FROM users WHERE role IN ('ceo','jamoa') AND active=1").map(x => x.id);
   if (t.kind === 'drh') ids = [t.user_id, ...rahbarsOf(t.class_id).map(r => r.id)];
   if (t.kind === 'drhs') ids = [...directorsOf(t.school_id).map(r => r.id), ...rahbarsOfSchool(t.school_id).map(r => r.id)];
   if (t.kind === 'dota') ids = [t.user_id, ...directorsOf(t.school_id).map(r => r.id)];
-  if (t.kind === 'dotalar') ids = all("SELECT * FROM users WHERE role='ota' AND active=1").filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
+  if (t.kind === 'dotalar') ids = otalarRaqamda(t.class_id ? bolaRaqamlari(t.class_id) : bolaRaqamlari(0, t.school_id)).filter(x => kidInSchool(x, t.school_id, t.class_id)).map(x => x.id);
   return [...new Set(ids)].filter(id => id !== fromId);
 }
 // ======== TUMAN RO'YXATI: rasmiy ro'yxatdan 1–4-sinflarni bir martada kiritish (faqat CEO) ========
@@ -2838,7 +3039,7 @@ A['ustoz.get'] = (u, b) => {
   need(u.role === 'rahbar' && u.class_id, 'Bu sahifa sinf rahbari uchun');
   const c = one('SELECT c.id,c.name,c.grade,sc.num FROM classes c JOIN schools sc ON sc.id=c.school_id WHERE c.id=?', u.class_id); if (!c) bad('Sinf topilmadi');
   const studs = all('SELECT id,name,phone,patronymic,ozi,jins FROM students WHERE active=1 AND class_id=? ORDER BY name', c.id);
-  const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
+  const inSet = kirganOtalar(bolaRaqamlari(c.id));
   const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
   const kids = studs.map(s => {
     let sm = null; try { sm = (JSON.parse(one('SELECT data FROM yol_prog WHERE student_id=?', s.id)?.data || 'null') || {}).sum || null; } catch { }
@@ -2855,7 +3056,7 @@ A['dir.get'] = u => {
   need(u.role === 'direktor', 'Bu sahifa maktab direktori uchun');
   if (!u.school_id) bad('Sizga hali maktab biriktirilmagan. Loyiha jamoasiga xabar yozing.');
   const sc = one('SELECT id,num FROM schools WHERE id=?', u.school_id); if (!sc) bad('Sizga biriktirilgan maktab ro‘yxatda topilmadi (o‘chirilgan bo‘lishi mumkin). Loyiha jamoasiga xabar yozing.');
-  const inSet = new Set(all("SELECT phone FROM users WHERE role='ota' AND active=1 AND last_login IS NOT NULL").map(o => phone9(o.phone)).filter(Boolean));
+  const inSet = kirganOtalar(bolaRaqamlari(0, sc.id));
   const wk = new Date(Date.now() + 5 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10);
   const ago = at => { const t = Date.parse(at || ''); return Number.isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 86400e3)) : null; };
   const classes = all('SELECT id,name,grade,teacher_name FROM classes WHERE school_id=?', sc.id).map(c => {
@@ -2916,7 +3117,7 @@ A['ustoz.jins'] = (u, b) => {
 function ustozOtaPin(u, p) {
   if (!p) return { pin: '', pinHol: 'raqamsiz' };
   if (u._demo) return { pin: '', pinHol: 'namuna' };
-  const t = pinTargets().find(x => x.kind === 'ota' && x.ref === p); if (!t) return { pin: '', pinHol: 'raqamsiz' };
+  const t = pinTarget('ota', p); if (!t) return { pin: '', pinHol: 'raqamsiz' };
   if (t.user && t.user.pin) return { pin: '', pinHol: 'bor' };
   return { pin: ensurePin(t, u.id, false).pin, pinHol: 'yangi' };
 }
@@ -3071,8 +3272,12 @@ function readBody(req, limit = 8e6) {
 function send(res, code, obj, headers = {}) {
   let body = typeof obj === 'string' || Buffer.isBuffer(obj) ? obj : JSON.stringify(obj);
   // katta javoblar (masalan, butun tuman ro'yxati) siqib yuboriladi — telefon interneti tejaladi
-  if (typeof body === 'string' && body.length > 20000 && !headers['Content-Encoding'] && /\bgzip\b/.test(res.req?.headers?.['accept-encoding'] || '')) { body = require('node:zlib').gzipSync(body, { level: 5 }); headers = { ...headers, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' }; }
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(body);
+  // 9-band: siqish fon oqimida (zlib.gzip) — katta javob siqilayotganda server boshqa so'rovlarni kutdirmaydi
+  const out = (b, h) => { if (res.headersSent || res.destroyed) return; res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...h }); res.end(b); };
+  if (typeof body === 'string' && body.length > 20000 && !headers['Content-Encoding'] && /\bgzip\b/.test(res.req?.headers?.['accept-encoding'] || '')) {
+    return require('node:zlib').gzip(body, { level: 5 }, (e, z) => e ? out(body, headers) : out(z, { ...headers, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' }));
+  }
+  out(body, headers);
 }
 function cookie(req, n) { const m = (req.headers.cookie || '').match(new RegExp('(?:^|; )' + n + '=([^;]+)')); return m ? m[1] : ''; }
 const IDLE_MS = 32 * 60e3;
@@ -3197,7 +3402,8 @@ function ceoDash(u, b) {
   if (f.t && allSc.some(s => s.id === +b.m && s.viloyat === f.v && s.tuman === f.t)) f.m = +b.m;
   const schools = allSc.filter(s => (!f.v || s.viloyat === f.v) && (!f.t || s.tuman === f.t) && (!f.m || s.id === f.m));
   const scMap = new Map(schools.map(s => [s.id, s]));
-  const studs = all('SELECT s.id,s.phone,s.ozi,s.manba,s.created_at,s.class_id cid,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid)).map(s => ({ ...s, mb: manbaOf(s) }));
+  const obS = faolObunaSet();
+  const studs = all('SELECT s.id,s.phone,s.ozi,s.manba,s.created_at,s.class_id cid,c.grade,c.obuna,c.school_id sid FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1').filter(s => scMap.has(s.sid)).map(s => ({ ...s, obuna: s.obuna || obS.has(s.id) ? 1 : 0, mb: manbaOf(s) }));
   const otaBy = new Map(); for (const o of all("SELECT id,phone,created_at,last_login FROM users WHERE role='ota' AND active=1 AND pin IS NOT NULL")) { const p = phone9(o.phone); if (p && !dm.set.has(o.id)) otaBy.set(p, o); }
   const extra = new Map(); for (const r of all('SELECT student_id,phone FROM student_phones')) { const p = phone9(r.phone); if (p) (extra.get(r.student_id) || extra.set(r.student_id, []).get(r.student_id)).push(p); }
   const d0 = dayAgo(per), vis = new Map(); for (const r of all('SELECT day,user_id FROM visits WHERE day>=?', dayAgo(Math.max(per + Math.ceil(per / 6), 31)))) (vis.get(r.user_id) || vis.set(r.user_id, []).get(r.user_id)).push(r.day);
@@ -3362,6 +3568,25 @@ function noIndex(p) {
   return /^\/(api|t|ph|oq|darslar|a\/k)(\/|$)/.test(p) || /\.html?$/i.test(p);
 }
 
+function darsRuxsat(u, kod) {
+  if (!u) return 401;
+  if (isTeam(u) || u.role === 'direktor' || u.role === 'rahbar') return true;
+  if (u.role !== 'ota') return 403;
+  if (!dmOchiq().includes(kod)) return 'yopiq';
+  if (!obMajburiy()) return true;
+  const g = +String(kod)[0];
+  return kidsOfPhone(phone9(u.phone)).some(id => studentInfo(id)?.grade === g && obunaBor(id)) ? true : 'obuna';
+}
+function darsYopiq(g) {
+  const m = g === 401 ? ['Darsni ko‘rish uchun saytga kiring', 'Telefon raqamingiz va PIN kodingiz bilan kiring, keyin darsni kabinetingizdan oching.']
+    : g === 'obuna' ? ['Bu dars obuna bilan ochiladi', 'Obunani ota-ona kabinetidagi «Obuna» bo‘limida yoqasiz.']
+    : g === 'yopiq' ? ['Bu dars hali ochilmagan', 'Dars tayyor bo‘lgach, kabinetingizda o‘zi chiqadi.'] : ['Bu sahifa siz uchun emas', ''];
+  return `<!doctype html><html lang="uz"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${m[0]}</title>
+<body style="margin:0;min-height:100dvh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:linear-gradient(160deg,#6db5f0,#c2e8ff 52%,#eef9ff);color:#09256c">
+<div style="max-width:420px;margin:20px;padding:28px 24px;background:#fff;border-radius:22px;box-shadow:0 8px 30px #00346c33;text-align:center">
+<div style="font-size:21px;font-weight:800;margin-bottom:10px">${m[0]}</div><div style="font-size:16px;line-height:1.5;margin-bottom:18px">${m[1]}</div>
+<a href="/" target="_top" style="display:inline-block;padding:12px 22px;border-radius:14px;background:linear-gradient(180deg,#2f7bff,#1d4ed8);color:#fff;font-weight:700;text-decoration:none">Bosh sahifa</a></div></body></html>`;
+}
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -3381,15 +3606,17 @@ const server = http.createServer(async (req, res) => {
         const c = ceoRow(); const own = c && (phone9(getSet('ceo_phone')) || phone9(c.phone));
         if (c && c.active && c.pass && own === p9 && passOk(String(lb.password).slice(0, 128), c.pass)) u = c;
       } else {
-        u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) : null;
+        u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', pinH(String(pin))) : null;
+        if (!u && /^\d{6}$/.test(String(pin))) { u = one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) || null; if (u) run('UPDATE users SET pin=? WHERE id=?', pinH(String(pin)), u.id); } // zaxiradan tiklangan eski baza
         if (u && u.role === 'ceo' && u.pass) u = null; // parol o'rnatilgan bo'lsa CEO PIN bilan kira olmaydi
       }
       if (u && lb.password == null) { // PIN faqat o'z egasining telefon raqami bilan ochiladi
         const own = u.role === 'ceo' ? (phone9(getSet('ceo_phone')) || phone9(u.phone)) : phone9(u.phone);
         if (own && own !== p9) u = null;
-        else if (!own) { // raqami hali yozilmagan foydalanuvchi: birinchi kirgan raqami unga biriktiriladi
-          run('UPDATE users SET phone=? WHERE id=?', p9, u.id); if (u.role === 'ceo') setSet('ceo_phone', p9);
-          log(u.id, 'telefon.biriktirish', { phone: p9 });
+        else if (!own) { // raqami yozilmagan hisob (kod auditi, 3-band): begona odam PIN bilan o'z raqamini biriktirib ololmaydi.
+          // Yagona istisno — CEO'ning ENG BIRINCHI kirishi (yangi o'rnatilgan sayt, PIN faqat serverdagi ceo-pin.txt faylida, parol hali yo'q).
+          if (u.role === 'ceo' && !u.pass) { run('UPDATE users SET phone=? WHERE id=?', p9, u.id); setSet('ceo_phone', p9); log(u.id, 'telefon.biriktirish', { phone: p9 }); }
+          else u = null;
         }
       }
       if (!u) {
@@ -3479,6 +3706,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/darslar') { res.writeHead(301, { Location: '/darslar/', ...SEC }); return res.end(); }
     let p; try { p = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); } catch { res.writeHead(400, SEC); return res.end(); }
     if (p.endsWith('/')) p += 'index.html'; // mavzu darslari: /darslar/
+    // DARS FAYLLARI (kod auditi 7-band): /darslar/<kod>.html faqat saytga kirgan odamga beriladi.
+    // Jamoa, direktor, sinf rahbari — hamma darslar (o'qituvchi bepul, CEO tayyor darsni oldindan ko'radi).
+    // Ota-ona (bola kabineti) — faqat CEO "Bolalarga ochish" bosgan darslar; obuna majburiy qilinsa — obunasi bor bolaning sinfi darslari.
+    { const dm = /^\/darslar\/([0-9][0-9A-Za-z]{1,11})\.html$/i.exec(path.posix.normalize(p));
+      if (dm) { const g = darsRuxsat(userOf(req), dm[1]); if (g !== true) { res.writeHead(g === 401 ? 401 : 403, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...SEC, 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': CSP_FRAME }); return res.end(darsYopiq(g)); } } }
     // Tugallanmagan kabinet sahifalari (/a/k/) faqat sinov saytida beriladi. Asosiy saytda bu yo'l yopiq: fayl diskda bo'lsa ham berilmaydi.
     if (process.env.YX_TEST !== '1' && /^\/a\/k\/bola\.html$/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); } // eski namuna sahifa asosiy saytda ko'rsatilmaydi
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
@@ -3486,7 +3718,7 @@ const server = http.createServer(async (req, res) => {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
       // Tezlik: (1) o'zgarmagan fayl qayta yuborilmaydi (304); (2) versiyali kabinet sahifasi (/a/k/...html?v=N) brauzerda saqlanadi — har kirganda 3 MB qayta yuklanmaydi
       const lm = new Date(Math.floor(fs.statSync(file).mtimeMs / 1000) * 1000).toUTCString(), ver = ext === '.html' && p.startsWith('/a/k/') && url.searchParams.has('v');
-      const hd = { 'Content-Type': type, 'Last-Modified': lm, 'Cache-Control': ver ? 'private, max-age=2592000, immutable' : (ext === '.html' || p.startsWith('/darslar/')) ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') || p.startsWith('/a/k/') ? { 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': CSP_FRAME } : {}) };
+      const hd = { 'Content-Type': type, 'Last-Modified': lm, 'Cache-Control': ver ? 'private, max-age=2592000, immutable' : p.startsWith('/darslar/') ? 'private, no-cache' : ext === '.html' ? 'no-cache' : p.startsWith('/a/') ? 'public, max-age=2592000' : 'max-age=86400', ...SEC, ...(p.startsWith('/darslar/') || p.startsWith('/a/k/') ? { 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': CSP_FRAME } : {}) };
       if (req.headers['if-modified-since'] === lm) { res.writeHead(304, hd); return res.end(); }
       res.writeHead(200, hd); return fs.createReadStream(file).pipe(res);
     }
@@ -3495,6 +3727,7 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     if (e instanceof HttpErr) return send(res, e.code, { error: e.message });
     if (e instanceof SyntaxError) return send(res, 400, { error: 'Noto‘g‘ri so‘rov' });
+    if (e instanceof TypeError && /cannot be bound to SQLite parameter/.test(e.message)) return send(res, 400, { error: 'Noto‘g‘ri so‘rov' });
     console.error(e); send(res, 500, { error: 'Serverda xatolik. Qaytadan urinib ko‘ring.' });
   }
 });
@@ -3541,6 +3774,23 @@ if (zaxiraOk) migrate('2026-11-17-04-jamoa-sardor', () => {
   }
   return o;
 });
+// ---- 24.11.2026 kod auditi: PIN'lar xeshga o'tadi, telefonlar bir xil yozuvga keladi (indeks bilan qidirish uchun). Oldidan zaxira nusxa.
+if (!db.prepare('SELECT 1 FROM migrations WHERE id=?').get('2026-11-24-01-pin-xesh')) {
+  try { fs.mkdirSync(BACKUPS, { recursive: true }); const f = path.join(BACKUPS, `oldin-pin-xesh-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.db`); db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`); fs.chmodSync(f, 0o600); }
+  catch (e) { console.error('PIN xesh migratsiyasidan oldingi zaxira olinmadi:', e.message); }
+}
+migrate('2026-11-24-01-pin-xesh', () => {
+  let n = 0; for (const r of all("SELECT id,pin FROM users WHERE pin IS NOT NULL")) if (pinOchiq(r.pin)) { run('UPDATE users SET pin=? WHERE id=?', pinH(r.pin), r.id); n++; }
+  return { xeshlandi: n };
+});
+migrate('2026-11-24-02-telefon-yozuvi', () => {
+  const o = {}; const fix = (tb, col, key) => { let n = 0; for (const r of all(`SELECT ${key} k,${col} v FROM ${tb} WHERE ${col} IS NOT NULL AND ${col}<>''`)) { const p = phone9(r.v); if (p && p !== r.v) { run(`UPDATE ${tb} SET ${col}=? WHERE ${key}=?`, p, r.k); n++; } } o[tb + '.' + col] = n; };
+  fix('students', 'phone', 'id'); fix('users', 'phone', 'id'); fix('classes', 'teacher_phone', 'id'); fix('schools', 'director_phone', 'id');
+  let n = 0; for (const r of all('SELECT rowid k,phone v FROM student_phones')) { const p = phone9(r.v); if (p && p !== r.v) { run('UPDATE OR IGNORE student_phones SET phone=? WHERE rowid=?', p, r.k); n++; } } o['student_phones.phone'] = n;
+  return o;
+});
+for (const q of ['students(phone)', 'student_phones(phone)', 'classes(teacher_phone)', 'schools(director_phone)'])
+  try { db.exec(`CREATE INDEX IF NOT EXISTS ix_${q.replace(/\W+/g, '_')} ON ${q}`); } catch (e) { }
 migrate('2026-11-17-03-ismlar-yozuvi', () => {
   let fixed = 0;
   {
@@ -3572,4 +3822,8 @@ try {
   const mf = path.join(DATA, 'restored.json');
   if (fs.existsSync(mf)) { const m = JSON.parse(fs.readFileSync(mf, 'utf8')); setSet('restored', JSON.stringify(m)); log(one('SELECT id FROM users WHERE id=?', m.by) ? m.by : null, 'zaxira.tiklandi', m); fs.unlinkSync(mf); }
 } catch (e) { console.error('restored.json:', e.message); }
+// So'rov rejalashtiruvchisi jadvallar haqida bilsin (24.11 yuklama sinovi): statistikasiz SQLite ba'zan "role" indeksini tanlab,
+// 120 000 ota-onani o'qib chiqardi. analysis_limit — har jadvaldan namuna (tez, bazani o'zgartirmaydi, faqat sqlite_stat1 yoziladi).
+try { db.exec('PRAGMA analysis_limit=1000; PRAGMA optimize=0x10002;'); } catch (e) { console.error('optimize', e.message); }
+setInterval(() => { try { db.exec('PRAGMA optimize'); } catch (e) { } }, 6 * 36e5).unref();
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));

@@ -1,0 +1,64 @@
+# Asosiy saytga chiqarish (24.11.2026, kod auditi).
+# main ga har yuklashda: 1) kod tekshiriladi (yozuv xatosi, rollar huquqi, Google qoidasi);
+# 2) hammasi to'g'ri bo'lsa — aynan shu tekshirilgan nusxa `chiqarish` branchiga yoziladi. Asosiy sayt faqat `chiqarish`dan yangilanadi
+#    (server har 5 daqiqada tekshiradi). Sinov sayti esa main dan darrov yangilanadi.
+# 3) 7 daqiqadan keyin haqiqiy sayt tekshiriladi.
+# Xohlasangiz: GitHub → Settings → Environments → "asosiy" → Required reviewers — shunda har chiqarishdan oldin "Approve" tugmasi so'raladi.
+name: Asosiy saytga chiqarish
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chiqarish
+  cancel-in-progress: true # ketma-ket yuklashlarda faqat eng oxirgisi chiqariladi
+jobs:
+  tekshir:
+    name: Kod tekshiruvi
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Yozuv xatosi yo'qligi
+        run: node --check server.js && node --check test-server.js && bash -n install.sh
+      - name: Rollar huquqi, PIN va darslar ruxsati (tekshiruv/huquq.js)
+        run: node --no-warnings tekshiruv/huquq.js
+      - run: npm install --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Google qidiruvi qoidasi (tekshiruv/google.js)
+        run: node tekshiruv/google.js
+  chiqar:
+    name: chiqarish branchiga yozish
+    needs: tekshir
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: asosiy
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Tekshirilgan nusxani chiqarish ga yozish (faqat oldinga, orqaga qaytmaydi)
+        run: |
+          git fetch origin chiqarish || true
+          if git rev-parse -q --verify origin/chiqarish >/dev/null && ! git merge-base --is-ancestor origin/chiqarish "$GITHUB_SHA"; then
+            echo "chiqarish branchida main da yo'q o'zgarish bor yoki bu eski yuklash — yozilmadi."; exit 1
+          fi
+          git push origin "$GITHUB_SHA:refs/heads/chiqarish"
+          echo "Asosiy saytga chiqdi: $GITHUB_SHA (server 5 daqiqa ichida o'rnatadi)"
+  sayt:
+    name: Haqiqiy sayt
+    needs: chiqar
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Server yangilanishini kutish (5 daqiqada bir yangilanadi)
+        run: sleep 420
+      - run: node tekshiruv/google.js --jonli
