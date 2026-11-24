@@ -20,7 +20,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const KEY = crypto.randomBytes(32);
 const pinH = p => 'h1$' + crypto.createHmac('sha256', KEY).update('pin:' + String(p)).digest('hex');
 
-let srv = null;
+let srv = null, LOG = '';
 async function boot() {
   fs.mkdirSync(path.join(DIR, 'public', 'darslar'), { recursive: true });
   fs.copyFileSync(SRV, path.join(DIR, 'server.js'));
@@ -28,7 +28,7 @@ async function boot() {
   fs.writeFileSync(path.join(DIR, 'public', 'darslar', '2A1.html'), '<!doctype html><title>dars</title>' + 'x'.repeat(200000));
   let log = '';
   srv = spawn(process.execPath, ['--no-warnings', ...(process.env.PROF ? ['--cpu-prof', '--cpu-prof-dir=' + path.join(DIR, 'prof'), '--require', process.env.PROF] : []), path.join(DIR, 'server.js')], { env: { ...process.env, DATA_DIR: DATA, BACKUP_DIR: path.join(DIR, 'backups'), PORT: String(PORT), NO_BOT: '1', YX_TEST: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  srv.stdout.on('data', d => log += d); srv.stderr.on('data', d => log += d);
+  srv.stdout.on('data', d => { log += d; LOG += d; }); srv.stderr.on('data', d => { log += d; LOG += d; });
   for (let i = 0; i < 400 && !/http:\/\/127/.test(log) && srv.exitCode == null; i++) await wait(250);
   if (!/http:\/\/127/.test(log)) { console.log(log); throw new Error('server ishga tushmadi'); }
 }
@@ -107,6 +107,8 @@ async function holat(nom, par, ish) {
     const R = [];
     R.push(await holat('kirish (login)', PAR, () => kir(pick(L.ota)).then(() => 1)));
     R.push(await holat('ota-ona: bosh ma’lumot (state)', PAR, () => pick(otalar).f('state')));
+    for (const k of otalar) { const r = await fetch(B + '/api/state', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: k.ck }, body: '{}' }); k.v = (await r.json())._v; }
+    R.push(await holat('ota-ona: fon yangilanishi (o‘zgarmagan)', PAR, () => { const k = pick(otalar); return k.f('state', { v: k.v }); }));
     R.push(await holat('ota-ona: ota.get', PAR, () => pick(otalar).f('ota.get')));
     R.push(await holat('ota-ona: obuna.holat', PAR, () => pick(otalar).f('obuna.holat')));
     R.push(await holat('ota-ona: dars sahifasi (200 KB)', PAR, () => pick(otalar).get('/darslar/2A1.html').catch(e => { if (/403|401/.test(e.message)) return 0; throw e; })));
@@ -120,6 +122,6 @@ async function holat(nom, par, ish) {
     R.push(await holat('aralash (80% ota, 15% ustoz, 5% kirish)', PAR, () => { const x = Math.random(); return x < .8 ? pick(otalar).f('state') : x < .95 ? pick(rahbarlar).f('state') : kir(pick(L.ota)).then(() => 1); }));
     if (process.env.KORISH) console.log([...KOR].slice(0, 40).join('\n'));
     if (process.env.NATIJA) { fs.writeFileSync(process.env.NATIJA, JSON.stringify({ MAK, SNF, BOLA, PAR, SEK, R }, null, 1)); console.log('\nNatija fayli: ' + process.env.NATIJA); }
-  } catch (e) { console.error('XATO:', e.message); process.exitCode = 1; }
+  } catch (e) { console.error('XATO:', e.message); console.error('Server jurnali (oxiri):\n' + LOG.split('\n').slice(-25).join('\n')); process.exitCode = 1; }
   finally { await stop(); if (!process.env.PROF) fs.rmSync(DIR, { recursive: true, force: true }); }
 })();

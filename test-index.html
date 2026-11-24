@@ -1081,7 +1081,7 @@ async function verCheck(){try{const r=await fetch('/api/ver',{cache:'no-store'})
     d.innerHTML='<span>Sayt yangilandi</span><button data-act="pageReload" style="background:#fff;color:var(--navy,#1f3564);border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer">Yangilash</button>';document.body.appendChild(d)}}catch(e){}}
 verCheck();setInterval(verCheck,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)verCheck()});
 async function load(auto,bg){
-  try{const n=await api('state',null,bg);if(n&&!S){try{localStorage.setItem('yx_act',String(Date.now()))}catch(e){}}const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
+  try{const n=await api('state',auto&&S&&S._v&&!netTry?{v:S._v}:null,bg);if(n&&n.same&&S)return;if(n&&!S){try{localStorage.setItem('yx_act',String(Date.now()))}catch(e){}}const j=JSON.stringify(n);if(auto&&S&&!netTry&&j===SJ)return;SJ=j;S=n;if(netTry){netTry=0;pinErr='';if(S)toast('Aloqa tiklandi')}}
   catch(e){
     if(!e.net){S=null;if(netTry){netTry=0;pinErr=''}}
     else{ // aloqa uzilsa — tizimdan chiqarmaymiz, o'zi qayta urinadi

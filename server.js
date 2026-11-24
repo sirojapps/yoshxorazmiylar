@@ -138,6 +138,13 @@ const one = (sql, ...a) => db.prepare(sql).get(...a);
 const all = (sql, ...a) => db.prepare(sql).all(...a);
 let WRITES = 0; // har yozuv sanaladi: amal bazani o'zgartirgan bo'lsa, o'sha odamning boshqa ochiq qurilmalariga "yangilan" deyiladi (liveSend)
 const run = (sql, ...a) => { WRITES++; return db.prepare(sql).run(...a); };
+// Har so'rovdagi xizmat yozuvlari (sessiya "oxirgi harakat", "oxirgi kirish", kunlik tashrif): ular sahifa ma'lumotini o'zgartirmaydi,
+// shuning uchun "ma'lumot o'zgardimi" hisobiga (stateVer) kirmaydi. 100 000 odam onlayn bo'lsa ham bo'sh yangilanish arzon bo'lsin.
+let HK = 0;
+const runHk = (sql, ...a) => { WRITES++; const r = db.prepare(sql).run(...a); HK += Number(r.changes) || 0; return r; };
+// Sahifa ma'lumoti versiyasi: bazadagi haqiqiy o'zgarishlar soni + odam + 5 daqiqalik oraliq (vaqtga bog'liq ko'rsatkichlar uchun).
+// Fon yangilanishida versiya o'zgarmagan bo'lsa server butun ma'lumotni qayta tuzmaydi va yubormaydi.
+const stateVer = u => `${Number(one('SELECT total_changes() n').n) - HK}.${u.id}.${u._demo ? 'd' : ''}${Math.floor(Date.now() / 300e3)}`;
 const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
 // O'zgarishlar tarixi: faqat muhim ishlar yoziladi. Mayda ishlar (kirishda telefon biriktirish, rozilik, sozlama, yuklab olish,
 // telefon raqami, xabar tahriri, sertifikat sanasi) yozilmaydi — tarix o'qib bo'lmaydigan darajada to'lib ketmasin
@@ -3300,12 +3307,12 @@ function userOf(req) {
   // 30 daqiqa hech narsa bosilmasa — kirish yopiladi (sahifa o'zi 30 daqiqada chiqaradi, server 2 daqiqa zaxira bilan tekshiradi).
   // Har daqiqadagi fon yangilanishi (X-Yx-Bg) harakat hisoblanmaydi.
   const t0 = Date.now(), seen = s.seen ? Date.parse(s.seen) : 0;
-  if (seen && t0 - seen > IDLE_MS) { run('DELETE FROM sessions WHERE token=?', t); return null; }
-  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && !String(req.url || '').startsWith('/api/live') && t0 - seen > 30e3)) run('UPDATE sessions SET seen=? WHERE token=?', now(), t);
+  if (seen && t0 - seen > IDLE_MS) { runHk('DELETE FROM sessions WHERE token=?', t); return null; }
+  if (!seen || (!req.headers['x-yx-bg'] && String(req.url || '').startsWith('/api/') && !String(req.url || '').startsWith('/api/live') && t0 - seen > 30e3)) runHk('UPDATE sessions SET seen=? WHERE token=?', now(), t);
   const u = one('SELECT * FROM users WHERE id=? AND active=1 AND pin IS NOT NULL', s.user_id) || null;
   if (u && s.as_user && u.role === 'ceo' && isDemoUser(s.as_user)) { const d = one('SELECT * FROM users WHERE id=?', s.as_user); if (d) { d._demo = true; d._real = u.id; return d; } }
   // saqlangan sessiya bilan (PIN yozmasdan) kirganda ham "oxirgi kirish" yangilansin — 10 daqiqada bir marta yoziladi
-  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { run('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; run('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
+  if (u) { const n = now(); if (!u.last_login || Date.parse(n) - Date.parse(u.last_login) > 10 * 60e3) { runHk('UPDATE users SET last_login=? WHERE id=?', n, u.id); u.last_login = n; runHk('INSERT OR IGNORE INTO visits(day,user_id) VALUES(?,?)', today(), u.id); } }
   return u;
 }
 // ---------------- jonli kanal (/api/live): bir qurilmada amal bajarilsa, o'sha odamning boshqa ochiq qurilmalari 1–2 soniyada o'zi yangilanadi.
@@ -3670,7 +3677,13 @@ const server = http.createServer(async (req, res) => {
       const u = userOf(req); if (!u) return send(res, 401, { error: 'Qaytadan kiring' });
       if (url.pathname === '/api/ping') return send(res, 200, { ok: true }); // odam sahifada nimadir bosdi — "oxirgi harakat" yangilanadi
       if (url.pathname === '/api/demo.exit' && req.method === 'POST') { run('UPDATE sessions SET as_user=NULL WHERE token=?', cookie(req, 'yx')); return send(res, 200, { ok: true }); }
-      if (url.pathname === '/api/state') { const st = state(u); if (u._demo) st.me.demo = DEMO_ROLES[Object.keys(demoIds().users).find(k => demoIds().users[k] === u.id)] || 'Namuna'; return send(res, 200, st); }
+      if (url.pathname === '/api/state') {
+        let sb = {}; try { sb = JSON.parse(await readBody(req) || '{}') || {}; } catch { }
+        const v = stateVer(u);
+        if (sb && sb.v === v) return send(res, 200, { same: 1, _v: v }); // o'zgarmagan — sahifa avvalgisini ishlatadi
+        const st = state(u); if (u._demo) st.me.demo = DEMO_ROLES[Object.keys(demoIds().users).find(k => demoIds().users[k] === u.id)] || 'Namuna';
+        st._v = v; return send(res, 200, st);
+      }
       if (url.pathname === '/api/parol' && req.method === 'POST') { // CEO parolini o'rnatish / almashtirish
         need(u.role === 'ceo');
         if (failBlocked('pw:' + u.id)) return send(res, 429, { error: 'Ko‘p marta xato kiritildi. 15 daqiqadan keyin urinib ko‘ring.' });

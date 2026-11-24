@@ -134,6 +134,12 @@ class Kim {
     console.log(`Chaqiriqlar: ${n} ta; server xatosi (500): ${n500} ta`); for (const s of x500) console.log('  500: ' + s);
     // ---------------- 3) B maktab egalari o'z ma'lumotini ko'radi (test o'zi to'g'ri ishlayaptimi)
     const stB = await rahB.f('state'); if (!SIR.test(JSON.stringify(stB))) xato('rahbarB o‘z sinfini ko‘rmayapti — test noto‘g‘ri');
+    // ---------------- 3b) fon yangilanishi: ma'lumot o'zgarmagan bo'lsa qisqa javob, o'zgarsa — to'liq (eskirgan ma'lumot qolmasin)
+    { const s1 = await rahA.f('state'); const s2 = await rahA.f('state', { v: s1._v });
+      if (!s2.same) xato('o‘zgarmagan holatda ham to‘liq ma’lumot qayta yuborildi');
+      await ceo.f('student.save', { class_id: cA, name: 'Yangi Bolajon', phone: '901000099' });
+      const s3 = await rahA.f('state', { v: s1._v });
+      if (s3.same || !JSON.stringify(s3).includes('Yangi Bolajon')) xato('o‘zgarishdan keyin fon yangilanishi eski ma’lumot qaytardi'); }
     // ---------------- 4) dars fayllari (7-band): kirmagan — yo'q; ota-ona — faqat CEO ochgan dars; o'qituvchi — hammasi
     const dars = async (k, kod) => { const r = await fetch(B + '/darslar/' + kod + '.html', { headers: k ? { Cookie: k.ck } : {} }); return r.status === 200 && (await r.text()).includes('DARS-MAZMUNI'); };
     await ceo.f('dm.set', { id: '2A1', och: true });
