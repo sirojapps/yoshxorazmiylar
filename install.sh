@@ -246,17 +246,21 @@ fi
 # Sinov sayti haqiqiy bazaning nusxasi bilan ishlaydi, lekin nusxada haqiqiy odamlar ma'lumoti QOLMAYDI:
 # o'quvchi, ota-ona, o'qituvchi va direktorlarning ismi, telefon raqami va PIN kodi soxtasiga almashtiriladi; yozishmalar matni,
 # rasmlar, kirish tokenlari, tarix, savat va Telegram bog'lanishlari olib tashlanadi. Jamoa (CEO va loyiha jamoasi) hisoblari o'zgarmaydi.
-# «Sinov uchun maktab» deb belgilangan maktablar ham o'zgarmaydi: CEO o'sha kabinetlarga o'z raqami va PIN'i bilan kirib tekshiradi.
+# «Sinov uchun maktab» deb belgilangan maktablar ham o'zgarmaydi: CEO o'sha kabinetlarga o'z raqami bilan kirib tekshiradi.
 # Sinflar, natijalar, testlar va raqamlar joyida qoladi — sayt xuddi haqiqiydek sinaladi.
+# 24.11.2026 (2-versiya): sinov saytining PIN kaliti ALOHIDA (asosiy saytnikidan ko'chirilmaydi) va jamoa / sinov maktablari
+# odamlariga sinov sayti uchun YANGI PIN beriladi — ular faqat serverdagi $SINOV_PINLAR faylida (root o'qiydi).
+# Sinov sayti buzib kirilsa ham undan asosiy saytning birorta PIN'ini topib bo'lmaydi. Obuna jadvallari ham niqoblanadi.
 # Tartib o'zgarsa NIQOB_V oshiriladi: mavjud sinov bazasi keyingi yangilanishda qayta niqoblanadi.
-NIQOB_V=1
+NIQOB_V=2
+SINOV_PINLAR="/root/yx-sinov-pinlar.txt"
 niqobla(){ # $1 = sinov bazasi fayli (faqat $APPT ichida)
   case "$1" in "$APPT"/*) ;; *) echo "niqobla: faqat sinov bazasi uchun"; return 1;; esac
   cat > "$W/niqob.js" <<'JS'
 // Sinov bazasidagi haqiqiy odamlar ma'lumotini soxta ma'lumot bilan almashtiradi. FAQAT sinov bazasida ishlaydi.
-// node niqob.js <baza fayli> <sinov papkasi> <versiya>
-const { DatabaseSync } = require('node:sqlite'); const path = require('node:path'); const crypto = require('node:crypto');
-const [file, root, V] = process.argv.slice(2);
+// node niqob.js <baza fayli> <sinov papkasi> <versiya> <sinov PIN'lari fayli>
+const { DatabaseSync } = require('node:sqlite'); const path = require('node:path'); const crypto = require('node:crypto'); const fs = require('node:fs');
+const [file, root, V, pinFile] = process.argv.slice(2);
 if (!file || !root || !path.resolve(file).startsWith(path.resolve(root) + path.sep) || !/test|sinov/i.test(path.resolve(root))) { console.error('niqob: bu faqat sinov bazasi uchun'); process.exit(2); }
 const db = new DatabaseSync(file); db.exec('PRAGMA busy_timeout=10000');
 const has = t => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t);
@@ -294,8 +298,15 @@ try {
   const nameOf = (phone, jins) => { const k = p9(phone); if (!k) return ism(jins); if (!names.has(k)) names.set(k, ism(jins)); return names.get(k); }; // bitta odam (raqam) — bitta ism
   const st = { odam: 0, bola: 0 };
   const uc = cols('users');
+  // sinov saytining o'z PIN kaliti (server.js dagi pinH bilan bir xil hisob). Asosiy saytning kaliti bu yerga kelmaydi.
+  const KEY = crypto.randomBytes(32), pinH = p => 'h1$' + crypto.createHmac('sha256', KEY).update('pin:' + String(p)).digest('hex');
+  const usedPin = new Set(), sinovPin = [];
+  const newPin = () => { let p; do { p = String(crypto.randomInt(100000, 1000000)); } while (usedPin.has(p)); usedPin.add(p); return p; };
   for (const u of all('SELECT * FROM users')) {
-    if (ozi(u)) continue;
+    if (ozi(u)) { // jamoa va sinov maktablari: ism va raqam o'sha, PIN — faqat sinov sayti uchun yangisi (namuna hisoblarining ichki belgisiga tegilmaydi)
+      if (u.pin != null && String(u.pin) !== '' && !String(u.pin).startsWith('demo-')) { const p = newPin(); run('UPDATE users SET pin=? WHERE id=?', pinH(p), u.id); sinovPin.push([u.role, u.name || '', u.phone || '', p]); }
+      continue;
+    }
     // PIN: haqiqiy odamniki sinov saytida ishlamasin — eski (ochiq) yozuv ham, maxfiy kalitli yozuv ham tasodifiy qiymatga almashtiriladi
     let pin = u.pin; if (pin != null && String(pin) !== '') pin = 'h1$' + crypto.randomBytes(32).toString('hex');
     run('UPDATE users SET name=?,phone=?,pin=? WHERE id=?', nameOf(u.phone, u.jins), ph(u.phone), pin, u.id);
@@ -321,18 +332,25 @@ try {
   if (has('mcerts')) for (const r of all('SELECT id FROM mcerts')) run('UPDATE mcerts SET name=? WHERE id=?', ism(), r.id);
   if (has('cert_log')) run("UPDATE cert_log SET name='Sinov O‘quvchi' WHERE name<>''");
   if (has('kj_xato')) run("UPDATE kj_xato SET who=''");
+  // obunalar: yozuvdagi ism va raqam (to'lov paytidagi nusxa) — bolaning yangi (soxta) ismi va soxta raqam; izoh olib tashlanadi
+  if (has('obunalar')) { const sn = new Map(all('SELECT id,name FROM students').map(r => [r.id, r.name]));
+    for (const r of all('SELECT id,student_id,phone FROM obunalar')) run("UPDATE obunalar SET phone=?,ism=?,izoh='' WHERE id=?", ph(r.phone), sn.get(r.student_id) || ism(), r.id); }
+  if (has('obuna_sorov')) for (const r of all('SELECT id,phone FROM obuna_sorov')) run('UPDATE obuna_sorov SET phone=? WHERE id=?', ph(r.phone), r.id);
   // haqiqiy odamlarga xabar yuborish vositalari, kirish tokenlari, tarix va savat — butunlay olib tashlanadi
   for (const t of ['sessions', 'tg_users', 'push_subs', 'tg_requests', 'audit', 'trash']) if (has(t)) run(`DELETE FROM ${t}`);
   run("DELETE FROM settings WHERE key IN ('bot_token','bot_username','bot_error')");
   run("INSERT INTO settings(key,value) VALUES('niqob',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", String(V));
+  // kalit va PIN'lar ro'yxati bazaga yozilishidan OLDIN saqlanadi (bittasi yozilmasa — hech narsa o'zgarmaydi)
+  fs.writeFileSync(path.join(root, 'data', 'pin-kalit'), KEY.toString('hex') + '\n', { mode: 0o600 });
+  if (pinFile) fs.writeFileSync(pinFile, `Sinov sayti (test.yoshxorazmiylar.uz) uchun PIN'lar — ${new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')} (Toshkent vaqti).\nFaqat sinov saytida ishlaydi, asosiy saytdagi PIN'ingiz o'zgarmagan.\n\n` + sinovPin.map(r => r.join(' | ')).join('\n') + '\n', { mode: 0o600 });
   db.exec('COMMIT');
-  console.log(`Sinov bazasi niqoblandi: ${st.bola} o'quvchi, ${st.odam} kattalar, ${tel.size} telefon raqami almashtirildi.`);
+  console.log(`Sinov bazasi niqoblandi: ${st.bola} o'quvchi, ${st.odam} kattalar, ${tel.size} telefon raqami almashtirildi; ${sinovPin.length} kishiga sinov PIN'i berildi (${pinFile || '-'}).`);
 } catch (e) { db.exec('ROLLBACK'); console.error('niqob xatosi:', e.message); process.exit(1); }
 // o'chirilgan ma'lumot fayl ichida ham qolmasin
 try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); db.exec('VACUUM'); db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch (e) { console.error('niqob: VACUUM bajarilmadi:', e.message); process.exit(1); }
 db.close();
 JS
-  local r=0; node --no-warnings "$W/niqob.js" "$1" "$APPT" "$NIQOB_V" || r=$?
+  local r=0; node --no-warnings "$W/niqob.js" "$1" "$APPT" "$NIQOB_V" "$SINOV_PINLAR" || r=$?
   rm -f "$W/niqob.js"; return $r; }
 
 
@@ -357,9 +375,8 @@ if olish t test-server.js "$W/t/server.js" 2>/dev/null && olish t test-index.htm
     systemctl stop yx-test 2>/dev/null || true
     rm -f "$APPT/data/yx.db" "$APPT/data/yx.db-wal" "$APPT/data/yx.db-shm" "$APPT/.yangila"
     sqlite3 "$APP/data/yx.db" ".backup '$APPT/data/yx.db'" && echo "Sinov sayti uchun bazaning nusxasi olindi."
-    # PIN kodlar bazada maxfiy kalit bilan saqlanadi: jamoa va sinov maktablari sinov saytiga o'z PIN'i bilan kira olishi uchun
-    # nusxa bilan birga kalit ham o'tadi (qolgan hamma odamning PIN'i niqoblashda tasodifiyga almashtiriladi)
-    if [ -f "$APP/data/pin-kalit" ]; then cp "$APP/data/pin-kalit" "$APPT/data/pin-kalit"; fi
+    # PIN kaliti asosiy saytdan KO'CHIRILMAYDI: niqoblashda sinov saytining o'z kaliti yoziladi (yuqoridagi niqobla)
+    rm -f "$APPT/data/pin-kalit"
     TST_CH=1
   fi
   # Nusxa (yangisi ham, avvaldan turgani ham) niqoblanmagan bo'lsa — sinov sayti ishga tushishidan OLDIN niqoblanadi.

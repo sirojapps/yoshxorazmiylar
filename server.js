@@ -159,7 +159,7 @@ const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.ge
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
 // PIN kodlar bazada OCHIQ saqlanmaydi (kod auditi, 24.11.2026). Bazada faqat maxfiy kalitli xesh (HMAC-SHA256) turadi: 'h1$' + 64 belgi.
-// Kalit bazada emas, alohida faylda (DATA/pin-kalit, faqat sayt o'qiydi; zaxira nusxalarga kirmaydi) — baza yoki zaxira begona qo'lga
+// Kalit bazada emas, alohida faylda (DATA/pin-kalit, faqat sayt o'qiydi; kunlik zaxiralarga kirmaydi, faqat CEO yuklab oladigan parolli ZIP ichida bor) — baza yoki zaxira begona qo'lga
 // tushsa ham PIN'larni tiklab bo'lmaydi. PIN 6 raqam bo'lgani uchun oddiy xesh yetmaydi (million variantni bir necha daqiqada sinab chiqish mumkin).
 // Kalit yo'qolsa hamma PIN ishlamay qoladi: CEO paroli bilan kirib, PIN'larni qayta berish kerak bo'ladi (kalitning nusxasini saqlang).
 // Bazadagi 'pin' ustuni ma'nosi o'zgarmadi: NULL — PIN yo'q, boshqa qiymat — PIN bor ("pin IS NOT NULL" tekshiruvlari o'z joyida).
@@ -2346,10 +2346,10 @@ try { if (getSet('cert_body') === '{tuman} {maktab}-maktabning {sinf} sinf o‘q
 const certTexts = () => Object.fromEntries(Object.keys(CERT_DEF).map(k => [k, getSet(k) || CERT_DEF[k]]));
 
 // ---- Zaxira nusxalar: ro'yxat, tekshirish (haqiqatan tiklasa bo'ladimi), tiklash ----
-async function zipEnc(out, file, pw) { // 7-Zip: AES-256 parolli ZIP (telefonda ZArchiver, RAR, 7-Zip ochadi)
+async function zipEnc(out, files, pw) { // 7-Zip: AES-256 parolli ZIP (telefonda ZArchiver, RAR, 7-Zip ochadi)
   const { execFile } = require('node:child_process');
   for (const bin of ['7z', '7zz', '7za']) {
-    const e = await new Promise(ok => execFile(bin, ['a', '-tzip', '-mem=AES256', '-mx=5', '-p' + pw, '-bso0', '-bsp0', out, file], { timeout: 120e3 }, ok));
+    const e = await new Promise(ok => execFile(bin, ['a', '-tzip', '-mem=AES256', '-mx=5', '-p' + pw, '-bso0', '-bsp0', out, ...[].concat(files)], { timeout: 120e3 }, ok));
     if (!e) return; if (e.code !== 'ENOENT') throw new HttpErr(500, 'Arxivlashda xato. Birozdan keyin qayta urinib ko‘ring');
   }
   throw new HttpErr(500, 'Serverda 7-Zip o‘rnatilmagan — parolli nusxa tayyorlab bo‘lmadi');
@@ -3705,7 +3705,11 @@ const server = http.createServer(async (req, res) => {
           const f = path.join(dir, name + '.db'), z = path.join(dir, name + '.zip');
           db.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`);
           { const c = new DatabaseSync(f); c.exec('DELETE FROM sessions; VACUUM;'); c.close(); } // kirish tokenlari nusxaga kirmaydi
-          await zipEnc(z, f, pw);
+          // PIN kaliti ham shu parolli ZIP ichida: server butunlay yo'qolsa ham, nusxa + kalit bilan hamma PIN'lar ishlaydi
+          const kf = path.join(dir, 'pin-kalit'), rf = path.join(dir, 'oqing.txt');
+          fs.writeFileSync(kf, PIN_KEY.toString('hex') + '\n', { mode: 0o600 });
+          fs.writeFileSync(rf, `Yosh Xorazmiylar — zaxira nusxa (${name}).\r\n\r\n${name}.db — butun baza.\r\npin-kalit — PIN kodlar kaliti. Bazani yangi serverga tiklaganda bu faylni ham data/pin-kalit qilib qo'ying,\r\naks holda hech kimning PIN'i ishlamaydi. Bu faylni hech kimga bermang.\r\n`);
+          await zipEnc(z, [f, kf, rf], pw);
           log(u.id, 'zaxira.yuklab_olish', {});
           return send(res, 200, fs.readFileSync(z), { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${name}.zip"` });
         } finally { fs.rmSync(dir, { recursive: true, force: true }); }

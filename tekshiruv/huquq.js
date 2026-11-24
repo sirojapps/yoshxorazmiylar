@@ -178,6 +178,21 @@ class Kim {
       w.close(); }
     db.close();
     if (process.env.LOG) console.log(S.log().split('\n').filter(l => /Error|^\s+at /.test(l)).slice(0, 60).join('\n'));
+    // 7) CEO yuklab oladigan parolli zaxira ZIP: baza bilan birga PIN kaliti ham ichida (server yo'qolsa PIN'lar tiklanadi)
+    { const { spawnSync } = require('node:child_process');
+      if (spawnSync('7z', ['i']).error) console.log('  (7z yo‘q — zaxira ZIP tekshiruvi o‘tkazib yuborildi)');
+      else {
+        const r = await fetch(B + '/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: ceo.ck }, body: JSON.stringify({ pw: 'Sinov-parol-123' }) });
+        if (r.status !== 200) xato('zaxira ZIP yuklanmadi (' + r.status + ')');
+        else {
+          const zd = fs.mkdtempSync(path.join(DIR, 'zip-')), zf = path.join(zd, 'z.zip'); fs.writeFileSync(zf, Buffer.from(await r.arrayBuffer()));
+          if (spawnSync('7z', ['x', '-pnotogri', '-o' + path.join(zd, 'x0'), zf]).status === 0) xato('zaxira ZIP noto‘g‘ri parol bilan ochildi');
+          const x = spawnSync('7z', ['x', '-pSinov-parol-123', '-o' + path.join(zd, 'x'), zf]);
+          const ich = x.status === 0 ? fs.readdirSync(path.join(zd, 'x')) : [];
+          if (!ich.some(f => f.endsWith('.db'))) xato('zaxira ZIP ichida baza yo‘q');
+          if (!ich.includes('pin-kalit') || fs.readFileSync(path.join(zd, 'x', 'pin-kalit'), 'utf8').trim() !== fs.readFileSync(path.join(DIR, 'data', 'pin-kalit'), 'utf8').trim()) xato('zaxira ZIP ichida PIN kaliti yo‘q yoki boshqa');
+        }
+      } }
     S.p.kill(); await new Promise(r => S.p.exitCode != null ? r() : S.p.once('exit', r));
     fs.writeFileSync(path.join(DIR, 'data', 'pin-kalit'), 'buzuq\n');
     const S2 = boot(); for (let i = 0; i < 60 && !/http:\/\/127/.test(S2.log()) && S2.p.exitCode == null; i++) await wait(250);
