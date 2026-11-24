@@ -18,7 +18,8 @@ const PORT = 4800 + Math.floor(Math.random() * 400), B = 'http://127.0.0.1:' + P
 const KOR = new Set();
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const KEY = crypto.randomBytes(32);
-const pinH = p => 'h1$' + crypto.createHmac('sha256', KEY).update('pin:' + String(p)).digest('hex');
+const EK = crypto.createHmac('sha256', KEY).update('pin-shifr').digest(), IK = crypto.createHmac('sha256', KEY).update('pin-iv').digest();
+const pinH = p => { const t = String(p), iv = crypto.createHmac('sha256', IK).update(t).digest().subarray(0, 12); const c = crypto.createCipheriv('aes-256-gcm', EK, iv), x = Buffer.concat([c.update(t, 'utf8'), c.final()]); return 'h2$' + iv.toString('hex') + x.toString('hex') + c.getAuthTag().toString('hex'); }; // server.js dagi bilan bir xil
 
 let srv = null, LOG = '';
 async function boot() {

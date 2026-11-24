@@ -298,8 +298,10 @@ try {
   const nameOf = (phone, jins) => { const k = p9(phone); if (!k) return ism(jins); if (!names.has(k)) names.set(k, ism(jins)); return names.get(k); }; // bitta odam (raqam) — bitta ism
   const st = { odam: 0, bola: 0 };
   const uc = cols('users');
-  // sinov saytining o'z PIN kaliti (server.js dagi pinH bilan bir xil hisob). Asosiy saytning kaliti bu yerga kelmaydi.
-  const KEY = crypto.randomBytes(32), pinH = p => 'h1$' + crypto.createHmac('sha256', KEY).update('pin:' + String(p)).digest('hex');
+  // sinov saytining o'z PIN kaliti (server.js dagi pinH bilan bir xil shifr). Asosiy saytning kaliti bu yerga kelmaydi.
+  const KEY = crypto.randomBytes(32);
+  const EK = crypto.createHmac('sha256', KEY).update('pin-shifr').digest(), IK = crypto.createHmac('sha256', KEY).update('pin-iv').digest();
+  const pinH = p => { const t = String(p), iv = crypto.createHmac('sha256', IK).update(t).digest().subarray(0, 12); const c = crypto.createCipheriv('aes-256-gcm', EK, iv), x = Buffer.concat([c.update(t, 'utf8'), c.final()]); return 'h2$' + iv.toString('hex') + x.toString('hex') + c.getAuthTag().toString('hex'); };
   const usedPin = new Set(), sinovPin = [];
   const newPin = () => { let p; do { p = String(crypto.randomInt(100000, 1000000)); } while (usedPin.has(p)); usedPin.add(p); return p; };
   for (const u of all('SELECT * FROM users')) {

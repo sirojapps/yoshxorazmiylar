@@ -158,7 +158,11 @@ const KUZ_OFF = ['kiritish', 'maktab', 'tuzatish', 'kalit', 'pinlar', 'pin_koris
 const KUZ_READ = new Set(['state', 'ceo.stats', 'kj.list', 'threads', 'thread.get', 'audit', 'ex.list', 'dm.get', 'settings.get', 'cert.assets', 'trash.list', 'consent', 'me.avatar', 'push.key', 'push.sub', 'push.unsub']);
 const KUZ_MSG = new Set(['thread.new', 'thread.reply', 'msg.audio', 'msg.edit', 'msg.delete', 'thread.status']);
 function phone9(p) { const d = String(p || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
-// PIN kodlar bazada OCHIQ saqlanmaydi (kod auditi, 24.11.2026). Bazada faqat maxfiy kalitli xesh (HMAC-SHA256) turadi: 'h1$' + 64 belgi.
+// PIN kodlar bazada OCHIQ saqlanmaydi (kod auditi, 24.11.2026). 24.11 Siroj: CEO PIN'larni ko'ra olsin — shuning uchun PIN
+// maxfiy kalit bilan SHIFRLANADI (AES-256-GCM): 'h2$' + iv + shifr + belgi. Kalit bo'lmasa — o'qib ham, sinab ham bo'lmaydi;
+// kalit bilan esa sayt PIN'ni qaytarib o'qiy oladi (faqat 'pin_korish' huquqi borga ko'rsatiladi). Shifr har PIN uchun bir xil
+// chiqadi (iv PIN'dan kalit bilan hisoblanadi), shuning uchun kirishda "pin=?" bilan qidirish o'z joyida.
+// Eski ko'rinish 'h1$' (HMAC-SHA256) — qaytarib o'qib bo'lmaydi: egasi bir marta kirganda yangi ko'rinishga o'tadi.
 // Kalit bazada emas, alohida faylda (DATA/pin-kalit, faqat sayt o'qiydi; kunlik zaxiralarga kirmaydi, faqat CEO yuklab oladigan parolli ZIP ichida bor) — baza yoki zaxira begona qo'lga
 // tushsa ham PIN'larni tiklab bo'lmaydi. PIN 6 raqam bo'lgani uchun oddiy xesh yetmaydi (million variantni bir necha daqiqada sinab chiqish mumkin).
 // Kalit yo'qolsa hamma PIN ishlamay qoladi: CEO paroli bilan kirib, PIN'larni qayta berish kerak bo'ladi (kalitning nusxasini saqlang).
@@ -175,15 +179,26 @@ const PIN_KEY = (() => {
     const b = f + '.buzuq-' + Date.now(); fs.renameSync(f, b); // buzuq fayl o'chirilmaydi — tiklash uchun saqlanadi
     console.error(`DIQQAT: ${f} buzuq — ${path.basename(b)} nomi bilan saqlandi, yangi kalit yozildi. Eski PIN'lar ishlamaydi: kalitni tiklang yoki PIN'larni qayta bering.`);
   } else {
-    let n = 0; try { n = db.prepare("SELECT count(*) n FROM users WHERE pin LIKE 'h1$%'").get().n; } catch (e) { }
+    let n = 0; try { n = db.prepare("SELECT count(*) n FROM users WHERE pin LIKE 'h_$%'").get().n; } catch (e) { }
     if (n) console.error(`DIQQAT: ${f} yo'q, bazada esa ${n} ta PIN bor — yangi kalit yozildi, ular ishlamaydi. Kalit nusxasini joyiga qo'ying va saytni qayta ishga tushiring.`);
   }
   const k = crypto.randomBytes(32); fs.writeFileSync(f, k.toString('hex') + '\n', { mode: 0o600, flag: 'wx' }); return k;
 })();
-const pinH = p => 'h1$' + crypto.createHmac('sha256', PIN_KEY).update('pin:' + String(p)).digest('hex');
+const pinH1 = p => 'h1$' + crypto.createHmac('sha256', PIN_KEY).update('pin:' + String(p)).digest('hex'); // eski ko'rinish (faqat kirishda tanish uchun)
+const PIN_EK = crypto.createHmac('sha256', PIN_KEY).update('pin-shifr').digest(), PIN_IK = crypto.createHmac('sha256', PIN_KEY).update('pin-iv').digest();
+const pinH = p => {
+  const t = String(p), iv = crypto.createHmac('sha256', PIN_IK).update(t).digest().subarray(0, 12);
+  const c = crypto.createCipheriv('aes-256-gcm', PIN_EK, iv), x = Buffer.concat([c.update(t, 'utf8'), c.final()]);
+  return 'h2$' + iv.toString('hex') + x.toString('hex') + c.getAuthTag().toString('hex');
+};
+const pinOchir = v => { // bazadagi qiymatdan PIN'ning o'zi; o'qib bo'lmasa (eski 'h1$', boshqa kalit) — null
+  const h = String(v || ''); if (!h.startsWith('h2$') || h.length < 3 + 24 + 2 + 32) return null;
+  try { const d = crypto.createDecipheriv('aes-256-gcm', PIN_EK, Buffer.from(h.slice(3, 27), 'hex')); d.setAuthTag(Buffer.from(h.slice(-32), 'hex'));
+    const r = Buffer.concat([d.update(Buffer.from(h.slice(27, -32), 'hex')), d.final()]).toString('utf8'); return /^\d{6}$/.test(r) ? r : null; } catch { return null; }
+};
 const pinOchiq = v => /^\d{6}$/.test(String(v ?? '')); // eski (xeshlanmagan) yozuv
 function newPin() {
-  for (;;) { const p = String(crypto.randomInt(100000, 1000000)); if (!one('SELECT 1 FROM users WHERE pin=? OR pin=?', pinH(p), p)) return p; }
+  for (;;) { const p = String(crypto.randomInt(100000, 1000000)); if (!one('SELECT 1 FROM users WHERE pin IN (?,?,?)', pinH(p), pinH1(p), p)) return p; }
 }
 function perms(u) {
   if (u.role === 'ceo') return Object.fromEntries(PERMS.map(k => [k, true]).concat([['sardor', true], ['ceo', true]]));
@@ -1401,7 +1416,8 @@ A['pins'] = u => {
   }
   need(can(u, 'pinlar'));
   const show = can(u, 'pin_korish'), DS = demoIds().school;
-  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? '••••••' : '', yashirin: true, pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
+  // 'pin_korish' huquqi borga (CEO'ga doim) PIN raqamlari ko'rinadi; eski ko'rinishdagi PIN egasi kirguncha yulduzcha bo'lib turadi
+  return { list: pinTargets().filter(x => !DS || x.school_id !== DS).map(x => ({ ...x, user: x.user ? { id: x.user.id, pin: x.user.pin ? (show && pinOchir(x.user.pin)) || '••••••' : '', pin_at: x.user.pin_at, last_login: x.user.last_login } : null })) };
 };
 A['pin.issue'] = (u, b) => {
   need(u.role === 'ceo' || u.role === 'direktor', 'PIN‘ni CEO yoki direktor beradi');
@@ -1411,7 +1427,7 @@ A['pin.issue'] = (u, b) => {
   return ensurePin(t, u.id, true);
 };
 // PIN faqat telefon raqami bor odamga beriladi (kod auditi, 3-band): PIN o'sha raqam bilangina ochiladi.
-// Eski PIN'ni qayta ko'rsatib bo'lmaydi (bazada xesh) — PIN'i bor odamga faqat YANGI PIN beriladi (renew), eskisi ishlamay qoladi.
+// PIN'i bor odamga bu yerda faqat YANGI PIN beriladi (renew), eskisi ishlamay qoladi; borini CEO "PIN'lar" ro'yxatida ko'radi.
 function ensurePin(t, by, renew) {
   if (t.user && t.user.pin && !renew) return { bor: true, name: t.name, phone: t.phone, kind: t.kind };
   const ph = phone9(t.phone) || phone9(t.user && t.user.phone);
@@ -3629,7 +3645,8 @@ const server = http.createServer(async (req, res) => {
         if (c && c.active && c.pass && own === p9 && passOk(String(lb.password).slice(0, 128), c.pass)) u = c;
       } else {
         u = /^\d{6}$/.test(String(pin)) ? one('SELECT * FROM users WHERE pin=? AND active=1', pinH(String(pin))) : null;
-        if (!u && /^\d{6}$/.test(String(pin))) { u = one('SELECT * FROM users WHERE pin=? AND active=1', String(pin)) || null; if (u) u._eskiPin = 1; } // zaxiradan tiklangan eski baza (telefon tekshirilgach o'tkaziladi)
+        // eski ko'rinishlar: 'h1$' (qaytarib o'qib bo'lmaydigan xesh) yoki zaxiradan tiklangan ochiq PIN — telefon tekshirilgach yangisiga o'tkaziladi
+        if (!u && /^\d{6}$/.test(String(pin))) { u = one('SELECT * FROM users WHERE pin IN (?,?) AND active=1', pinH1(String(pin)), String(pin)) || null; if (u) u._eskiPin = 1; }
         if (u && u.role === 'ceo' && u.pass) u = null; // parol o'rnatilgan bo'lsa CEO PIN bilan kira olmaydi
       }
       if (u && lb.password == null) { // PIN faqat o'z egasining telefon raqami bilan ochiladi

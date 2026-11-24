@@ -160,8 +160,15 @@ class Kim {
     // ---------------- 5) PIN (2- va 3-band): bazada ochiq PIN yo'q; telefonsiz PIN berilmaydi; PIN faqat o'z raqami bilan ochiladi
     const ochiq = q('SELECT id FROM users WHERE pin GLOB ?', '[0-9][0-9][0-9][0-9][0-9][0-9]');
     if (ochiq.length) xato(`bazada ${ochiq.length} ta ochiq PIN bor`);
-    if (!q("SELECT 1 FROM users WHERE pin LIKE 'h1$%'").length) xato('PIN xeshlari topilmadi');
-    const pr = await ceo.f('pins', {}); if (/"pin":"\d{6}"/.test(JSON.stringify(pr))) xato('PIN ro‘yxatida PIN raqami ko‘rinyapti');
+    if (!q("SELECT 1 FROM users WHERE pin LIKE 'h2$%'").length) xato('shifrlangan PIN topilmadi');
+    // PIN raqamlari: CEO ko'radi (berilgan PIN bilan bir xil); 'pin_korish' huquqisiz jamoa a'zosi va direktor — ko'rmaydi
+    { const pX = await pin('ota', '901000003'), r = (await ceo.f('pins', {})).list.find(x => x.kind === 'ota' && x.phone === '901000003');
+      if (!r || r.user.pin !== pX) xato('CEO PIN ro‘yxatida PIN raqamini ko‘rmayapti (' + (r && r.user.pin) + ')');
+      await otaA.kir('901000003', pX); // ota-ona kabineti keyingi sinovlarda yangi PIN bilan davom etadi
+      const jp = await ceo.f('team.save', { name: 'Pinlar Ko‘ruvchi', phone: '905000009', perms: { pinlar: true } });
+      const jk = await new Kim('jamoa(pinlar)').kir('905000009', jp.pin); await jk.f('consent', { consent: true }).catch(() => { });
+      if (/"pin":"\d{6}"/.test(JSON.stringify(await jk.f('pins', {})))) xato('pin_korish huquqisiz jamoa a’zosi PIN raqamini ko‘rdi');
+      if (/"pin":"\d{6}"/.test(JSON.stringify(await dirA.f('pins', {})))) xato('direktor PIN raqamini ko‘rdi'); }
     const cN = (await ceo.f('class.save', { school_id: sA, name: '4-A', teacher_name: 'Raqamsiz Ustoz', teacher_phone: '' })).id;
     const rN = await ceo.f('pin.issue', { kind: 'rahbar', ref: cN }, true); if (rN.status === 200) xato('telefonsiz sinf rahbariga PIN berildi');
     const rT = await ceo.f('team.save', { name: 'Raqamsiz Jamoa', phone: '', perms: {} }, true); if (rT.status === 200) xato('telefonsiz jamoa a’zosiga PIN berildi');
@@ -174,7 +181,12 @@ class Kim {
       if ((await new Kim('begona2').f('login', { phone: '939999998', pin: '123457' }, true)).status === 200) xato('eski PIN begona raqam bilan ochildi');
       if (w.prepare('SELECT pin FROM users WHERE id=?').get(id).pin !== '123457') xato('eski PIN begona raqam bilan urinishda o‘zgartirildi');
       if ((await new Kim('ota3').f('login', { phone: '901000006', pin: '123457' }, true)).status !== 200) xato('eski PIN egasi bilan ochilmadi');
-      if (!/^h1\$/.test(w.prepare('SELECT pin FROM users WHERE id=?').get(id).pin)) xato('eski PIN egasi kirgach maxfiy ko‘rinishga o‘tmadi');
+      if (!/^h2\$/.test(w.prepare('SELECT pin FROM users WHERE id=?').get(id).pin)) xato('eski PIN egasi kirgach maxfiy ko‘rinishga o‘tmadi');
+      // 24.11 gacha berilgan 'h1$' (qaytarib o'qib bo'lmaydigan) PIN: ishlayveradi, egasi kirgach shifrlanganiga o'tadi va CEO ko'radi
+      const K = Buffer.from(fs.readFileSync(path.join(DIR, 'data', 'pin-kalit'), 'utf8').trim(), 'hex');
+      w.prepare('UPDATE users SET pin=? WHERE id=?').run('h1$' + crypto.createHmac('sha256', K).update('pin:123458').digest('hex'), id);
+      if ((await new Kim('ota4').f('login', { phone: '901000006', pin: '123458' }, true)).status !== 200) xato('h1 ko‘rinishdagi PIN bilan kirib bo‘lmadi');
+      if ((await ceo.f('pins', {})).list.find(x => x.kind === 'ota' && x.phone === '901000006')?.user?.pin !== '123458') xato('h1 PIN egasi kirgach CEO ko‘rmayapti');
       w.close(); }
     db.close();
     if (process.env.LOG) console.log(S.log().split('\n').filter(l => /Error|^\s+at /.test(l)).slice(0, 60).join('\n'));
