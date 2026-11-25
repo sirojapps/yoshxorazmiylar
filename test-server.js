@@ -353,6 +353,7 @@ const finished = testId => announced(testId, 0);
 
 // ---------------------------------------------------------------- state (what each role may see)
 function state(u) {
+  if (u.role === 'tekshiruvchi') return { me: { id: u.id, role: u.role, name: u.name, perms: {}, consent: true, avatar: '', phone: u.phone || '', school_id: null, class_id: null }, tests: [], perms: [] }; // tekshiruvchi: hech qanday maktab ma'lumoti yo'q
   const P = perms(u);
   const tests = all('SELECT * FROM tests ORDER BY id DESC');
   const out = { me: { id: u.id, role: u.role, name: u.name, perms: P, consent: !!u.consent_at, avatar: u.avatar || '', phone: u.phone || '', school_id: u.school_id || null, class_id: u.class_id || null, pin_at: u.pin_at || null, created_at: u.created_at || null, has_pass: u.role === 'ceo' ? !!u.pass : undefined }, tests, perms: PERMS };
@@ -1034,6 +1035,85 @@ function probRow(r) { const o = JSON.parse(r.o); return { id: r.id, grade: r.gra
 // Darslar va mavzular (21.11.2026): tayyor darslardan qaysilari bolalarga ochilganini CEO belgilaydi. Ro'yxat settings.dm_ochiq da (mavzu kodlari).
 const dmOchiq = () => { try { const a = JSON.parse(getSet('dm_ochiq') || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch { return []; } };
 A['dm.get'] = u => { need(isTeam(u)); return { ochiq: dmOchiq() }; };
+
+// ================= TEKSHIRUVCHI (metodist, 25.11.2026): faqat misollar bazasi va darslarni ko'radi, izoh yozadi.
+// O'quvchi, maktab, telefon, to'lov — hech narsa unga yuborilmaydi (state bo'sh, faqat tk.* amallari ochiq).
+// Izohlar CEO'ga Telegram orqali boradi; CEO javob yozadi, tekshiruvchi javobni kabinetida ko'radi.
+migrate('2026-11-25-01-tekshiruvchi', () => {
+  db.exec(`CREATE TABLE IF NOT EXISTS tk_izoh(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, ref TEXT NOT NULL, nom TEXT DEFAULT '', tur TEXT DEFAULT '', matn TEXT NOT NULL,
+    at TEXT, javob TEXT DEFAULT '', javob_at TEXT, javob_seen INTEGER DEFAULT 0, ceo_seen INTEGER DEFAULT 0, UNIQUE(user_id,ref));
+  CREATE TABLE IF NOT EXISTS tk_ok(user_id INTEGER NOT NULL, ref TEXT NOT NULL, at TEXT, PRIMARY KEY(user_id,ref));`);
+  return {};
+});
+const isTk = u => u.role === 'tekshiruvchi';
+const TK_ACTS = new Set(['tk.get', 'tk.mv', 'tk.ok', 'tk.izoh', 'tk.oqildi']);
+const tkRef = v => { const r = String(v ?? '').slice(0, 40); if (!/^[qpdm]:[0-9A-Za-z-]{1,30}$/.test(r)) bad('Noto‘g‘ri belgi'); return r; };
+const tkDarslar = () => { try { return fs.readdirSync(path.join(PUBLIC, 'darslar')).map(f => /^([0-9][0-9A-Za-z]{1,11})\.html$/.exec(f)?.[1]).filter(Boolean); } catch { return []; } };
+const tkIzohRow = r => ({ id: r.id, ref: r.ref, nom: r.nom, tur: r.tur, matn: r.matn, at: r.at, javob: r.javob || '', javob_at: r.javob_at || null, javob_seen: !!r.javob_seen });
+A['tk.get'] = u => {
+  need(isTk(u) || u.role === 'ceo', 'Bu sahifa tekshiruvchi uchun');
+  const counts = {}; for (const r of all('SELECT grade,topic,count(*) n FROM probs WHERE active=1 GROUP BY grade,topic')) (counts[r.grade] ||= {})[r.topic] = r.n;
+  const out = { me: { id: u.id, name: u.role === 'ceo' ? 'CEO' : u.name, role: u.role }, topics: PB_TOPICS, counts, darslar: tkDarslar() };
+  if (isTk(u)) {
+    out.ok = all('SELECT ref FROM tk_ok WHERE user_id=?', u.id).map(r => r.ref);
+    out.izoh = all('SELECT * FROM tk_izoh WHERE user_id=? ORDER BY id DESC', u.id).map(tkIzohRow);
+  } else {
+    const nm = {}; const tks = all("SELECT id,name,phone,active,last_login,created_at FROM users WHERE role='tekshiruvchi' ORDER BY id DESC");
+    for (const t of tks) nm[t.id] = t.name;
+    out.izoh = all('SELECT * FROM tk_izoh ORDER BY id DESC LIMIT 2000').map(r => ({ ...tkIzohRow(r), kim: nm[r.user_id] || '—', ceo_seen: !!r.ceo_seen }));
+    out.tks = tks.filter(t => t.active).map(t => ({ id: t.id, name: t.name, phone: t.phone, last_login: t.last_login, created_at: t.created_at,
+      ok: one('SELECT count(*) n FROM tk_ok WHERE user_id=?', t.id).n, iz: one('SELECT count(*) n FROM tk_izoh WHERE user_id=?', t.id).n }));
+  }
+  return out;
+};
+A['tk.mv'] = (u, b) => { // bitta mavzuning saytdagi bazadagi misollari
+  need(isTk(u) || u.role === 'ceo');
+  return { rows: all('SELECT * FROM probs WHERE active=1 AND grade=? AND topic=? ORDER BY level,id LIMIT 500', +b.grade || 0, String(b.topic || '').slice(0, 12)).map(probRow) };
+};
+A['tk.ok'] = (u, b) => {
+  need(isTk(u)); const ref = tkRef(b.ref);
+  if (b.on) { run('INSERT OR REPLACE INTO tk_ok(user_id,ref,at) VALUES(?,?,?)', u.id, ref, now()); run("DELETE FROM tk_izoh WHERE user_id=? AND ref=? AND javob=''", u.id, ref); }
+  else run('DELETE FROM tk_ok WHERE user_id=? AND ref=?', u.id, ref);
+  return {};
+};
+A['tk.izoh'] = (u, b) => {
+  need(isTk(u)); const ref = tkRef(b.ref);
+  const matn = str(String(b.matn ?? ''), 2000).trim(); if (matn.length < 2) bad('Izohni yozing');
+  const tur = str(String(b.tur ?? ''), 40), nom = str(String(b.nom ?? ''), 200);
+  run(`INSERT INTO tk_izoh(user_id,ref,nom,tur,matn,at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,ref) DO UPDATE SET nom=excluded.nom,tur=excluded.tur,matn=excluded.matn,at=excluded.at,javob='',javob_at=NULL,javob_seen=0,ceo_seen=0`, u.id, ref, nom, tur, matn, now());
+  run('DELETE FROM tk_ok WHERE user_id=? AND ref=?', u.id, ref);
+  try { const c = ceoRow(); if (c) notifyUsers([c.id], `Tekshiruvchi ${u.name} izoh yozdi.\n\n${nom}\n${tur ? tur + ': ' : ''}${matn}\n\nJavob berish: CEO kabineti → Tekshiruvchilar\n${siteUrl()}`); } catch { }
+  return {};
+};
+A['tk.oqildi'] = u => { need(isTk(u)); run("UPDATE tk_izoh SET javob_seen=1 WHERE user_id=? AND javob<>''", u.id); return {}; };
+A['tk.javob'] = (u, b) => {
+  need(u.role === 'ceo', 'Javobni CEO yozadi');
+  const r = one('SELECT * FROM tk_izoh WHERE id=?', +b.id); if (!r) bad('Izoh topilmadi');
+  const javob = str(String(b.javob ?? ''), 2000).trim(); if (javob.length < 1) bad('Javobni yozing');
+  run('UPDATE tk_izoh SET javob=?,javob_at=?,javob_seen=0,ceo_seen=1 WHERE id=?', javob, now(), r.id);
+  try { notifyUsers([r.user_id], `Siroj izohingizga javob berdi.\n\n${r.nom}\nSiz: ${r.matn}\nJavob: ${javob}\n\n${siteUrl()}`); } catch { }
+  return {};
+};
+A['tk.korildi'] = u => { need(u.role === 'ceo'); run('UPDATE tk_izoh SET ceo_seen=1 WHERE ceo_seen=0'); return {}; };
+A['tk.add'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo, 'Tekshiruvchini faqat CEO qo‘shadi');
+  const name = fixName(b.name, 80); if (name.length < 2) bad('Ism va familiyani yozing');
+  const ph = phone9(b.phone); if (!ph) bad('Telefon raqamini yozing: PIN faqat shu raqam bilan ochiladi');
+  if (one("SELECT 1 FROM users WHERE role='tekshiruvchi' AND active=1 AND phone=?", ph)) bad('Bu raqam bilan tekshiruvchi allaqachon bor');
+  const pin = newPin();
+  const r = run("INSERT INTO users(role,name,phone,perms,pin,pin_at,created_at) VALUES('tekshiruvchi',?,?,'{}',?,?,?)", name, ph, pinH(pin), now(), now());
+  log(u.id, 'tekshiruvchi.qoshish', { name }); return { id: Number(r.lastInsertRowid), pin, phone: ph };
+};
+A['tk.pin'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo); const t = one("SELECT * FROM users WHERE id=? AND role='tekshiruvchi' AND active=1", +b.id); if (!t) bad('Topilmadi');
+  const pin = newPin(); run('UPDATE users SET pin=?,pin_at=? WHERE id=?', pinH(pin), now(), t.id); run('DELETE FROM sessions WHERE user_id=?', t.id);
+  log(u.id, 'pin.yangilash', { kind: 'tekshiruvchi', name: t.name }); return { pin, phone: t.phone };
+};
+A['tk.remove'] = (u, b) => {
+  need(u.role === 'ceo' && !u._demo); const t = one("SELECT * FROM users WHERE id=? AND role='tekshiruvchi'", +b.id); if (!t) bad('Topilmadi');
+  run('UPDATE users SET active=0,pin=NULL WHERE id=?', t.id); run('DELETE FROM sessions WHERE user_id=?', t.id);
+  log(u.id, 'tekshiruvchi.chiqarish', { name: t.name }); return {};
+};
 A['dm.ochiq'] = () => ({ ochiq: dmOchiq() }); // bola kabineti: CEO ochgan darslar ro'yxati (kirgan har foydalanuvchi ko'ra oladi)
 A['dm.set'] = (u, b) => {
   need(u.role === 'ceo', 'Darsni faqat CEO ochadi yoki yopadi');
@@ -1398,6 +1478,10 @@ function pinTarget(kind, ref) {
     const t = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE id=? AND role='jamoa' AND active=1", +ref);
     return t ? { kind: 'jamoa', ref: t.id, name: t.name, phone: t.phone, user: t } : null;
   }
+  if (kind === 'tekshiruvchi') {
+    const t = one("SELECT id,role,name,phone,pin,pin_at,school_id,class_id,active,last_login,chiqdi FROM users WHERE id=? AND role='tekshiruvchi' AND active=1", +ref);
+    return t ? { kind: 'tekshiruvchi', ref: t.id, name: t.name, phone: t.phone, user: t } : null;
+  }
   return null;
 }
 // Bitta telefon raqamining hamma PIN egalari (direktor, sinf rahbari, ota-ona, jamoa) — Telegram bot uchun
@@ -1408,6 +1492,7 @@ function pinTargetsOfPhone(p) {
   for (const c of all('SELECT c.id FROM classes c JOIN schools s ON s.id=c.school_id WHERE c.teacher_phone=? ORDER BY s.num,c.grade,c.name', p)) out.push(pinTarget('rahbar', c.id));
   out.push(pinTarget('ota', p));
   for (const t of all("SELECT id FROM users WHERE +role='jamoa' AND active=1 AND phone=?", p)) out.push(pinTarget('jamoa', t.id));
+  for (const t of all("SELECT id FROM users WHERE +role='tekshiruvchi' AND active=1 AND phone=?", p)) out.push(pinTarget('tekshiruvchi', t.id));
   return out.filter(Boolean);
 }
 A['pins'] = u => {
@@ -1931,13 +2016,13 @@ function grantByPhone(p, renew = false) {
   if (!p) return [];
   const got = [];
   for (const t of pinTargetsOfPhone(p)) {
-    if (t.kind === 'jamoa') { if (t.user?.pin) got.push(renew ? ensurePin(t, null, true) : { bor: true, name: t.name, kind: 'jamoa' }); continue; }
+    if (t.kind === 'jamoa' || t.kind === 'tekshiruvchi') { if (t.user?.pin) got.push(renew ? ensurePin(t, null, true) : { bor: true, name: t.name, kind: 'jamoa' }); continue; }
     if (t.user && t.user.pin && phone9(t.user.phone) && phone9(t.user.phone) !== p) continue; // PIN egasining raqami boshqa — bermaymiz
     got.push(ensurePin(t, null, renew));
   }
   return got;
 }
-const ROLE_UZ = { ota: 'Ota-ona', rahbar: 'Sinf rahbari', direktor: 'Direktor', jamoa: 'Jamoa a‘zosi' };
+const ROLE_UZ = { ota: 'Ota-ona', rahbar: 'Sinf rahbari', direktor: 'Direktor', jamoa: 'Jamoa a‘zosi', tekshiruvchi: 'Tekshiruvchi' };
 function pinMessage(got) {
   const yangi = got.filter(g => g.pin), bor = got.filter(g => !g.pin);
   let m = '';
@@ -3622,7 +3707,7 @@ function noIndex(p) {
 
 function darsRuxsat(u, kod) {
   if (!u) return 401;
-  if (isTeam(u) || u.role === 'direktor' || u.role === 'rahbar') return true;
+  if (isTeam(u) || u.role === 'direktor' || u.role === 'rahbar' || u.role === 'tekshiruvchi') return true;
   if (u.role !== 'ota') return 403;
   if (!dmOchiq().includes(kod)) return 'yopiq';
   if (!obMajburiy()) return true;
@@ -3751,13 +3836,14 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/live') return liveOpen(req, res, u);
       const mm = url.pathname.match(/^\/api\/m\/([0-9a-f]{24})$/);
       if (mm) { // misollar rasmlari va PDF testlar: faqat jamoa ko'radi
-        const okm = isTeam(u) || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
+        const okm = isTeam(u) || u.role === 'tekshiruvchi' || !!one("SELECT 1 FROM probs WHERE active=1 AND (img=? OR o LIKE ?) LIMIT 1", mm[1], '%"' + mm[1] + '"%'); // misol rasmlarini sinf rahbari ham ko'radi
         const m = okm && one('SELECT type,data FROM media WHERE id=?', mm[1]);
         if (!m) { res.writeHead(404, SEC); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.type, 'Cache-Control': 'private, max-age=2592000, immutable', ...SEC }); return res.end(Buffer.from(m.data));
       }
       const act = url.pathname.slice(5); const fn = Object.hasOwn(A, act) ? A[act] : null;
       if (!fn || req.method !== 'POST') return send(res, 404, { error: 'Topilmadi' });
+      if (u.role === 'tekshiruvchi' && !TK_ACTS.has(act)) return send(res, 403, { error: 'Tekshiruvchi faqat misollar va darslarni ko‘radi' });
       if (isKuz(u) && !KUZ_READ.has(act) && !(KUZ_MSG.has(act) && can(u, 'xabar'))) return send(res, 403, { error: 'Kuzatuvchi faqat ko‘radi — o‘zgartira olmaydi' });
       if (u._demo && (DEMO_BLOCK.has(act) || (isTeam(u) && !KUZ_READ.has(act)))) return send(res, 403, { error: 'Namuna kabinet: bu amal bu yerda bloklangan (faqat ko‘rish uchun)' });
       let b; try { b = JSON.parse(await readBody(req) || '{}'); } catch { bad('Noto‘g‘ri so‘rov'); }
@@ -3779,6 +3865,7 @@ const server = http.createServer(async (req, res) => {
       if (dm) { const g = darsRuxsat(userOf(req), dm[1]); if (g !== true) { res.writeHead(g === 401 ? 401 : 403, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...SEC, 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': CSP_FRAME }); return res.end(darsYopiq(g)); } } }
     // Tugallanmagan kabinet sahifalari (/a/k/) faqat sinov saytida beriladi. Asosiy saytda bu yo'l yopiq: fayl diskda bo'lsa ham berilmaydi.
     if (process.env.YX_TEST !== '1' && /^\/a\/k\/bola\.html$/i.test(path.posix.normalize(p))) { res.writeHead(404, SEC); return res.end(); } // eski namuna sahifa asosiy saytda ko'rsatilmaydi
+    if (/^\/a\/k\/tk\//i.test(path.posix.normalize(p))) { const uu = userOf(req); if (!uu || !(uu.role === 'ceo' || uu.role === 'tekshiruvchi')) { res.writeHead(uu ? 403 : 401, SEC); return res.end(); } } // tekshiruv uchun misollar qoralamasi: faqat CEO va tekshiruvchi
     const file = path.join(PUBLIC, path.normalize(p).replace(/^(\.\.[/\\])+/, ''));
     if (file.startsWith(PUBLIC) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       const ext = path.extname(file); const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
