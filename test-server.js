@@ -2149,6 +2149,8 @@ const tgState = new Map();
 // Viloyat va tumanlar: /mnt/project-files/hududlar/hududlar.json dan (14 hudud, 208 tuman va shahar)
 const HUDUD = [{"v":"Qoraqalpog‘iston Respublikasi","t":["Amudaryo tumani","Beruniy tumani","Bo‘zatov tumani","Chimboy tumani","Ellikqal‘a tumani","Kegeyli tumani","Mo‘ynoq tumani","Nukus shahri","Nukus tumani","Qo‘ng‘irot tumani","Qonliko‘l tumani","Qorao‘zak tumani","Shumanay tumani","Taxiatosh tumani","Taxtako‘pir tumani","To‘rtko‘l tumani","Xo‘jayli tumani"]},{"v":"Andijon viloyati","t":["Andijon shahri","Andijon tumani","Asaka tumani","Baliqchi tumani","Bo‘ston tumani","Buloqboshi tumani","Izboskan tumani","Jalaquduq tumani","Marhamat tumani","Oltinko‘l tumani","Paxtaobod tumani","Qo‘rg‘ontepa tumani","Shahrixon tumani","Ulug‘nor tumani","Xo‘jaobod tumani","Xonobod shahri"]},{"v":"Buxoro viloyati","t":["Buxoro shahri","Buxoro tumani","G‘ijduvon tumani","Jondor tumani","Kogon shahri","Kogon tumani","Olot tumani","Peshku tumani","Qorako‘l tumani","Qorovulbozor tumani","Romitan tumani","Shofirkon tumani","Vobkent tumani"]},{"v":"Jizzax viloyati","t":["Arnasoy tumani","Baxmal tumani","Do‘stlik tumani","Forish tumani","G‘allaorol tumani","Jizzax shahri","Mirzacho‘l tumani","Paxtakor tumani","Sharof Rashidov tumani","Yangiobod tumani","Zafarobod tumani","Zarbdor tumani","Zomin tumani"]},{"v":"Qashqadaryo viloyati","t":["Chiroqchi tumani","Dehqonobod tumani","G‘uzor tumani","Kasbi tumani","Kitob tumani","Ko‘kdala tumani","Koson tumani","Mirishkor tumani","Muborak tumani","Nishon tumani","Qamashi tumani","Qarshi shahri","Qarshi tumani","Shahrisabz shahri","Shahrisabz tumani","Yakkabog‘ tumani"]},{"v":"Navoiy viloyati","t":["G‘ozg‘on shahri","Karmana tumani","Konimex tumani","Navbahor tumani","Navoiy shahri","Nurota tumani","Qiziltepa tumani","Tomdi tumani","Uchquduq tumani","Xatirchi tumani","Zarafshon shahri"]},{"v":"Namangan viloyati","t":["Chortoq tumani","Chust tumani","Davlatobod tumani","Kosonsoy tumani","Mingbuloq tumani","Namangan shahri","Namangan tumani","Norin tumani","Pop tumani","To‘raqo‘rg‘on tumani","Uchqo‘rg‘on tumani","Uychi tumani","Yangiqo‘rg‘on tumani"]},{"v":"Samarqand viloyati","t":["Bulung‘ur tumani","Ishtixon tumani","Jomboy tumani","Kattaqo‘rg‘on shahri","Kattaqo‘rg‘on tumani","Narpay tumani","Nurobod tumani","Oqdaryo tumani","Pastdarg‘om tumani","Paxtachi tumani","Payariq tumani","Qo‘shrabot tumani","Samarqand shahri","Samarqand tumani","Toyloq tumani","Urgut tumani"]},{"v":"Surxondaryo viloyati","t":["Angor tumani","Bandixon tumani","Boysun tumani","Denov tumani","Jarqo‘rg‘on tumani","Muzrabot tumani","Oltinsoy tumani","Qiziriq tumani","Qumqo‘rg‘on tumani","Sariosiyo tumani","Sherobod tumani","Sho‘rchi tumani","Termiz shahri","Termiz tumani","Uzun tumani"]},{"v":"Sirdaryo viloyati","t":["Boyovut tumani","Guliston shahri","Guliston tumani","Mirzaobod tumani","Oqoltin tumani","Sardoba tumani","Sayxunobod tumani","Shirin shahri","Sirdaryo tumani","Xovos tumani","Yangiyer shahri"]},{"v":"Toshkent viloyati","t":["Angren shahri","Bekobod shahri","Bekobod tumani","Bo‘ka tumani","Bo‘stonliq tumani","Chinoz tumani","Chirchiq shahri","Nurafshon shahri","Ohangaron shahri","Ohangaron tumani","Olmaliq shahri","Oqqo‘rg‘on tumani","O‘rtachirchiq tumani","Parkent tumani","Piskent tumani","Qibray tumani","Quyichirchiq tumani","Toshkent tumani","Yangiyo‘l shahri","Yangiyo‘l tumani","Yuqorichirchiq tumani","Zangiota tumani"]},{"v":"Farg‘ona viloyati","t":["Bag‘dod tumani","Beshariq tumani","Buvayda tumani","Dang‘ara tumani","Farg‘ona shahri","Farg‘ona tumani","Furqat tumani","Marg‘ilon shahri","Oltiariq tumani","O‘zbekiston tumani","Qo‘qon shahri","Qo‘shtepa tumani","Quva tumani","Quvasoy shahri","Rishton tumani","So‘x tumani","Toshloq tumani","Uchko‘prik tumani","Yozyovon tumani"]},{"v":"Xorazm viloyati","t":["Bog‘ot tumani","Do‘stlik shahri","Gurlan tumani","Hazorasp tumani","Qo‘shko‘pir tumani","Shovot tumani","Tuproqqal‘a tumani","Urganch shahri","Urganch tumani","Xiva shahri","Xiva tumani","Xonqa tumani","Yangiariq tumani","Yangibozor tumani"]},{"v":"Toshkent shahri","t":["Bektemir tumani","Chilonzor tumani","Mirobod tumani","Mirzo Ulug‘bek tumani","Olmazor tumani","Shayxontohur tumani","Sirg‘ali tumani","Uchtepa tumani","Yakkasaroy tumani","Yangihayot tumani","Yashnobod tumani","Yunusobod tumani"]}];
 db.exec("CREATE TABLE IF NOT EXISTS royxat(id INTEGER PRIMARY KEY, chat_id TEXT, phone TEXT, viloyat TEXT, tuman TEXT, maktab_num INTEGER, maktab_nom TEXT DEFAULT '', rol TEXT, jins TEXT, fam TEXT, ism TEXT, pat TEXT, sinf TEXT DEFAULT '', status TEXT DEFAULT 'yangi', by INTEGER, at TEXT)");
+// "Shu sizmi?" (25.11.2026): bola botda ro'yxatdagi (imtihon uchun kiritilgan) yozuvini tanlasa — o'sha o'quvchining id'si; 0 = "boshqa bola"; NULL = so'ralmagan
+migrate('2026-11-25-02-royxat-boglash', () => { db.exec('ALTER TABLE royxat ADD COLUMN boglash INTEGER'); return {}; });
 const RX_ROL = { d: 'Direktor', u: 'O‘qituvchi', o: 'O‘quvchi' };
 const rxKb = (items, pre, cols = 2) => { const rows = []; for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols).map(x => ({ text: x[1], callback_data: pre + ':' + x[0] }))); return { reply_markup: { inline_keyboard: rows } }; };
 const rxQisqa = s => String(s).replace(/ (viloyati|tumani)$/, '');
@@ -2195,15 +2197,46 @@ function rxAsk(chat, st) {
     case 'r_ok': return tgSend(chat, rxXulosa(st), rxKb([['y', 'Ha, to‘g‘ri'], ['n', 'Tuzataman']], 'ro'));
   }
 }
+// ---- "Shu sizmi?": botda yozilgan ism ro'yxatdagi (masalan, imtihon uchun kiritilgan) o'quvchiga o'xshasa, bola o'zi tanlaydi.
+// Shunda ikkinchi yozuv ochilmaydi va imtihon natijalari kabinetda ko'rinadi.
+const rxSz = w => nameKey(w).replace(/['`]/g, '').replace(/ʻ|ʼ/g, '');
+function rxLev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  let p = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) { const q = [i]; for (let j = 1; j <= b.length; j++) q[j] = Math.min(p[j] + 1, q[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = q; }
+  return p[b.length];
+}
+// ikki so'z bir xil yoki biroz farqli: Aziz ~ Azizbek, Karimov ~ Qarimov, Abdulla ~ Abdullo
+const rxSozOx = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)) && Math.abs(a.length - b.length) <= 4) || rxLev(a, b) <= (Math.max(a.length, b.length) >= 6 ? 2 : 1);
+function rxIsmOx(full, name) {
+  const [f1, i1] = full.split(' ').map(rxSz), w = name.split(' ').map(rxSz); const [f2, i2] = w; if (!f2 || !i2) return false;
+  return (rxSozOx(f1, f2) && rxSozOx(i1, i2)) || (rxSozOx(f1, i2) && rxSozOx(i1, f2)); // familiya va ism almashib yozilgan bo'lsa ham
+}
+// Shu maktabning shu sinf bosqichidagi o'xshash o'quvchilar (ko'pi bilan 3 ta): avval o'z sinfi, keyin aynan bir xil ism.
+function rxOxshash(st) {
+  const r = { viloyat: st.vil, tuman: st.tum, maktab_num: st.mnum || null, maktab_nom: st.mnom || '' };
+  const sc = rxSchool(r, false), g = gradeOf(clsName(st.sinf)); if (!sc || !g) return [];
+  const full = st.fam + ' ' + st.ism, p = phone9(st.phone);
+  const rows = all('SELECT s.id,s.name,s.phone,c.name cls FROM students s JOIN classes c ON c.id=s.class_id WHERE c.school_id=? AND c.grade=? AND s.active=1', sc.id, g)
+    .filter(x => rxIsmOx(full, x.name) && !kidsOfPhone(p).includes(x.id));
+  const ok = x => (rxSk(x.cls) === rxSk(st.sinf) ? 0 : 2) + (nameKey(x.name) === nameKey(full) ? 0 : 1);
+  return rows.sort((a, b) => ok(a) - ok(b)).slice(0, 3).map(x => ({ ...x, mk: mkNumQ(sc.num) }));
+}
+function rxSorash(chat, c) {
+  if (c.length === 1) return tgSend(chat, 'Bu maktab ro‘yxatida shunga o‘xshash o‘quvchi bor:\n\n' + c[0].name + '\n' + c[0].mk + ' · ' + c[0].cls + ' sinf\n\nShu sizmi?',
+    rxKb([[c[0].id, 'Ha, shu men'], ['0', 'Yo‘q, boshqa bola']], 'rb'));
+  return tgSend(chat, 'Bu maktab ro‘yxatida shunga o‘xshash o‘quvchilar bor. Qaysi biri sizsiz?',
+    rxKb([...c.map(x => [x.id, x.name + ' · ' + x.cls]), ['0', 'Hech biri emas, men boshqa bolaman']], 'rb', 1));
+}
 function rxSave(chat, st) {
   const old = one("SELECT id FROM royxat WHERE phone=? AND rol=? AND fam=? AND ism=? AND status='yangi'", st.phone, st.rol, st.fam, st.ism);
-  if (old) run('UPDATE royxat SET chat_id=?,viloyat=?,tuman=?,maktab_num=?,maktab_nom=?,jins=?,pat=?,sinf=?,at=? WHERE id=?', chat, st.vil, st.tum, st.mnum || null, st.mnom || '', st.jins, st.pat, st.sinf || '', now(), old.id);
-  else run('INSERT INTO royxat(chat_id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', chat, st.phone, st.vil, st.tum, st.mnum || null, st.mnom || '', st.rol, st.jins, st.fam, st.ism, st.pat, st.sinf || '', now());
+  if (old) run('UPDATE royxat SET chat_id=?,viloyat=?,tuman=?,maktab_num=?,maktab_nom=?,jins=?,pat=?,sinf=?,boglash=?,at=? WHERE id=?', chat, st.vil, st.tum, st.mnum || null, st.mnom || '', st.jins, st.pat, st.sinf || '', st.bog ?? null, now(), old.id);
+  else run('INSERT INTO royxat(chat_id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,boglash,at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)', chat, st.phone, st.vil, st.tum, st.mnum || null, st.mnom || '', st.rol, st.jins, st.fam, st.ism, st.pat, st.sinf || '', st.bog ?? null, now());
   return old ? old.id : one('SELECT max(id) m FROM royxat WHERE chat_id=?', chat).m;
 }
 // Tugma bosilganda. true qaytarsa — shu yerda hal bo'ldi.
 function rxCallback(chat, st, k, v) {
-  if (!/^r[vtmrjo]$/.test(k) || !String(st.step || '').startsWith('r_')) return false;
+  if (!/^r[vtmrjob]$/.test(k) || !String(st.step || '').startsWith('r_')) return false;
   if (k === 'rv' && HUDUD[+v]) { st.vi = +v; st.vil = HUDUD[+v].v; st.step = 'r_tum'; }
   else if (k === 'rt' && st.vi != null) { if (v === 'x') st.step = 'r_tumtxt'; else if (HUDUD[st.vi].t[+v]) { st.tum = HUDUD[st.vi].t[+v]; st.step = 'r_mak'; } }
   else if (k === 'rm' && st.step === 'r_mak') st.step = 'r_maknom';
@@ -2211,7 +2244,13 @@ function rxCallback(chat, st, k, v) {
   else if (k === 'rj' && (v === 'a' || v === 'e') && st.rol) { st.jins = v; st.step = 'r_fam'; }
   else if (k === 'ro' && st.step === 'r_ok') {
     if (v === 'n') { const p = st.phone; tgState.set(chat, { step: 'r_vil', phone: p }); tgSend(chat, 'Yaxshi, qaytadan to‘ldiramiz.'); rxAsk(chat, tgState.get(chat)); return true; }
+    const c = st.rol === 'o' ? rxOxshash(st) : [];
+    if (c.length) { st.cands = c.map(x => x.id); st.step = 'r_bog'; rxSorash(chat, c); return true; }
     const rid = rxSave(chat, st); tgState.delete(chat); rxProcess(rid); return true;
+  }
+  else if (k === 'rb' && st.step === 'r_bog') {
+    if (v !== '0' && !(st.cands || []).includes(+v)) return true;
+    st.bog = +v; const rid = rxSave(chat, st); tgState.delete(chat); rxProcess(rid); return true;
   }
   rxAsk(chat, st); return true;
 }
@@ -2368,14 +2407,35 @@ function rxOpen(r) {
     } else cl = rxClass(sc, r.sinf, true);
     return { status: 'ochildi', msg: rxPinMsg(rxTeacher(r, cl, null)) };
   }
+  if (r.boglash > 0) { // "Shu sizmi?" — bola ro'yxatdagi yozuvini tanladi
+    const s = one('SELECT s.*,c.school_id,c.name cls FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.active=1', r.boglash);
+    if (s && s.school_id === sc.id) {
+      const bor = [phone9(s.phone), ...extraPhones(s.id)].filter(Boolean);
+      if (bor.length && !bor.includes(p)) { // bu bolaga boshqa raqam ulangan: sinf rahbari (yoki jamoa) tasdiqlaydi
+        run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', r.chat_id, p, s.class_id, s.name, now());
+        notifyUsers(rahbarsOf(s.class_id).map(x => x.id), `Yangi so‘rov: ${s.name} (${mkNum(sc.num)}, ${s.cls}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
+        return { status: 'sorov', msg: `Rahmat! So‘rovingiz ${mkNum(sc.num)} ${s.cls} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.` };
+      }
+      if (!bor.length) {
+        if (kidsOfPhone(p).length >= MAX_KIDS) return { status: 'kutilmoqda', msg: RX_KUT + 'Bu raqamga juda ko‘p o‘quvchi yozilgan, shuning uchun avval tekshiriladi.' };
+        run("UPDATE students SET phone=?, patronymic=CASE WHEN coalesce(patronymic,'')='' THEN ? ELSE patronymic END, jins=CASE WHEN coalesce(jins,'')='' THEN ? ELSE jins END WHERE id=?", p, r.pat, r.jins, s.id);
+        log(null, 'bot.boglash', { student_id: s.id, name: s.name, yozgani: full, phone: p });
+        notifyUsers(rahbarsOf(s.class_id).map(x => x.id), `${s.name} (${s.cls}) botda ro‘yxatdan o‘tdi va ro‘yxatdagi yozuviga ulandi. Ko‘rish: ${siteUrl()}`);
+      }
+      const t = pinTarget('ota', p); if (!t) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
+      const g = ensurePin(t, null, false);
+      return { status: 'ochildi', msg: 'Rahmat! Sizni ro‘yxatdagi yozuvingizga uladim.\n\nImtihon natijalaringiz kabinetingizda turibdi.\n\n' +
+        (g.pin ? 'PIN kodingiz:\n' + g.pin + '\n\nSaytga kirish: ' + siteUrl() + '\nPIN kodni hech kimga bermang.' : 'Sizda PIN kod bor — saytga o‘sha PIN bilan kiring.\nUnutgan bo‘lsangiz, /pin deb yozing — yangi PIN keladi.\n\nSaytga kirish: ' + siteUrl()) };
+    }
+  }
   if (!cl) cl = rxClass(sc, r.sinf, true);
   const twin = all('SELECT id,name,phone FROM students WHERE class_id=? AND active=1', cl.id).find(x => nameKey(x.name) === nameKey(full));
-  if (twin && phone9(twin.phone) !== p) { // ro'yxatda shu ismli bola bor: avvalgidek sinf rahbari (yoki jamoa) tasdiqlaydi
+  if (twin && phone9(twin.phone) !== p && r.boglash !== 0) { // ro'yxatda shu ismli bola bor: avvalgidek sinf rahbari (yoki jamoa) tasdiqlaydi
     run('INSERT INTO tg_requests(chat_id,phone,class_id,child,at) VALUES(?,?,?,?,?)', r.chat_id, p, cl.id, full, now());
     notifyUsers(rahbarsOf(cl.id).map(x => x.id), `Yangi so‘rov: ${full} (${mkNum(sc.num)}, ${cl.name}) ota-onasi PIN so‘ramoqda. Tasdiqlash: ${siteUrl()}`);
     return { status: 'sorov', msg: `Rahmat! So‘rovingiz ${mkNum(sc.num)} ${cl.name} sinf rahbariga yuborildi. Tasdiqlangach, PIN kodingiz shu yerga keladi.` };
   }
-  if (!twin) {
+  if (!twin || (r.boglash === 0 && phone9(twin.phone) !== p)) {
     if (kidsOfPhone(p).length >= MAX_KIDS) return { status: 'kutilmoqda', msg: RX_KUT + 'Bu raqamga juda ko‘p o‘quvchi yozilgan, shuning uchun avval tekshiriladi.' };
     run('INSERT INTO students(class_id,name,patronymic,phone,jins,ozi,created_at) VALUES(?,?,?,?,?,1,?)', cl.id, full, r.pat, p, r.jins, now());
     notifyUsers(rahbarsOf(cl.id).map(x => x.id), `Sinfingizga yangi o‘quvchi ro‘yxatdan o‘tdi: ${full} (${cl.name}). Ko‘rish: ${siteUrl()}`);
