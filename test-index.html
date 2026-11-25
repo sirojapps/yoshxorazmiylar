@@ -1782,7 +1782,7 @@ const darsHas=c=>{darsLoad();return DARS.has(DARS_AL[c]||c)};
 function darsCard(code){if(!darsHas(code))return '';return `<button class="card pad" data-dars="${esc(code)}" style="flex-direction:row;align-items:center;gap:12px;text-align:left;cursor:pointer;border:2px solid var(--accent-strong)"><span style="font-size:28px">▶️</span><div class="m" style="flex:1"><div style="font-weight:700">Interaktiv dars</div><div class="note" style="margin:0">Bola rejimi (qadamba-qadam, chizmalar, 10 mashq) va O’qituvchi rejimi (tayyorgarlik, doska rejasi, varaq)</div></div></button>`}
 function darsOpen(code){const src=code?`/darslar/lesson.html#${encodeURIComponent(DARS_AL[code]||code)}`:'/darslar/';document.getElementById('darsOv')?.remove();
   const o=document.createElement('div');o.id='darsOv';o.style.cssText='position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column';
-  o.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc"><button class="btn sec sm" id="darsX">✕ Yopish</button><b style="flex:1;font-size:15px">📘 Mavzu darslari</b></div><iframe src="${src}" style="flex:1;border:0;width:100%" title="Mavzu darsi"></iframe>`;
+  o.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e5e7eb;background:#f8fafc"><button class="btn sec sm" id="darsX">✕ Yopish</button><b style="flex:1;font-size:15px">📘 Mavzu darslari</b></div><iframe src="${esc(src)}" style="flex:1;border:0;width:100%" title="Mavzu darsi"></iframe>`;
   document.body.appendChild(o);document.body.style.overflow='hidden';o.querySelector('#darsX').onclick=()=>{o.remove();document.body.style.overflow='';DARS_NP=false;navSync()};navSync()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dars]');if(b){e.preventDefault();e.stopPropagation();darsOpen(b.dataset.dars)}},true);
 function mavzuHtml(m,name){if(m===undefined||!m)return '';const para=t=>esc(t).replace(/\n/g,'<br>');
@@ -2007,7 +2007,7 @@ function tgWvSet(id,f,on){const w=document.querySelectorAll(`[data-wv="${id}"] i
 function tgCmHide(){$('#tgcm')?.remove()}
 function tgCm(x,y,id){tgCmHide();const m=THV.msgs.find(z=>z.id===id);if(!m)return;const me=m.user_id===S.me.id;
   const d=document.createElement('div');d.className='tg-cm';d.id='tgcm';
-  d.innerHTML=`${THV.reply?`<button data-act="tgReply" data-id="${id}">↩ Javob berish</button>`:''}${m.text?`<button data-act="tgCopy1" data-id="${id}">⧉ Nusxa olish</button>`:''}${me&&m.text?`<button data-act="tgEdit" data-id="${id}">✎ Tahrirlash</button>`:''}<button data-act="tgSel" data-id="${id}">☑ Belgilash</button><button class="red" data-act="tgDel1" data-id="${id}">🗑 O’chirish</button>`;
+  d.innerHTML=`${THV.reply?`<button data-act="tgReply" data-id="${esc(id)}">↩ Javob berish</button>`:''}${m.text?`<button data-act="tgCopy1" data-id="${esc(id)}">⧉ Nusxa olish</button>`:''}${me&&m.text?`<button data-act="tgEdit" data-id="${esc(id)}">✎ Tahrirlash</button>`:''}<button data-act="tgSel" data-id="${esc(id)}">☑ Belgilash</button><button class="red" data-act="tgDel1" data-id="${esc(id)}">🗑 O’chirish</button>`;
   document.body.appendChild(d);const w=d.offsetWidth,h=d.offsetHeight;d.style.left=Math.max(8,Math.min(x,innerWidth-w-8))+'px';d.style.top=Math.max(8,Math.min(y,innerHeight-h-8))+'px'}
 function tgSelStart(id){tgCmHide();SEL=new Set([id]);thMenu=false;tgKeep(drawThread);navigator.vibrate?.(25)}
 function tgDelAsk(){tgCmHide();if(!SEL||!SEL.size)return;const t=THV.thread,ids=[...SEL],ms=THV.msgs.filter(m=>SEL.has(m.id));
@@ -2040,7 +2040,7 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();document.querySelector(`[data-act="${act}"]`)?.click()});
 // rasmni katta qilib ko'rsatish
 function zoomImg(src){closeZoom();const z=document.createElement('div');z.className='zoom';z.id='zoom';
-  z.innerHTML=`<img src="${src}" alt="Rasm"><div class="zb"><a href="${src}" download="rasm.jpg">Saqlash</a><button data-zclose aria-label="Yopish">✕</button></div>`;
+  z.innerHTML=`<img src="${esc(src)}" alt="Rasm"><div class="zb"><a href="${esc(src)}" download="rasm.jpg">Saqlash</a><button data-zclose aria-label="Yopish">✕</button></div>`;
   z.addEventListener('click',e=>{if(e.target===z||e.target.closest('[data-zclose]'))closeZoom()});document.body.appendChild(z)}
 function closeZoom(){$('#zoom')?.remove()}
 document.addEventListener('click',e=>{const i=e.target.closest('img[data-zoom]');if(i){e.preventDefault();zoomImg(i.src)}});
@@ -2551,7 +2551,7 @@ document.addEventListener('click',async e=>{
   switch(d.act){
    case 'openChat':{const c=TH?.find(t=>t.kind==='chat');if(c)openThread(c.id);else{CMP={kind:'chat',img:''};openSheet(`<div class="sh-top"><div class="m"><h2>Jamoa chati</h2></div><button class="ib" data-act="close">${I.x}</button></div><label class="field"><textarea id="cmText" placeholder="Birinchi xabarni yozing"></textarea></label><div id="cmImg"></div><button class="btn pri" data-act="cmSend">Yuborish</button>`)}break}
    case 'compose':openCompose(d.kind);break;
-   case 'cmImgPick':pickImage(u=>{CMP.img=u;$('#cmImg').innerHTML=`<img src="${u}" style="max-height:140px" alt="">`});break;
+   case 'cmImgPick':pickImage(u=>{CMP.img=u;$('#cmImg').innerHTML=`<img src="${esc(u)}" style="max-height:140px" alt="">`});break;
    case 'cmSend':{if(REC.on){toast('Avval yozishni to’xtating',true);break}const body={kind:CMP.kind,text:val('cmText'),image:CMP.img,audio:REC.to==='cm'?REC.data:'',topic:$('#cmTopic')?.value,student_id:+($('#cmStu')?.value||0)||undefined,class_id:+($('#cmCls')?.value||0)||undefined};
      const r=await api('thread.new',body);recClear();toast('Yuborildi');TH=null;openThread(r.id);break}
    case 'rpImg':pickImage(u=>{const t=val('rpText');draftImg=u;drawThread();$('#rpText').value=t});break;
@@ -2621,7 +2621,7 @@ document.addEventListener('click',async e=>{
    case 'certPdf':await certPdf(certFiltered().l.filter(c=>!c.status),certLabel());break;
    case 'certDate':{const d=val('certDate');if(!d){toast('Sanani tanlang',true);break}const L=certFiltered().l;try{const r=await api('certs.date',{date:d,codes:L.map(c=>c.code)});L.forEach(c=>{const x=(S.certs||[]).find(y=>y.code===c.code);if(x)x.issued=d});toast(`${r.n} ta sertifikat sanasi saqlandi`);render()}catch(e){toast(e.message,true)}break}
    case 'exEdit':openExEdit(+d.id||0);break;
-   case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${u}" style="max-height:160px" alt="">`},1000);break;
+   case 'exImg':pickImage(u=>{CMP.exImg=u;$('#exImgBox').innerHTML=`<img src="${esc(u)}" style="max-height:160px" alt="">`},1000);break;
    case 'exSave':await api('ex.save',{id:CMP.id||undefined,grade:+val('exG'),day:val('exD'),text:val('exT'),image:CMP.exImg,options:[0,1,2,3,4].map(i=>val('exO'+i)),answer:val('exA'),explain:val('exE')});closeSheet();toast('Mashq saqlandi');EXL=null;render();break;
    case 'exDel':await api('ex.delete',{id:+d.id});closeSheet();toast('O’chirildi ✓');EXL=null;render();break;
    case 'setSave':{const v=val(d.src);if(d.k==='bot_token'&&!v){toast('Kalitni kiriting',true);break}const r=await api('settings.save',{key:d.k,value:v});toast(d.k==='bot_token'?`Bot ulandi: @${r.bot_username}`:'Saqlandi');SET=null;await load();break}
@@ -3024,16 +3024,16 @@ function scanPreview(r){const c=document.createElement('canvas'),s=r.cv,k=Math.m
 function scanDraw(keepVideo){if(!SC)return;const el=$('#scan');const E=SC.ext,c=E?null:X.cl[SC.cid],l=E?[]:scanSt(),done=E?E.done():l.filter(s=>R(s.id,SC.tid)).length;
   let top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>${E?esc(E.title):esc(c?.name||'')+' sinf · '+esc(S.tests.find(x=>x.id===SC.tid)?.name||'')}</b><small>${done} / ${E?E.total():l.length} tekshirildi</small></div><button class="btn sec sm" data-sa="left">Qolganlar</button></div>`;
   if(SC.uni)top=`<div class="scan-top"><button class="ib" data-sa="close" aria-label="Yopish">${I.x}</button><div class="m"><b>Skaner · hamma titullar</b><small>Bu safar ${SC.log.length} ta varaq o‘qildi</small></div><button class="btn sec sm" data-sa="left">O‘qilganlar</button></div>`;
-  if(SC.view==='left'&&SC.uni){el.innerHTML=`${top}<div class="scan-body"><p class="label">Bu safar o‘qilganlar: ${SC.log.length} ta</p><div class="card list">${SC.log.map((y,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(y.name)}</div><div class="s">${esc(y.sub)}</div></div><b>${y.score==null?'navbatda':y.qn===100?num(y.score)+' ball':y.score+' / '+y.qn}</b></div>`).join('')||'<div class="empty">Hali varaq o‘qilmadi</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
+  if(SC.view==='left'&&SC.uni){el.innerHTML=`${top}<div class="scan-body"><p class="label">Bu safar o‘qilganlar: ${esc(SC.log.length)} ta</p><div class="card list">${SC.log.map((y,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(y.name)}</div><div class="s">${esc(y.sub)}</div></div><b>${y.score==null?'navbatda':y.qn===100?num(y.score)+' ball':y.score+' / '+y.qn}</b></div>`).join('')||'<div class="empty">Hali varaq o‘qilmadi</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   if(SC.view==='live'){
     if(keepVideo&&$('#scanV')){el.querySelector('.scan-top').outerHTML=top;const ok=$('#scanOk');if(ok)ok.outerHTML=scanOkHtml();$('#scanMsg').textContent=SC.msg;return}
     el.innerHTML=`${top}<div class="scan-cam"><video id="scanV" playsinline muted autoplay></video><canvas id="scanOv" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none"></canvas><div class="scan-guide"><i></i><i></i><i></i><i></i></div></div>
     ${scanOkHtml()}<div class="scan-msg" id="scanMsg">${esc(SC.msg)}</div>
     <div class="scan-bot"><button class="btn sec" data-sa="photo">📸 Rasmdan</button></div>`;
     if(SC.stream){const v=$('#scanV');v.srcObject=SC.stream;v.play().catch(()=>{})}return}
-  if(SC.view==='left'&&E){const left=E.left();el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${left.length} ta</p><div class="card list">${left.map((n,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(n)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
+  if(SC.view==='left'&&E){const left=E.left();el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${esc(left.length)} ta</p><div class="card list">${left.map((n,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(n)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div><button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   if(SC.view==='left'){const left=l.filter(s=>!R(s.id,SC.tid)).sort((a,b)=>a.name.localeCompare(b.name,'uz'));
-    el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${left.length} ta</p><div class="card list">${left.map((s,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(s.name)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div>
+    el.innerHTML=`${top}<div class="scan-body"><p class="label">Hali tekshirilmagan: ${esc(left.length)} ta</p><div class="card list">${left.map((s,i)=>`<div class="row"><div class="m"><div class="n">${i+1}. ${esc(s.name)}</div></div></div>`).join('')||'<div class="empty">Hammasi tekshirildi ✓</div>'}</div>
     ${left.length&&P('kiritish')?`<button class="btn sec" data-sa="absRest">Qolgan ${left.length} tasini “Kelmadi” deb belgilash</button>`:''}<button class="btn pri" data-sa="live">Skanerga qaytish</button></div>`;return}
   const r=SC.res,q=r.qr,keyLen=q.qn;
   el.innerHTML=`${top}<div class="scan-body">
@@ -3204,7 +3204,7 @@ function pkShow(){const el=$('#pkRes');if(!el||!PK)return;const on=PK.items.filt
   const bad=PK.items.map((x,i)=>!pbT(x.topic)?`${i+1}-misol: mavzu topilmadi (${esc(x.topic||'—')})`:'').filter(Boolean);
   const byT={};PK.items.forEach(x=>{const t=pbT(x.topic);const k=t?`${t.g}-sinf · ${t.name}`:'?';byT[k]=(byT[k]||0)+1});
   const t=PK.test;
-  el.innerHTML=`<div class="card pad"><b>${esc(PK.name)}</b><div class="note">${PK.items.length} ta misol · ${PK.items.filter(pbPic).length} tasi suratli</div>
+  el.innerHTML=`<div class="card pad"><b>${esc(PK.name)}</b><div class="note">${esc(PK.items.length)} ta misol · ${esc(PK.items.filter(pbPic).length)} tasi suratli</div>
    <div class="note">${Object.entries(byT).map(([k,n])=>`${esc(k)}: <b>${n}</b>`).join('<br>')}</div></div>
    ${t?`<div class="card pad"><label class="check" style="padding:0"><input type="checkbox" id="pkT" checked><b>Testlar bazasiga test sifatida ham qo’shish</b></label>
     <label class="field"><span class="label">Test nomi</span><input id="pkTN" type="text" value="${esc(t.name||'')}"></label>
@@ -3581,7 +3581,7 @@ const THEME={oquv:'mint',baza:'mint',ichki:'sand',bosh:'sky',sinf:'sky',farzand:
 (function atmo(){
   const tk=document.getElementById('tk'),dg=document.getElementById('dg'),gl=document.getElementById('gl');if(!gl)return;
   let t='';for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?284:276;t+=`<line x1="${310+Math.cos(a)*r1}" y1="${310+Math.sin(a)*r1}" x2="${310+Math.cos(a)*300}" y2="${310+Math.sin(a)*300}" stroke-width="${i%6?1:2}"/>`}if(tk)tk.innerHTML=t;
-  const D='٠١٢٣٤٥٦٧٨٩';let d='';for(let i=0;i<10;i++){const a=(i*36-90)*Math.PI/180;d+=`<text x="${310+Math.cos(a)*240}" y="${318+Math.sin(a)*240}">${D[i]}</text>`}if(dg)dg.innerHTML=d;
+  const D='٠١٢٣٤٥٦٧٨٩';let d='';for(let i=0;i<10;i++){const a=(i*36-90)*Math.PI/180;d+=`<text x="${310+Math.cos(a)*240}" y="${318+Math.sin(a)*240}">${esc(D[i])}</text>`}if(dg)dg.innerHTML=d;
   const G=['x²','π','√','∑','÷','=','7','3','9','∞','△','½','+','×','a+b','%','0','1'];
   const n=innerWidth>=900?18:7;let h='';
   for(let i=0;i<n;i++){h+=`<span class="g" style="--x:${(i*97)%100}vw;--s:${16+(i*7)%26}px;--d:${38+(i*13)%40}s;--w:-${(i*11)%60}s;--r:${(i%2?1:-1)*(20+i*9)}deg">${G[i%G.length]}</span>`}
@@ -4008,7 +4008,7 @@ function openImport(){
       const m=f.name.match(/(\d+)/);if(m&&!val('impNum'))$('#impNum').value=m[1];
       const by={};data.forEach(r=>{const k=r.cls.toUpperCase();by[k]=(by[k]||0)+1});
       IMP=data;
-      $('#impPrev').innerHTML=`<div class="card pad"><b>${data.length} ta o’quvchi topildi</b><div class="note">${Object.entries(by).sort().map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')}</div>
+      $('#impPrev').innerHTML=`<div class="card pad"><b>${esc(data.length)} ta o’quvchi topildi</b><div class="note">${Object.entries(by).sort().map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ')}</div>
        ${cb>=0?`<div class="note"><b>${data.filter(r=>r.score!==''&&!/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} ta bolaning bali bor${data.some(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score))?`, ${data.filter(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} tasi kelmagan`:''}</b> — joriy sinovga (${esc(curTest()?.name||'sinov tanlanmagan')}) natija sifatida yoziladi.</div>`:''}<div class="note">${cp>=0?'Fayldagi telefon raqamlari ota-onaga bog’lanmaydi: ular faqat “tekshirilmagan” deb saqlanadi, haqiqiy raqamni sinf rahbari tekshirib kiritadi.':'Telefon ustuni yo’q.'} Otasining ismi olib tashlanadi, faqat familiya va ism qoladi.</div>
        <div class="note">Masalan: ${data.slice(0,3).map(r=>esc(r.name.split(/\s+/).slice(0,2).join(' '))).join(', ')}</div></div>
        <button class="btn pri" data-act="impSave">Yuklash</button>`;
