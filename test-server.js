@@ -772,9 +772,8 @@ A['students.import'] = (u, b) => {
       let c = one('SELECT id FROM classes WHERE school_id=? AND name=?', sc.id, cn);
       if (!c) { c = { id: Number(run('INSERT INTO classes(school_id,name,grade) VALUES(?,?,?)', sc.id, cn, gradeOf(cn)).lastInsertRowid) }; newCls++; }
       const ex = all('SELECT id,phone,name FROM students WHERE class_id=? AND active=1', c.id).find(x => nameKey(x.name) === nameKey(name));
-      if (ex) { if (!ex.phone && phone9(r.phone)) run('INSERT OR IGNORE INTO phone_hints(student_id,phone) VALUES(?,?)', ex.id, phone9(r.phone)); skipped++; withScore(ex.id, r); continue; }
+      if (ex) { skipped++; withScore(ex.id, r); continue; }
       const sid = Number(run('INSERT INTO students(class_id,name,phone,created_at) VALUES(?,?,?,?)', c.id, name, '', now()).lastInsertRowid); added++;
-      if (phone9(r.phone)) run('INSERT OR IGNORE INTO phone_hints(student_id,phone) VALUES(?,?)', sid, phone9(r.phone));
       withScore(sid, r);
     }
     log(u.id, 'royxat.import', { num, added, skipped, newCls, results, absents });
@@ -3858,6 +3857,20 @@ migrate('2026-11-24-02-telefon-yozuvi', () => {
 });
 for (const q of ['students(phone)', 'student_phones(phone)', 'classes(teacher_phone)', 'schools(director_phone)'])
   try { db.exec(`CREATE INDEX IF NOT EXISTS ix_${q.replace(/\W+/g, '_')} ON ${q}`); } catch (e) { }
+// Siroj (25.11.2026): o'quvchi telefon raqamini biz kiritmaymiz. Excel ro'yxatdan kelgan "tekshirilmagan" raqamlar va
+// Telegram botdan KELMAGAN (qo'lda yoki fayldan yozilgan) hamma raqam o'chiriladi. Botdan kelgani = ota-ona botga o'z raqamini
+// tugma bilan yuborgan (tg_users). Shu bilan hech bir bolasi qolmagan ota-ona kabineti yopiladi. students.import telefon ustunini o'qimaydi.
+migrate('2026-11-25-01-botdan-kelmagan-telefonlar', () => {
+  const bot = new Set(all('SELECT phone FROM tg_users').map(r => phone9(r.phone)).filter(Boolean));
+  const o = { taxmin: chg('DELETE FROM phone_hints'), asosiy: 0, qoshimcha: 0, ota_yopildi: 0 };
+  for (const s of all("SELECT id,phone FROM students WHERE phone IS NOT NULL AND phone<>''"))
+    if (!bot.has(phone9(s.phone))) { run("UPDATE students SET phone='' WHERE id=?", s.id); o.asosiy++; }
+  for (const r of all('SELECT student_id,phone FROM student_phones'))
+    if (!bot.has(phone9(r.phone))) { run('DELETE FROM student_phones WHERE student_id=? AND phone=?', r.student_id, r.phone); o.qoshimcha++; }
+  for (const x of all("SELECT id,phone FROM users WHERE role='ota' AND active=1"))
+    if (!kidsOfPhone(phone9(x.phone)).length) { run('UPDATE users SET active=0 WHERE id=?', x.id); run('DELETE FROM sessions WHERE user_id=?', x.id); o.ota_yopildi++; }
+  return o;
+});
 migrate('2026-11-17-03-ismlar-yozuvi', () => {
   let fixed = 0;
   {

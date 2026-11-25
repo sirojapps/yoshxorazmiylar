@@ -3878,7 +3878,7 @@ function render(){
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=32" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=33" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=5" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
@@ -3994,7 +3994,7 @@ const classOpts=()=>S.classes.map(c=>[c.id,`${mkN(X.sc[c.school_id])} · ${c.nam
 async function loadXLSX(){if(window.XLSX)return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=()=>no(new Error('Excel o’quvchi yuklanmadi. Internetni tekshiring.'));document.head.appendChild(s)})}
 let IMP=null;
 function openImport(){
-  openSheet(`<div class="sh-top"><div class="m"><h2>Ro’yxat yuklash</h2><div class="s">Excel fayl: o’quvchi, sinf, telefon ustunlari</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
+  openSheet(`<div class="sh-top"><div class="m"><h2>Ro’yxat yuklash</h2><div class="s">Excel fayl: o’quvchi va sinf ustunlari</div></div><button class="ib" data-act="close" aria-label="Yopish">${I.x}</button></div>
   <label class="field"><span class="label">Maktab raqami</span><input id="impNum" inputmode="numeric" placeholder="Masalan: 53"></label>
   <label class="field"><span class="label">Excel fayl</span><input id="impFile" type="file" accept=".xlsx,.xls,.csv"></label>
   <div id="impPrev"></div>`);
@@ -4002,14 +4002,14 @@ function openImport(){
     try{await loadXLSX();const wb=XLSX.read(await f.arrayBuffer());const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});
       const head=rows.findIndex(r=>r.some(c=>/sinf/i.test(c)));const H=(rows[head]||[]).map(c=>String(c).toLowerCase());
       const ci=re=>H.findIndex(c=>re.test(c));
-      let cn=ci(/quvchi|f\.?i\.?o|ism/), cc=ci(/sinf/), cp=ci(/telefon|tel/), cb=ci(/^ball|natija|^ball$/);
+      let cn=ci(/quvchi|f\.?i\.?o|ism/), cc=ci(/sinf/), cb=ci(/^ball|natija|^ball$/);
       if(cn<0)cn=1;if(cc<0)cc=2;
-      const data=rows.slice(head+1).map(r=>({name:String(r[cn]||'').replace(/ /g,' ').trim(),cls:String(r[cc]||'').replace(/ /g,'').trim(),phone:cp>=0?String(r[cp]||''):'',score:cb>=0?String(r[cb]??'').trim():''})).filter(r=>r.name&&r.cls);
+      const data=rows.slice(head+1).map(r=>({name:String(r[cn]||'').replace(/ /g,' ').trim(),cls:String(r[cc]||'').replace(/ /g,'').trim(),score:cb>=0?String(r[cb]??'').trim():''})).filter(r=>r.name&&r.cls);
       const m=f.name.match(/(\d+)/);if(m&&!val('impNum'))$('#impNum').value=m[1];
       const by={};data.forEach(r=>{const k=r.cls.toUpperCase();by[k]=(by[k]||0)+1});
       IMP=data;
       $('#impPrev').innerHTML=`<div class="card pad"><b>${esc(data.length)} ta o’quvchi topildi</b><div class="note">${Object.entries(by).sort().map(([k,v])=>`${esc(k)}: ${esc(v)}`).join(' · ')}</div>
-       ${cb>=0?`<div class="note"><b>${data.filter(r=>r.score!==''&&!/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} ta bolaning bali bor${data.some(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score))?`, ${data.filter(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} tasi kelmagan`:''}</b> — joriy sinovga (${esc(curTest()?.name||'sinov tanlanmagan')}) natija sifatida yoziladi.</div>`:''}<div class="note">${cp>=0?'Fayldagi telefon raqamlari ota-onaga bog’lanmaydi: ular faqat “tekshirilmagan” deb saqlanadi, haqiqiy raqamni sinf rahbari tekshirib kiritadi.':'Telefon ustuni yo’q.'} Otasining ismi olib tashlanadi, faqat familiya va ism qoladi.</div>
+       ${cb>=0?`<div class="note"><b>${data.filter(r=>r.score!==''&&!/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} ta bolaning bali bor${data.some(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score))?`, ${data.filter(r=>/^(kelmadi|yo.?q|-)$/i.test(r.score)).length} tasi kelmagan`:''}</b> — joriy sinovga (${esc(curTest()?.name||'sinov tanlanmagan')}) natija sifatida yoziladi.</div>`:''}<div class="note">Fayldagi telefon raqamlari olinmaydi. Otasining ismi olib tashlanadi, faqat familiya va ism qoladi.</div>
        <div class="note">Masalan: ${data.slice(0,3).map(r=>esc(r.name.split(/\s+/).slice(0,2).join(' '))).join(', ')}</div></div>
        <button class="btn pri" data-act="impSave">Yuklash</button>`;
     }catch(err){$('#impPrev').innerHTML=`<p class="err">${esc(err.message)}</p>`}};
