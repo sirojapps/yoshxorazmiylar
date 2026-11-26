@@ -1082,6 +1082,7 @@ A['tk.izoh'] = (u, b) => {
   const tur = str(String(b.tur ?? ''), 40), nom = str(String(b.nom ?? ''), 200);
   run(`INSERT INTO tk_izoh(user_id,ref,nom,tur,matn,at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,ref) DO UPDATE SET nom=excluded.nom,tur=excluded.tur,matn=excluded.matn,at=excluded.at,javob='',javob_at=NULL,javob_seen=0,ceo_seen=0`, u.id, ref, nom, tur, matn, now());
   run('DELETE FROM tk_ok WHERE user_id=? AND ref=?', u.id, ref);
+  try { const c = ceoRow(); if (c) liveSend(c.id); } catch { } // CEO'ning ochiq sahifasi darrov yangilanadi
   try { const c = ceoRow(); if (c) notifyUsers([c.id], `Tekshiruvchi ${u.name} izoh yozdi.\n\n${nom}\n${tur ? tur + ': ' : ''}${matn}\n\nJavob berish: CEO kabineti → Tekshiruvchilar\n${siteUrl()}`); } catch { }
   return {};
 };
@@ -1091,6 +1092,7 @@ A['tk.javob'] = (u, b) => {
   const r = one('SELECT * FROM tk_izoh WHERE id=?', +b.id); if (!r) bad('Izoh topilmadi');
   const javob = str(String(b.javob ?? ''), 2000).trim(); if (javob.length < 1) bad('Javobni yozing');
   run('UPDATE tk_izoh SET javob=?,javob_at=?,javob_seen=0,ceo_seen=1 WHERE id=?', javob, now(), r.id);
+  liveSend(r.user_id);
   try { notifyUsers([r.user_id], `Siroj izohingizga javob berdi.\n\n${r.nom}\nSiz: ${r.matn}\nJavob: ${javob}\n\n${siteUrl()}`); } catch { }
   return {};
 };
