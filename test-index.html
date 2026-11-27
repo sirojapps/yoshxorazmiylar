@@ -3681,7 +3681,7 @@ function scrDemo(){
   <button class="btn sec" data-act="demoReset">↺ Namunani tozalash (boshlang’ich holatga qaytarish)</button>`]}
 window.oqData=()=>{const k=(X&&X.st||[])[0];return k?{name:k.name,cls:k.cls?k.cls+' sinf':'',qiz:/qizi/i.test(k.patronymic||'')}:null};window.oqChiq=()=>{if(S&&S.me&&S.me.demo)return demoExit();kimSet('')};
 // Yangi ota-ona kabineti (/a/k/ota.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, sertifikat yuklaydi va chiqadi
-window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
+window.OTA={st:()=>S,api:(n,b,bg)=>api(n,b,bg),cert:c=>certPng(c),certImg:async c=>{const x=(S.certs||[]).find(v=>v.code===c);if(!x||x.status)return'';return (await drawCert(x)).toDataURL('image/jpeg',.88)},chiq:()=>{kimSet2();fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{}).then(()=>location.reload())}};
 // Yangi direktor kabineti (/a/k/direktor.html): sahifa shu ko'prik orqali ma'lumot oladi, xabar yozadi, PIN beradi; "Maktabni boshqarish" avvalgi sahifani ochadi
 // Yangi CEO kabineti (/a/k/ceo.html): CEO uchun asosiy kabinet. Hali yangisiga ko'chirilmagan bo'limlar vaqtincha avvalgi sahifada ochiladi — tepada "← Yangi kabinetga qaytish".
 window.CEO={st:()=>S,x:()=>X,api:(n,b,bg)=>api(n,b,bg),load:()=>load(),
@@ -3899,9 +3899,9 @@ function render(){
   if(S.me.role==='direktor')dirQayt();
   if(S.me.role==='rahbar'){if(!$('#usf'))$('#app').innerHTML='<iframe id="usf" title="O‘qituvchi kabineti" src="/a/k/ustoz.html?v=97" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi o'qituvchi kabineti (sinov)
   if(S.me.role==='ota'&&!S.me.demo&&!kimGet()){if(!$('#kimf'))renderKim();return}
-  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=24" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
+  if(S.me.role==='ota'&&!S.me.demo&&kimGet()==='oq'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=25" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return}
   if(S.me.role==='ota'&&!S.me.demo){if(!$('#otf'))$('#app').innerHTML='<iframe id="otf" title="Ota-ona kabineti" src="/a/k/ota.html?v=12" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi ota-ona kabineti
-  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=24" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
+  if(oqBo()&&S.me.role==='ota'){if(!$('#oqf'))$('#app').innerHTML='<iframe id="oqf" title="O‘quvchi kabineti" src="/a/k/kabinet.html?v=25" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#c2e8ff"></iframe>';return} // Yangi o'quvchi kabineti (sinov, Namuna)
   const [title,sub,body]=screen();
   const focus=document.activeElement?.id==='q', gfocus=document.activeElement?.id==='gq', rfocus=document.activeElement?.id==='rq';
   document.body.classList.toggle('nui',NUI());document.body.classList.toggle('npc',NUI()&&ls.get('npc',false));document.body.classList.toggle('np-home',NUI()&&!stack.length&&tab==='bosh');document.body.classList.toggle('np-open',NUI()&&NP_OPEN);
