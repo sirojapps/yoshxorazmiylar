@@ -1058,10 +1058,10 @@ A['tk.get'] = u => {
     out.ok = all('SELECT ref FROM tk_ok WHERE user_id=?', u.id).map(r => r.ref);
     out.izoh = all('SELECT * FROM tk_izoh WHERE user_id=? ORDER BY id DESC', u.id).map(tkIzohRow);
   } else {
-    const nm = {}; const tks = all("SELECT id,name,phone,active,last_login,created_at FROM users WHERE role='tekshiruvchi' ORDER BY id DESC");
+    const nm = {}; const tks = all("SELECT id,name,phone,active,last_login,chiqdi,created_at FROM users WHERE role='tekshiruvchi' ORDER BY id DESC");
     for (const t of tks) nm[t.id] = t.name;
     out.izoh = all('SELECT * FROM tk_izoh ORDER BY id DESC LIMIT 2000').map(r => ({ ...tkIzohRow(r), kim: nm[r.user_id] || '—', ceo_seen: !!r.ceo_seen }));
-    out.tks = tks.filter(t => t.active).map(t => ({ id: t.id, name: t.name, phone: t.phone, last_login: t.last_login, created_at: t.created_at,
+    out.tks = tks.filter(t => t.active).map(t => ({ id: t.id, name: t.name, phone: t.phone, last_login: t.last_login, created_at: t.created_at, ...saytda(t),
       ok: one('SELECT count(*) n FROM tk_ok WHERE user_id=?', t.id).n, iz: one('SELECT count(*) n FROM tk_izoh WHERE user_id=?', t.id).n }));
   }
   return out;
@@ -3735,6 +3735,22 @@ A['ceo.mk'] = (u) => {
     s[x.id] = [prog.has(x.id) ? prog.get(x.id) : null, fam && fam.last_login ? 1 : 0, fam && faol.has(fam.id) ? 1 : 0];
   }
   return { s };
+};
+// "Hozir saytda" (27.11.2026, Siroj): kim saytda ochiq turgan bo'lsa — CEO va jamoa ko'radi (Telegramdagidek yashil aylanacha).
+A['onl.list'] = u => {
+  need(isTeam(u), 'Faqat jamoa ko‘radi');
+  const RL = { ceo: 'CEO', jamoa: 'Loyiha jamoasi', direktor: 'Maktab direktori', rahbar: 'Sinf rahbari', ota: 'Ota-ona', tekshiruvchi: 'Tekshiruvchi' };
+  const dm = demoIds().set, me = u._real || u.id, ids = [...LIVE.keys()].filter(id => !dm.has(id) && id !== me); // o'zi ro'yxatda ko'rinmaydi if (!ids.length) return { list: [] };
+  const rows = all(`SELECT id,role,name,phone,school_id,class_id FROM users WHERE active=1 AND id IN (${ids.map(() => '?').join(',')})`, ...ids);
+  const list = rows.map(x => {
+    let sid = x.school_id; if (!sid && x.class_id) sid = one('SELECT school_id FROM classes WHERE id=?', x.class_id)?.school_id;
+    if (!sid && x.role === 'ota') { const k = kidsOfPhone(phone9(x.phone))[0]; sid = k ? studentInfo(k)?.school_id : null; }
+    const s = sid ? one('SELECT num,tuman FROM schools WHERE id=?', sid) : null;
+    return { id: x.id, role: x.role, name: x.role === 'ceo' ? (x.name || 'CEO') : (x.name || ''), rol: RL[x.role] || '', maktab: s ? mkNumQ(s.num) + (s.tuman ? ', ' + s.tuman : '') : '' };
+  });
+  const tr = ['ceo', 'jamoa', 'tekshiruvchi', 'direktor', 'rahbar', 'ota'], ri = r => { const i = tr.indexOf(r); return i < 0 ? 9 : i; };
+  list.sort((p, q) => ri(p.role) - ri(q.role) || p.name.localeCompare(q.name));
+  return { list: list.map(({ role, ...x }) => x) };
 };
 // Xabarlarda yozgan odam bosilsa — u haqida qisqa ma'lumot (faqat CEO va jamoa ko'radi)
 A['user.card'] = (u, b) => {
