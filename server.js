@@ -2502,11 +2502,13 @@ A['royxat.act'] = async (u, b) => {
   return { ok: true };
 };
 // Ariza holati ariza paytida yozilgan; maktab/odam keyin o'chirilsa kirish yopiladi — ro'yxatda HAQIQIY holat ko'rsatilsin (Siroj 27.11).
-function rxOchiqmi(r) {
+function rxOchiqmi(r) { // AYNAN shu arizadagi maktab/sinf bo'yicha (bitta raqam boshqa maktabda ham yozilgan bo'lishi mumkin)
   const p = phone9(r.phone); if (!p) return false;
-  if (r.rol === 'o') return kidsOfPhone(p).length > 0;
-  if (r.rol === 'u') return !!one("SELECT 1 FROM users u JOIN classes c ON c.id=u.class_id WHERE u.role='rahbar' AND u.active=1 AND (u.phone=? OR c.teacher_phone=?)", p, p);
-  if (r.rol === 'd') return !!one("SELECT 1 FROM users u JOIN schools s ON s.id=u.school_id WHERE u.role='direktor' AND u.active=1 AND (u.phone=? OR s.director_phone=?)", p, p);
+  let sc = null; try { sc = rxSchool(r, false); } catch (e) { } if (!sc) return false;
+  if (r.rol === 'd') return !!one("SELECT 1 FROM users WHERE role='direktor' AND active=1 AND school_id=?", sc.id) && phone9(sc.director_phone) === p;
+  const cl = r.sinf ? rxClass(sc, r.sinf, false) : null;
+  if (r.rol === 'u') return !!cl && phone9(cl.teacher_phone) === p && !!one("SELECT 1 FROM users WHERE role='rahbar' AND active=1 AND class_id=?", cl.id);
+  if (r.rol === 'o') { const ids = kidsOfPhone(p); return !!ids.length && !!one(`SELECT 1 FROM students s JOIN classes c ON c.id=s.class_id WHERE s.active=1 AND c.school_id=? AND s.id IN (${ids.map(() => '?').join(',')})`, sc.id, ...ids); }
   return true;
 }
 A['royxat.list'] = u => { need(can(u, 'pinlar')); return { rows: all('SELECT id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,status,at FROM royxat ORDER BY id DESC LIMIT 500').map(r => r.status === 'ochildi' && !rxOchiqmi(r) ? { ...r, yopiq: 1 } : r) }; };
