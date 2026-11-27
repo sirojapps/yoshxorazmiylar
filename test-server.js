@@ -2501,7 +2501,15 @@ A['royxat.act'] = async (u, b) => {
   if (r.chat_id) await tgSend(r.chat_id, rxPinMsg(pin));
   return { ok: true };
 };
-A['royxat.list'] = u => { need(can(u, 'pinlar')); return { rows: all('SELECT id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,status,at FROM royxat ORDER BY id DESC LIMIT 500') }; };
+// Ariza holati ariza paytida yozilgan; maktab/odam keyin o'chirilsa kirish yopiladi — ro'yxatda HAQIQIY holat ko'rsatilsin (Siroj 27.11).
+function rxOchiqmi(r) {
+  const p = phone9(r.phone); if (!p) return false;
+  if (r.rol === 'o') return kidsOfPhone(p).length > 0;
+  if (r.rol === 'u') return !!one("SELECT 1 FROM users u JOIN classes c ON c.id=u.class_id WHERE u.role='rahbar' AND u.active=1 AND (u.phone=? OR c.teacher_phone=?)", p, p);
+  if (r.rol === 'd') return !!one("SELECT 1 FROM users u JOIN schools s ON s.id=u.school_id WHERE u.role='direktor' AND u.active=1 AND (u.phone=? OR s.director_phone=?)", p, p);
+  return true;
+}
+A['royxat.list'] = u => { need(can(u, 'pinlar')); return { rows: all('SELECT id,phone,viloyat,tuman,maktab_num,maktab_nom,rol,jins,fam,ism,pat,sinf,status,at FROM royxat ORDER BY id DESC LIMIT 500').map(r => r.status === 'ochildi' && !rxOchiqmi(r) ? { ...r, yopiq: 1 } : r) }; };
 A['tg.requests'] = u => {
   need(u.role === 'rahbar' || can(u, 'pinlar'));
   const rows = u.role === 'rahbar' ? all("SELECT * FROM tg_requests WHERE class_id=? ORDER BY id DESC LIMIT 100", u.class_id) : all('SELECT * FROM tg_requests ORDER BY id DESC LIMIT 200');
