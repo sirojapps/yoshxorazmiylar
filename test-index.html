@@ -207,6 +207,7 @@ main{flex:1;padding-block:16px 100px;display:flex;flex-direction:column;gap:18px
 .pinbox span.cur{border-color:var(--accent)}.pinbox span.cur::after{content:"";width:2px;height:26px;border-radius:1px;background:var(--accent);animation:yxcaret 1s steps(1) infinite}@keyframes yxcaret{50%{opacity:0}}body.lgx .pinbox span.cur{border-color:#c8921a!important}body.lgx .pinbox span.cur::after{background:#b07d10}
 .kp{display:grid;grid-template-columns:repeat(3,74px);gap:10px;justify-content:center}
 .kp button{height:58px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:22px;font-weight:600}
+@media (max-width:599px){body.lgx .login{gap:10px}body.lgx .login>:not(.lhero):not(img):not(svg){width:100%;max-width:340px;box-sizing:border-box}body.lgx .login h2{font-size:22px}body.lgx .login .note{font-size:14px;line-height:1.35}.login .lnk[data-act=lpChange]{display:inline-block;font-size:16px;font-weight:700;padding:8px 4px}.pinbox{gap:8px}.pinbox span{flex:1;width:auto;height:48px;font-size:22px}.login .err:empty{display:none}.kp{grid-template-columns:repeat(3,1fr);gap:8px}.kp button{height:54px;border-radius:14px;font-size:26px}body.lgx .login .btn{width:100%;min-height:48px;font-size:15px;border-radius:14px}body.lgx .lhelp{max-width:340px}body.lgx .lbot{min-height:48px;font-size:15px;border-radius:14px}}
 .err{color:var(--wrong);font-size:14px;min-height:20px;margin:0}
 .code{font-family:var(--display);font-size:22px;letter-spacing:.12em;color:var(--accent-strong)}
 .sms{white-space:pre-wrap;font-size:14px;background:var(--surface2);padding:12px;border-radius:10px}
@@ -3812,6 +3813,7 @@ const lim=(a,k)=>a.slice(0,LIM[k]||LIMN);
 const limMore=(a,k)=>a.length>(LIM[k]||LIMN)?`<button class="btn sec" data-act="limMore" data-k="${k}" style="width:100%">Yana ko’rsatish (${a.length-(LIM[k]||LIMN)} ta qoldi)</button>`:'';
 function fitLogin(){const l=document.querySelector('#app .login');if(!l||!l.querySelector('.pinbox'))return;
   const im=l.querySelector('.lhero img');if(im&&!im.complete&&!im.__fl){im.__fl=1;im.addEventListener('load',fitLogin,{once:true})}
+  const tel=innerWidth<600;
   const kids=[...l.children].filter(e=>!e.classList.contains('lhero'));
   const hero=l.querySelector('.lhero');
   if(getComputedStyle(l).display==='grid'){if(hero)hero.style.gridRow='1 / span '+kids.length;l.style.paddingBlock='12px'}
@@ -3820,8 +3822,10 @@ function fitLogin(){const l=document.querySelector('#app .login');if(!l||!l.quer
   const mh=l.style.minHeight;l.style.minHeight='0px';
   const over=()=>Math.ceil(l.getBoundingClientRect().bottom+scrollY)-innerHeight;
   const done=()=>{l.style.minHeight=mh};
-  set(1);if(over()<=0)return done();
-  let lo=.35,hi=1;for(let i=0;i<9;i++){const m=(lo+hi)/2;set(m);if(over()<=0)lo=m;else hi=m}
+  set(1);
+  // Telefonda hamma qism birga, bir xil nisbatda kichrayadi (rasmga tegilmaydi), lekin 0.85 dan kichik emas — tugmalar bosishga qulay qolsin
+  if(over()<=0)return done();
+  let lo=tel?.85:.35,hi=1;for(let i=0;i<9;i++){const m=(lo+hi)/2;set(m);if(over()<=0)lo=m;else hi=m}
   set(lo);done()}
 let __fz;addEventListener('resize',()=>{clearTimeout(__fz);__fz=setTimeout(fitLogin,80)});
 function loginHero(){document.body.classList.add('lgx');const l=document.querySelector('#app .login');if(!l||l.querySelector('.lhero'))return;
