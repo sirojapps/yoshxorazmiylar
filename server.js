@@ -241,8 +241,10 @@ function lotin(v) {
 const fixName = (v, max = 200) => str(lotin(String(v ?? '')).replace(/\u00a0/g, ' ').replace(/[<>"]/g, ''), max).replace(/([oOgG])?[`'‘’ʻʼ´]/g, (m, l) => l ? l + '‘' : '’');
 function gradeOf(name) { const g = parseInt(name, 10); return g >= 1 && g <= 11 ? g : 0; }
 function clsName(n) { const m = String(n).toUpperCase().replace(/\s| /g, '').match(/^(\d{1,2})-?([A-ZА-ЯЁЎҚҒҲ]+)?$/); return m ? m[1] + (m[2] ? '-' + clsHarf(m[2]) : '') : ''; }
-// sinf harfi kirillda yozilsa lotinga: "2-Б" → "2-B", "2-В" → "2-V"; bitta harf qoladi ("Е" → "E")
-const clsHarf = h => /[\u0400-\u04FF]/.test(h) ? (h.length === 1 && /[ЕЁ]/.test(h) ? 'E' : lotin(h).toUpperCase()) : h;
+// Sinf harfi kirillda yozilsa lotinga. Lotin harfiga O'XSHASH kirill harfi KO'RINISHI bo'yicha o'giriladi (Siroj 27.11: ota-ona "2-B" ni
+// kirill "В" bilan yozgan — bu "V" emas, "B"): В→B, А→A, Е→E, С→C, Н→H, Р→P ... Qolganlari o'qilishi bo'yicha: Б→B, Г→G, Д→D.
+const KHO = { А: 'A', В: 'B', Е: 'E', К: 'K', М: 'M', Н: 'H', О: 'O', Р: 'P', С: 'C', Т: 'T', Х: 'X' };
+const clsHarf = h => /[\u0400-\u04FF]/.test(h) ? [...String(h).toUpperCase()].map(c => KHO[c] || (/[ЁЕ]/.test(c) ? 'E' : lotin(c).toUpperCase())).join('') : h;
 
 // first run: create CEO
 if (!one("SELECT 1 FROM users WHERE role='ceo'")) {
@@ -2387,7 +2389,7 @@ function mkNum(num) {
 }
 // Kabinetlarda maktab nomi qisqa: '777-maktab' (tuman qavsda yozilmaydi)
 const mkNumQ = num => mkNum(num).replace(/ \([^)]*\)$/, '');
-const rxSk = x => lotin(String(x || '')).toLowerCase().replace(/sinf|[^0-9a-z]/g, ''); // "2-Б" va "2-B" bitta sinf
+const rxSk = x => String(x || '').toLowerCase().replace(/sinf|синф/g, '').toUpperCase().replace(/[\u0400-\u04FF]/g, c => clsHarf(c)).toLowerCase().replace(/[^0-9a-z]/g, ''); // "2-Б", "2-В" (kirill) va "2-B" bitta sinf
 function rxSchool(r, create) {
   rxFixRaqam(); const v = rxQisqa(r.viloyat), t = rxQisqa(r.tuman);
   const DS = demoIds().school || 0; // namuna maktabga hech kim ro'yxatdan o'ta olmaydi
@@ -4137,6 +4139,40 @@ migrate('2026-11-27-02-kirill-sinf-birlashtirish', () => {
     o.sinf_kochdi++;
     try { if (!one('SELECT 1 FROM users WHERE class_id=?', c.id)) { run('DELETE FROM classes WHERE id=?', c.id); o.sinf_ochdi++; } } catch (e) { }
   }
+  for (const d of all('SELECT * FROM students WHERE ozi=1 AND active=1')) {
+    if (!kir.has(d.id)) continue;
+    const k = all('SELECT * FROM students WHERE class_id=? AND active=1 AND id<>? AND coalesce(ozi,0)=0', d.class_id, d.id).filter(x => nameKey(x.name) === nameKey(d.name));
+    if (k.length !== 1) continue; const t = k[0];
+    const tp = phone9(t.phone), dp = phone9(d.phone);
+    if ((tp && dp && tp !== dp) || one('SELECT 1 FROM results WHERE student_id=? AND absent=0', d.id)) { o.qolda++; continue; }
+    run("UPDATE students SET phone=CASE WHEN coalesce(phone,'')='' THEN ? ELSE phone END, patronymic=CASE WHEN coalesce(patronymic,'')='' THEN ? ELSE patronymic END, jins=CASE WHEN coalesce(jins,'')='' THEN ? ELSE jins END WHERE id=?", d.phone || '', d.patronymic || '', d.jins || '', t.id);
+    run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', t.id, d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
+    for (const tb of ['yol_prog', 'kj_prog']) { try { run(`UPDATE OR IGNORE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
+    for (const tb of ['obunalar', 'obuna_sorov', 'threads', 'tg_requests']) { try { run(`UPDATE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
+    run('UPDATE students SET active=0 WHERE id=?', d.id);
+    log(null, 'oquvchi.birlashtirish', { keep: t.id, drop: d.id, name: t.name, sabab: 'kirill' }); o.birlashdi++; o.ismlar.push(t.name);
+  }
+  return o;
+});
+
+// ---- 27.11.2026 (3): 01-migratsiya kirill "2-В" ni "2-V" deb o'girgan edi, ota-ona esa "2-B" ni nazarda tutgan (Siroj). O'shanday sinflar
+// endi ko'rinish bo'yicha o'giriladi; shu maktabda o'sha nomli sinf bo'lsa unga qo'shiladi, botda yozilgan bola ro'yxatdagisiga ulanadi.
+migrate('2026-11-27-03-kirill-sinf-harfi', () => {
+  const o = { qayta_nom: 0, qoshildi: 0, birlashdi: 0, qolda: 0, ismlar: [] }, kir = new Set();
+  for (const k of all("SELECT id, old FROM kirill_eski WHERE tbl='classes' AND col='name'")) {
+    const c = one('SELECT * FROM classes WHERE id=?', k.id); if (!c) continue;
+    const v = clsName(k.old); if (!v || v === c.name) continue;
+    const L = one('SELECT * FROM classes WHERE school_id=? AND name=? AND id<>?', c.school_id, v, c.id);
+    if (!L) { run('UPDATE classes SET name=?, grade=? WHERE id=?', v, gradeOf(v), c.id); o.qayta_nom++; continue; }
+    for (const x of all('SELECT id FROM students WHERE class_id=?', c.id)) kir.add(x.id);
+    run('UPDATE students SET class_id=? WHERE class_id=?', L.id, c.id);
+    run('UPDATE tg_requests SET class_id=? WHERE class_id=?', L.id, c.id); run('UPDATE threads SET class_id=? WHERE class_id=?', L.id, c.id);
+    if (!one("SELECT 1 FROM users WHERE role='rahbar' AND class_id=? AND active=1", L.id)) run('UPDATE users SET class_id=? WHERE class_id=?', L.id, c.id);
+    if (!L.teacher_name && c.teacher_name) run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', c.teacher_name, c.teacher_phone || '', L.id);
+    try { if (!one('SELECT 1 FROM users WHERE class_id=?', c.id)) run('DELETE FROM classes WHERE id=?', c.id); } catch (e) { }
+    o.qoshildi++;
+  }
+  for (const r of all("SELECT id FROM kirill_eski WHERE tbl='students' AND col='name'")) kir.add(r.id);
   for (const d of all('SELECT * FROM students WHERE ozi=1 AND active=1')) {
     if (!kir.has(d.id)) continue;
     const k = all('SELECT * FROM students WHERE class_id=? AND active=1 AND id<>? AND coalesce(ozi,0)=0', d.class_id, d.id).filter(x => nameKey(x.name) === nameKey(d.name));
