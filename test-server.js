@@ -2178,6 +2178,8 @@ const RX_ROL = { d: 'Direktor', u: 'O‘qituvchi', o: 'O‘quvchi' };
 const rxKb = (items, pre, cols = 2) => { const rows = []; for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols).map(x => ({ text: x[1], callback_data: pre + ':' + x[0] }))); return { reply_markup: { inline_keyboard: rows } }; };
 const rxQisqa = s => String(s).replace(/ (viloyati|tumani)$/, '');
 // Familiya va ism: bitta so'z, faqat harf; bosh harf to'g'rilanadi. Xato bo'lsa null.
+// Botda kirill QABUL QILINMAYDI (Siroj 27.11: o'zi qabul qilmasa muammo bo'lmasdi) — lotinda qayta so'raladi.
+const KIR = /[\u0400-\u04FF]/, KIRM = 'Iltimos, lotin harflarida yozing.\nMasalan: ';
 function rxSoz(v) {
   const x = fixName(v, 40).trim();
   if (x.length < 2 || !/^[A-Za-z‘’\-]+$/.test(x)) return null;
@@ -2282,13 +2284,13 @@ function rxText(chat, st, txt) {
   if (!st || !String(st.step || '').startsWith('r_') || !txt || txt.startsWith('/')) return false;
   const yana = m => { tgSend(chat, m); return true; };
   switch (st.step) {
-    case 'r_tumtxt': { const t = fixName(txt, 60).trim(); if (t.length < 3) return yana('Tuman nomini to‘liq yozing.\nMasalan: Qorako‘l tumani'); st.tum = t; st.step = 'r_mak'; break; }
+    case 'r_tumtxt': { if (KIR.test(txt)) return yana(KIRM + 'Qorako‘l tumani'); const t = fixName(txt, 60).trim(); if (t.length < 3) return yana('Tuman nomini to‘liq yozing.\nMasalan: Qorako‘l tumani'); st.tum = t; st.step = 'r_mak'; break; }
     case 'r_mak': { if (!/^\d{1,4}$/.test(txt) || +txt < 1) return yana('Faqat maktab raqamini yozing.\nMasalan: 12\n\nMaktabingizning raqami bo‘lmasa, yuqoridagi «Nomi bor maktab» tugmasini bosing.'); st.mnum = +txt; st.mnom = ''; st.step = 'r_rol'; break; }
-    case 'r_maknom': { const t = fixName(txt, 80).replace(/\s+/g, ' ').trim(); if (t.length < 4) return yana('Maktab nomini to‘liq yozing.\nMasalan: Karakul International School'); st.mnom = t; st.mnum = 0; st.step = 'r_rol'; break; }
-    case 'r_fam': { const t = rxSoz(txt); if (!t) return yana('Familiya bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Karimova' : 'Karimov')); st.fam = t; st.step = 'r_ism'; break; }
-    case 'r_ism': { const t = rxSoz(txt); if (!t) return yana('Ism bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Dilfuza' : 'Aziz')); st.ism = t; st.step = 'r_pat'; break; }
-    case 'r_pat': { const t = rxPat(txt, st.jins); if (t.length < 2) return yana('Otasining ismini yozing.\nMasalan: ' + (st.jins === 'a' ? 'Anvar qizi' : 'Anvar o‘g‘li')); st.pat = t; st.step = st.rol === 'd' ? 'r_ok' : 'r_sinf'; break; }
-    case 'r_sinf': { const t = rxSinf(txt); if (!t) return yana('Bunday yozilmaydi. Sinf raqami, chiziqcha va harf bo‘lsin.\nMasalan: 2-B'); st.sinf = t; st.step = 'r_ok'; break; }
+    case 'r_maknom': { if (KIR.test(txt)) return yana(KIRM + 'Karakul International School'); const t = fixName(txt, 80).replace(/\s+/g, ' ').trim(); if (t.length < 4) return yana('Maktab nomini to‘liq yozing.\nMasalan: Karakul International School'); st.mnom = t; st.mnum = 0; st.step = 'r_rol'; break; }
+    case 'r_fam': { if (KIR.test(txt)) return yana(KIRM + (st.jins === 'a' ? 'Karimova' : 'Karimov')); const t = rxSoz(txt); if (!t) return yana('Familiya bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Karimova' : 'Karimov')); st.fam = t; st.step = 'r_ism'; break; }
+    case 'r_ism': { if (KIR.test(txt)) return yana(KIRM + (st.jins === 'a' ? 'Dilfuza' : 'Aziz')); const t = rxSoz(txt); if (!t) return yana('Ism bitta so‘z bo‘lsin, faqat harflar bilan.\nMasalan: ' + (st.jins === 'a' ? 'Dilfuza' : 'Aziz')); st.ism = t; st.step = 'r_pat'; break; }
+    case 'r_pat': { if (KIR.test(txt)) return yana(KIRM + (st.jins === 'a' ? 'Anvar qizi' : 'Anvar o‘g‘li')); const t = rxPat(txt, st.jins); if (t.length < 2) return yana('Otasining ismini yozing.\nMasalan: ' + (st.jins === 'a' ? 'Anvar qizi' : 'Anvar o‘g‘li')); st.pat = t; st.step = st.rol === 'd' ? 'r_ok' : 'r_sinf'; break; }
+    case 'r_sinf': { if (KIR.test(txt)) return yana('Iltimos, sinfni lotin harfida yozing.\nMasalan: 2-B'); const t = rxSinf(txt); if (!t) return yana('Bunday yozilmaydi. Sinf raqami, chiziqcha va harf bo‘lsin.\nMasalan: 2-B'); st.sinf = t; st.step = 'r_ok'; break; }
     default: return yana('Iltimos, yuqoridagi tugmalardan birini bosing.');
   }
   rxAsk(chat, st); return true;
