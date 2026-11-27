@@ -221,9 +221,28 @@ const bad = msg => { throw new HttpErr(400, msg); };
 const str = (v, max = 200) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
 // ism-familiyalarda bir xil yozuv: o‘ g‘ (‘ belgisi), qolgan joyda tutuq belgisi ’ (A’zamjon, Ma’ruf)
 // Ismda < > " belgilari bo'lmaydi: ular olib tashlanadi (ism sahifaga chiqqanda HTML bo'lib ishlab ketmasligi uchun qo'shimcha himoya)
-const fixName = (v, max = 200) => str(String(v ?? '').replace(/\u00a0/g, ' ').replace(/[<>"]/g, ''), max).replace(/([oOgG])?[`'‘’ʻʼ´]/g, (m, l) => l ? l + '‘' : '’');
+// Kirill → lotin (27.11.2026, Siroj: "kirilcha degan narsa yo'q"). Ism yoziladigan HAMMA joy fixName orqali o'tadi, fixName esa shu
+// o'giruvchidan. Alifbo o'zgarsa — faqat shu jadval o'zgaradi va yangi nomli migratsiya bilan bazadagi ismlar qayta o'tkaziladi.
+const KL = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '’', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o‘', қ: 'q', ғ: 'g‘', ҳ: 'h', ә: 'a', ө: 'o', ү: 'u', ң: 'ng', і: 'i' };
+const KUN = /[аеёиоуэюяўәөүыі]/i;
+function lotin(v) {
+  const s = String(v ?? ''); if (!/[Ѐ-ӿ]/.test(s)) return s;
+  let o = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i], lc = c.toLowerCase(), up = c !== lc;
+    let t;
+    if (lc === 'е') { const p = s[i - 1]; t = !p || !/[Ѐ-ӿA-Za-z]/.test(p) || KUN.test(p) || /[ъь]/i.test(p) ? 'ye' : 'e'; }
+    else if (lc in KL) t = KL[lc]; else { o += c; continue; }
+    if (up && t) { const n = s[i + 1]; t = n && n !== n.toLowerCase() ? t.toUpperCase() : t[0].toUpperCase() + t.slice(1); }
+    o += t;
+  }
+  return o;
+}
+const fixName = (v, max = 200) => str(lotin(String(v ?? '')).replace(/\u00a0/g, ' ').replace(/[<>"]/g, ''), max).replace(/([oOgG])?[`'‘’ʻʼ´]/g, (m, l) => l ? l + '‘' : '’');
 function gradeOf(name) { const g = parseInt(name, 10); return g >= 1 && g <= 11 ? g : 0; }
-function clsName(n) { const m = String(n).toUpperCase().replace(/\s| /g, '').match(/^(\d{1,2})-?([A-ZА-Я]+)?$/); return m ? m[1] + (m[2] ? '-' + m[2] : '') : ''; }
+function clsName(n) { const m = String(n).toUpperCase().replace(/\s| /g, '').match(/^(\d{1,2})-?([A-ZА-ЯЁЎҚҒҲ]+)?$/); return m ? m[1] + (m[2] ? '-' + clsHarf(m[2]) : '') : ''; }
+// sinf harfi kirillda yozilsa lotinga: "2-Б" → "2-B", "2-В" → "2-V"; bitta harf qoladi ("Е" → "E")
+const clsHarf = h => /[\u0400-\u04FF]/.test(h) ? (h.length === 1 && /[ЕЁ]/.test(h) ? 'E' : lotin(h).toUpperCase()) : h;
 
 // first run: create CEO
 if (!one("SELECT 1 FROM users WHERE role='ceo'")) {
@@ -2159,7 +2178,7 @@ const rxQisqa = s => String(s).replace(/ (viloyati|tumani)$/, '');
 // Familiya va ism: bitta so'z, faqat harf; bosh harf to'g'rilanadi. Xato bo'lsa null.
 function rxSoz(v) {
   const x = fixName(v, 40).trim();
-  if (x.length < 2 || !/^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ‘’\-]+$/.test(x)) return null;
+  if (x.length < 2 || !/^[A-Za-z‘’\-]+$/.test(x)) return null;
   return x[0].toUpperCase() + x.slice(1);
 }
 // Otasining ismi: yozilganicha qoladi. Faqat tanlangan jinsga zid bo'lsa to'g'rilanadi (ayol + "o'g'li" → "qizi", "-ovich" → "-ovna" va teskarisi).
@@ -2173,7 +2192,7 @@ function rxPat(v, jins) {
 function rxSinf(v) {
   const m = /^\s*(\d{1,2})\s*-\s*([A-Za-zА-Яа-яЁё])\s*$/.exec(String(v || '')); if (!m) return null;
   const g = +m[1]; if (g < 1 || g > 11) return null;
-  return g + '-' + m[2].toUpperCase();
+  return g + '-' + clsHarf(m[2].toUpperCase());
 }
 const rxMaktab = st => st.mnum ? st.mnum + '-maktab' : st.mnom;
 const rxJins = st => st.rol === 'o' ? (st.jins === 'a' ? 'qiz bola' : 'o‘g‘il bola') : (st.jins === 'a' ? 'ayol' : 'erkak');
@@ -4071,4 +4090,33 @@ try {
 // 120 000 ota-onani o'qib chiqardi. analysis_limit — har jadvaldan namuna (tez, bazani o'zgartirmaydi, faqat sqlite_stat1 yoziladi).
 try { db.exec('PRAGMA analysis_limit=1000; PRAGMA optimize=0x10002;'); } catch (e) { console.error('optimize', e.message); }
 setInterval(() => { try { db.exec('PRAGMA optimize'); } catch (e) { } }, 6 * 36e5).unref();
+// ---- 27.11.2026: kirillda yozilgan HAMMA ism lotinga o'tkaziladi (Siroj: "kirilcha degan narsa yo'q"). Eski yozuv kirill_eski jadvalida
+// saqlanadi (ortga qaytarish yoki keyin boshqa alifboga o'tkazish uchun). Sinf nomi ("2-Б") faqat o'sha maktabda lotin nomli ("2-B") sinf
+// bo'lmasa o'zgartiriladi; to'qnashganlari soni info'da (to'qnash_sinf) — ular qo'lda birlashtiriladi.
+db.exec('CREATE TABLE IF NOT EXISTS kirill_eski(tbl TEXT, id INTEGER, col TEXT, old TEXT, at TEXT)');
+migrate('2026-11-27-01-kirill-lotin', () => {
+  const o = { jami: 0 }, at = now(), K = "GLOB '*[А-яЁёЎўҚқҒғҲҳ]*'";
+  const ol = (t, c, max, w = '') => {
+    let n = 0;
+    for (const r of all(`SELECT id, ${c} v FROM ${t} WHERE ${c} ${K}${w}`)) {
+      const v = fixName(r.v, max); if (v === r.v) continue;
+      run(`UPDATE ${t} SET ${c}=? WHERE id=?`, v, r.id); run('INSERT INTO kirill_eski(tbl,id,col,old,at) VALUES(?,?,?,?,?)', t, r.id, c, r.v, at); n++;
+    }
+    if (n) o[t + '.' + c] = n; o.jami += n;
+  };
+  ol('students', 'name', 120); ol('students', 'patronymic', 120); ol('users', 'name', 120);
+  ol('classes', 'teacher_name', 200); ol('schools', 'director_name', 200);
+  ol('royxat', 'fam', 40); ol('royxat', 'ism', 40); ol('royxat', 'pat', 60); ol('tg_requests', 'child', 200); ol('obunalar', 'ism', 200);
+  let sn = 0, tq = 0;
+  for (const c of all(`SELECT id, school_id, name FROM classes WHERE name ${K}`)) {
+    const v = clsName(c.name); if (!v || v === c.name) continue;
+    if (one('SELECT 1 FROM classes WHERE school_id=? AND name=? AND id<>?', c.school_id, v, c.id)) { tq++; continue; }
+    run('UPDATE classes SET name=? WHERE id=?', v, c.id); run('INSERT INTO kirill_eski(tbl,id,col,old,at) VALUES(?,?,?,?,?)', 'classes', c.id, 'name', c.name, at); sn++;
+  }
+  o.sinf = sn; if (tq) o.toqnash_sinf = tq;
+  // namuna uchun: o'zgargan 10 ta o'quvchi ismi (eski → yangi)
+  o.namuna = all("SELECT k.old, s.name FROM kirill_eski k JOIN students s ON s.id=k.id WHERE k.tbl='students' AND k.col='name' AND k.at=? LIMIT 10", at).map(r => r.old + ' → ' + r.name);
+  return o;
+});
+
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));
