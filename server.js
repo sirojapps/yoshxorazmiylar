@@ -2387,7 +2387,7 @@ function mkNum(num) {
 }
 // Kabinetlarda maktab nomi qisqa: '777-maktab' (tuman qavsda yozilmaydi)
 const mkNumQ = num => mkNum(num).replace(/ \([^)]*\)$/, '');
-const rxSk = x => String(x || '').toLowerCase().replace(/sinf|[^0-9a-zа-яё]/g, '');
+const rxSk = x => lotin(String(x || '')).toLowerCase().replace(/sinf|[^0-9a-z]/g, ''); // "2-Б" va "2-B" bitta sinf
 function rxSchool(r, create) {
   rxFixRaqam(); const v = rxQisqa(r.viloyat), t = rxQisqa(r.tuman);
   const DS = demoIds().school || 0; // namuna maktabga hech kim ro'yxatdan o'ta olmaydi
@@ -4116,6 +4116,40 @@ migrate('2026-11-27-01-kirill-lotin', () => {
   o.sinf = sn; if (tq) o.toqnash_sinf = tq;
   // namuna uchun: o'zgargan 10 ta o'quvchi ismi (eski → yangi)
   o.namuna = all("SELECT k.old, s.name FROM kirill_eski k JOIN students s ON s.id=k.id WHERE k.tbl='students' AND k.col='name' AND k.at=? LIMIT 10", at).map(r => r.old + ' → ' + r.name);
+  return o;
+});
+
+// ---- 27.11.2026: kirillda yozilgani sabab bot ochib yuborgan ortiqcha sinf va ortiqcha bola (Siroj: "boshqa sinf ochilib boshqa bola bo'lgan").
+// 1) "2-Б" sinfidagi hamma narsa shu maktabdagi "2-B" ga ko'chadi, bo'shagan kirill sinf o'chiriladi.
+// 2) Botda o'zi yozilgan bola (ozi=1, ismi kirillda bo'lgan yoki kirill sinfda turgan) shu sinfda AYNAN shu ismli ro'yxatdagi bola bilan bitta qilinadi: raqam, otasining ismi, jinsi,
+//    o'quv yo'li ro'yxatdagi bolaga o'tadi, ortiqcha nusxa yopiladi. Ro'yxatdagi bolada BOSHQA raqam bo'lsa yoki ortiqchasida ball bo'lsa — tegilmaydi (qolda).
+migrate('2026-11-27-02-kirill-sinf-birlashtirish', () => {
+  const o = { sinf_kochdi: 0, sinf_ochdi: 0, bola_kochdi: 0, birlashdi: 0, qolda: 0, ismlar: [] }, K = "GLOB '*[А-яЁёЎўҚқҒғҲҳ]*'";
+  // faqat kirill sabab paydo bo'lganlar: ismi kirillda yozilgan yoki kirill sinfda turgan bolalar
+  const kir = new Set(all("SELECT id FROM kirill_eski WHERE tbl='students' AND col='name'").map(r => r.id));
+  for (const c of all(`SELECT id, school_id, name, teacher_name, teacher_phone FROM classes WHERE name ${K}`)) {
+    const L = one('SELECT * FROM classes WHERE school_id=? AND name=? AND id<>?', c.school_id, clsName(c.name), c.id); if (!L) continue;
+    for (const x of all('SELECT id FROM students WHERE class_id=?', c.id)) kir.add(x.id);
+    o.bola_kochdi += Number(run('UPDATE students SET class_id=? WHERE class_id=?', L.id, c.id).changes);
+    run('UPDATE tg_requests SET class_id=? WHERE class_id=?', L.id, c.id); run('UPDATE threads SET class_id=? WHERE class_id=?', L.id, c.id);
+    if (!one("SELECT 1 FROM users WHERE role='rahbar' AND class_id=? AND active=1", L.id)) run('UPDATE users SET class_id=? WHERE class_id=?', L.id, c.id);
+    if (!L.teacher_name && c.teacher_name) run('UPDATE classes SET teacher_name=?,teacher_phone=? WHERE id=?', c.teacher_name, c.teacher_phone || '', L.id);
+    o.sinf_kochdi++;
+    try { if (!one('SELECT 1 FROM users WHERE class_id=?', c.id)) { run('DELETE FROM classes WHERE id=?', c.id); o.sinf_ochdi++; } } catch (e) { }
+  }
+  for (const d of all('SELECT * FROM students WHERE ozi=1 AND active=1')) {
+    if (!kir.has(d.id)) continue;
+    const k = all('SELECT * FROM students WHERE class_id=? AND active=1 AND id<>? AND coalesce(ozi,0)=0', d.class_id, d.id).filter(x => nameKey(x.name) === nameKey(d.name));
+    if (k.length !== 1) continue; const t = k[0];
+    const tp = phone9(t.phone), dp = phone9(d.phone);
+    if ((tp && dp && tp !== dp) || one('SELECT 1 FROM results WHERE student_id=? AND absent=0', d.id)) { o.qolda++; continue; }
+    run("UPDATE students SET phone=CASE WHEN coalesce(phone,'')='' THEN ? ELSE phone END, patronymic=CASE WHEN coalesce(patronymic,'')='' THEN ? ELSE patronymic END, jins=CASE WHEN coalesce(jins,'')='' THEN ? ELSE jins END WHERE id=?", d.phone || '', d.patronymic || '', d.jins || '', t.id);
+    run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', t.id, d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
+    for (const tb of ['yol_prog', 'kj_prog']) { try { run(`UPDATE OR IGNORE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
+    for (const tb of ['obunalar', 'obuna_sorov', 'threads', 'tg_requests']) { try { run(`UPDATE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
+    run('UPDATE students SET active=0 WHERE id=?', d.id);
+    log(null, 'oquvchi.birlashtirish', { keep: t.id, drop: d.id, name: t.name, sabab: 'kirill' }); o.birlashdi++; o.ismlar.push(t.name);
+  }
   return o;
 });
 
