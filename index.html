@@ -3890,14 +3890,14 @@ function render(){
   if(!S){renderLogin();loginHero();fitLogin();return}
   document.body.classList.remove('lgx');
   if(S.me.role==='ota'&&!S.me.consent){renderConsent();return}
-  if(S.me.role==='tekshiruvchi'){if(!$('#tkf'))$('#app').innerHTML='<iframe id="tkf" title="Tekshiruvchi kabineti" src="/a/k/tekshiruvchi.html?v=112" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Tekshiruvchi kabineti (faqat misollar va darslar)
+  if(S.me.role==='tekshiruvchi'){if(!$('#tkf'))$('#app').innerHTML='<iframe id="tkf" title="Tekshiruvchi kabineti" src="/a/k/tekshiruvchi.html?v=113" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Tekshiruvchi kabineti (faqat misollar va darslar)
   X=idx();
   if(!window.__pu){window.__pu=1;pushSync();if(location.hash==='#xabar'){tab='xabar';stack=[];history.replaceState(null,'',location.pathname)}}
   const tabs=TABS[isTeam()?'team':S.me.role]();
   if(!tab||!tabs.some(t=>t[0]===tab))tab=tabs[0]?.[0]||null;
   NAV.set({tab,stack,hs:histStudent??null,y:(NAV.get()||{}).y||0});
   document.body.dataset.theme=THEME[tab]||'sky';
-  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=142" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
+  if(S.me.role==='ceo'&&!S.me.demo&&!window.__ceoEski){if(!$('#ceof'))$('#app').innerHTML='<iframe id="ceof" title="CEO kabineti" src="/a/k/ceo.html?v=143" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi CEO kabineti
   if(S.me.role==='ceo'&&!S.me.demo)ceoQayt();
   if(S.me.role==='direktor'&&!dirEski()){if(!$('#drf'))$('#app').innerHTML='<iframe id="drf" title="Direktor kabineti" src="/a/k/direktor.html?v=5" style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#e4f2fd"></iframe>';return} // Yangi direktor kabineti
   if(S.me.role==='direktor')dirQayt();
