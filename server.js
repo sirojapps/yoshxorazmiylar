@@ -2381,7 +2381,9 @@ try { db.exec("ALTER TABLE students ADD COLUMN jins TEXT DEFAULT ''"); } catch (
 try { db.exec('ALTER TABLE students ADD COLUMN ozi INTEGER DEFAULT 0'); } catch (e) { }
 try { db.exec("ALTER TABLE students ADD COLUMN manba TEXT DEFAULT ''"); } catch (e) { }
 // QAYERDAN KELDI (Siroj, 17.11.2026): har bola bazada bir marta, manbasi bilan. 'r' = sinf rahbari qo'shgan, 'o' = botda o'zi ro'yxatdan o'tgan, 'i' = imtihon orqali (imtihon ro'yxati yoki natija varaqasidagi QR)
-const manbaOf = s => s.manba === 'rahbar' ? 'r' : s.manba === 'imtihon' ? 'i' : s.ozi > 0 ? 'o' : 'i'; // 1 = botda o'zi ro'yxatdan o'tgan
+const manbaOf = s => s.manba === 'rahbar' ? 'r' : s.manba === 'imtihon' ? 'i' : s.manba === 'bot' || s.ozi > 0 ? 'o' : 'i'; // 1 = botda o'zi ro'yxatdan o'tgan
+// 'bot' (28.11.2026, Siroj): ro'yxatdagi (imtihon) yozuviga ota-ona botda O'ZI kelib ulangan bola — Platforma bo'limida "o'zi kelgan" deb sanaladi
+const botManba = id => run("UPDATE students SET manba='bot' WHERE id=? AND coalesce(manba,'')='' AND coalesce(ozi,0)=0", id);
 const rxFixRaqam = () => run("UPDATE schools SET raqam=num WHERE raqam IS NULL AND num<100000 AND NOT (num>=101 AND name<>'')");
 rxFixRaqam();
 function mkNum(num) {
@@ -2444,7 +2446,7 @@ function rxOpen(r) {
       if (!bor.length) {
         if (kidsOfPhone(p).length >= MAX_KIDS) return { status: 'kutilmoqda', msg: RX_KUT + 'Bu raqamga juda ko‘p o‘quvchi yozilgan, shuning uchun avval tekshiriladi.' };
         run("UPDATE students SET phone=?, patronymic=CASE WHEN coalesce(patronymic,'')='' THEN ? ELSE patronymic END, jins=CASE WHEN coalesce(jins,'')='' THEN ? ELSE jins END WHERE id=?", p, r.pat, r.jins, s.id);
-        log(null, 'bot.boglash', { student_id: s.id, name: s.name, yozgani: full, phone: p });
+        botManba(s.id); log(null, 'bot.boglash', { student_id: s.id, name: s.name, yozgani: full, phone: p });
         notifyUsers(rahbarsOf(s.class_id).map(x => x.id), `${s.name} (${s.cls}) botda ro‘yxatdan o‘tdi va ro‘yxatdagi yozuviga ulandi. Ko‘rish: ${siteUrl()}`);
       }
       const t = pinTarget('ota', p); if (!t) return { status: 'kutilmoqda', msg: RX_KUT + 'Tekshirilgach, PIN kodingiz shu yerga keladi.' };
@@ -2530,7 +2532,7 @@ A['tg.approve'] = async (u, b) => {
   checkPhone(r.phone, s.id);
   if (!phone9(s.phone)) run('UPDATE students SET phone=? WHERE id=?', r.phone, s.id);
   else if (phone9(s.phone) !== r.phone) run('INSERT OR IGNORE INTO student_phones(student_id,phone) VALUES(?,?)', s.id, r.phone);
-  run("UPDATE tg_requests SET status='tasdiqlandi',student_id=?,by=? WHERE id=?", s.id, u.id, r.id);
+  run("UPDATE tg_requests SET status='tasdiqlandi',student_id=?,by=? WHERE id=?", s.id, u.id, r.id); botManba(s.id);
   const got = grantByPhone(r.phone);
   if (got.length) await tgSend(r.chat_id, pinMessage(got), NO_KB);
   log(u.id, 'bot.tasdiq', { student_id: s.id, child: r.child }); return { sent: got.length };
@@ -4161,7 +4163,7 @@ migrate('2026-11-27-02-kirill-sinf-birlashtirish', () => {
     run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', t.id, d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
     for (const tb of ['yol_prog', 'kj_prog']) { try { run(`UPDATE OR IGNORE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
     for (const tb of ['obunalar', 'obuna_sorov', 'threads', 'tg_requests']) { try { run(`UPDATE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
-    run('UPDATE students SET active=0 WHERE id=?', d.id);
+    run('UPDATE students SET active=0 WHERE id=?', d.id); botManba(t.id);
     log(null, 'oquvchi.birlashtirish', { keep: t.id, drop: d.id, name: t.name, sabab: 'kirill' }); o.birlashdi++; o.ismlar.push(t.name);
   }
   return o;
@@ -4195,10 +4197,22 @@ migrate('2026-11-27-03-kirill-sinf-harfi', () => {
     run('INSERT OR IGNORE INTO student_phones(student_id,phone) SELECT ?,phone FROM student_phones WHERE student_id=?', t.id, d.id); run('DELETE FROM student_phones WHERE student_id=?', d.id);
     for (const tb of ['yol_prog', 'kj_prog']) { try { run(`UPDATE OR IGNORE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
     for (const tb of ['obunalar', 'obuna_sorov', 'threads', 'tg_requests']) { try { run(`UPDATE ${tb} SET student_id=? WHERE student_id=?`, t.id, d.id); } catch (e) { } }
-    run('UPDATE students SET active=0 WHERE id=?', d.id);
+    run('UPDATE students SET active=0 WHERE id=?', d.id); botManba(t.id);
     log(null, 'oquvchi.birlashtirish', { keep: t.id, drop: d.id, name: t.name, sabab: 'kirill' }); o.birlashdi++; o.ismlar.push(t.name);
   }
   return o;
+});
+
+// ---- 28.11.2026 (Siroj: "kechagi bola qani?"): botda o'zi yozilib, ro'yxatdagi yozuviga ulangan bolalar (kirill birlashtirish, "Shu sizmi?",
+// sinf rahbari tasdig'i) "imtihon orqali" deb sanalib, Platforma bo'limidan chiqib qolgan edi. Ularga manba='bot' qo'yiladi (faqat manbasi bo'sh bo'lsa).
+migrate('2026-11-28-01-botdan-ulangan-manba', () => {
+  const ids = new Set();
+  for (const r of all("SELECT action, detail FROM audit WHERE action IN ('bot.boglash','bot.tasdiq','oquvchi.birlashtirish')")) {
+    try { const d = JSON.parse(r.detail) || {}; const id = r.action === 'oquvchi.birlashtirish' ? (d.sabab === 'kirill' ? d.keep : 0) : d.student_id; if (+id > 0) ids.add(+id); } catch (e) { }
+  }
+  let n = 0; const ism = [];
+  for (const id of ids) if (Number(botManba(id).changes)) { n++; const s = one('SELECT name FROM students WHERE id=?', id); if (s && ism.length < 20) ism.push(s.name); }
+  return { tekshirildi: ids.size, platformaga: n, ismlar: ism };
 });
 
 server.listen(PORT, '127.0.0.1', () => console.log('Yosh Xorazmiylar: http://127.0.0.1:' + PORT));
